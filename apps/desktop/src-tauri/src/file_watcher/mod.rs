@@ -60,7 +60,7 @@ impl FileWatcher {
         .map_err(|_| DatabaseError::Unknown(String::from("Unknown")))?;
         let new_watcher = Self {
             app_handle: app.clone(),
-            debouncer: debouncer,
+            debouncer,
         };
 
         Ok(new_watcher)
