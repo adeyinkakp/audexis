@@ -455,10 +455,8 @@ pub fn id3v22_tags_to_raw(tags: &HashMap<FrameKey, TagValue>) -> HashMap<&'stati
 pub fn id3v24_raw_to_tags(
     raw: &HashMap<String, Vec<TagValue>>,
 ) -> HashMap<FrameKey, Vec<TagValue>> {
-    let mut valll: u8 = 0;
     let mut result: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
     for (id, values) in raw.iter() {
-        println!("{:?}", id);
         let key_opt = ID3V24_REVERSE_MAP.get(id.as_str()).cloned().or_else(|| {
             if id == "TYER" {
                 Some(FrameKey::Year)
@@ -480,11 +478,6 @@ pub fn id3v24_raw_to_tags(
                     }
                     _ => expanded.push(v.clone()),
                 }
-            }
-            println!("{:?}", k);
-            if k == FrameKey::Year {
-                valll += 1;
-                println!("year, {}", { valll });
             }
             result.entry(k).or_default().extend(expanded);
         }

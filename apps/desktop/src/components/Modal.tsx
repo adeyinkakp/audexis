@@ -30,7 +30,12 @@ function getFocusable(container: HTMLElement | null): HTMLElement[] {
     const isDisabled = (el as HTMLButtonElement).disabled;
     const isHidden = el.getAttribute("aria-hidden") === "true";
     const hasDisabledAttr = el.getAttribute("disabled") !== null;
-    return !isDisabled && !isHidden && !hasDisabledAttr;
+    return (
+      !isDisabled &&
+      !isHidden &&
+      !hasDisabledAttr &&
+      el.getClientRects().length > 0
+    );
   });
 }
 
@@ -76,7 +81,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     preventScroll = true,
     sizeMax = false,
     initialFocusRef,
-    zIndexClassName = "z-[1200]",
+    zIndexClassName = "z-[12000]",
     overlayClassName,
     panelClassName,
     bodyClassName,
@@ -116,6 +121,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
   useEffect(() => {
     if (!open) return;
 
+    const previousFocus = document.activeElement as HTMLElement | null;
     const focus = () => {
       const container = internalRef.current;
       if (!container) return;
@@ -129,7 +135,11 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
     };
 
     const id = window.setTimeout(focus, 30);
-    return () => window.clearTimeout(id);
+    return () => {
+      window.clearTimeout(id);
+      if (previousFocus?.isConnected)
+        previousFocus.focus({ preventScroll: true });
+    };
   }, [open, initialFocusRef]);
 
   useEffect(() => {
@@ -178,7 +188,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
       aria-labelledby={title ? titleId : undefined}
       aria-describedby={description ? descId : undefined}
       className={cn(
-        "fixed top-14 inset-0 flex items-center justify-center p-4 md:p-8",
+        "fixed inset-0 flex items-center justify-center p-4 md:p-8",
         zIndexClassName,
       )}
     >
@@ -202,6 +212,16 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
         )}
         onClick={(e) => e.stopPropagation()}
       >
+        {header !== undefined && title && (
+          <h2 id={titleId} className="sr-only">
+            {title}
+          </h2>
+        )}
+        {header !== undefined && description && (
+          <div id={descId} className="sr-only">
+            {description}
+          </div>
+        )}
         {header !== undefined ? (
           header
         ) : (

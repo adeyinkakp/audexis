@@ -11,6 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NoneditorRouteRouteImport } from './routes/_noneditor/route'
 import { Route as NoneditorIndexRouteImport } from './routes/_noneditor/index'
+import { Route as NoneditorAlbumsRouteImport } from './routes/_noneditor/albums'
+import { Route as NoneditorArtistsRouteImport } from './routes/_noneditor/artists'
+import { Route as NoneditorFavoritesRouteImport } from './routes/_noneditor/favorites'
+import { Route as NoneditorRewindRouteImport } from './routes/_noneditor/rewind'
+import { Route as NoneditorSearchRouteImport } from './routes/_noneditor/search'
+import { Route as NoneditorSongsRouteImport } from './routes/_noneditor/songs'
+import { Route as NoneditorPlaylistsIndexRouteImport } from './routes/_noneditor/playlists.index'
+import { Route as NoneditorPlaylistsPlaylistIdRouteImport } from './routes/_noneditor/playlists.$playlistId'
 
 const NoneditorRouteRoute = NoneditorRouteRouteImport.update({
   id: '/_noneditor',
@@ -21,24 +29,118 @@ const NoneditorIndexRoute = NoneditorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => NoneditorRouteRoute,
 } as any)
+const NoneditorAlbumsRoute = NoneditorAlbumsRouteImport.update({
+  id: '/albums',
+  path: '/albums',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorArtistsRoute = NoneditorArtistsRouteImport.update({
+  id: '/artists',
+  path: '/artists',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorFavoritesRoute = NoneditorFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorRewindRoute = NoneditorRewindRouteImport.update({
+  id: '/rewind',
+  path: '/rewind',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorSearchRoute = NoneditorSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorSongsRoute = NoneditorSongsRouteImport.update({
+  id: '/songs',
+  path: '/songs',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorPlaylistsIndexRoute = NoneditorPlaylistsIndexRouteImport.update({
+  id: '/playlists/',
+  path: '/playlists/',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorPlaylistsPlaylistIdRoute =
+  NoneditorPlaylistsPlaylistIdRouteImport.update({
+    id: '/playlists/$playlistId',
+    path: '/playlists/$playlistId',
+    getParentRoute: () => NoneditorRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof NoneditorIndexRoute
+  '/albums': typeof NoneditorAlbumsRoute
+  '/artists': typeof NoneditorArtistsRoute
+  '/favorites': typeof NoneditorFavoritesRoute
+  '/rewind': typeof NoneditorRewindRoute
+  '/search': typeof NoneditorSearchRoute
+  '/songs': typeof NoneditorSongsRoute
+  '/playlists/$playlistId': typeof NoneditorPlaylistsPlaylistIdRoute
+  '/playlists/': typeof NoneditorPlaylistsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/albums': typeof NoneditorAlbumsRoute
+  '/artists': typeof NoneditorArtistsRoute
+  '/favorites': typeof NoneditorFavoritesRoute
+  '/rewind': typeof NoneditorRewindRoute
+  '/search': typeof NoneditorSearchRoute
+  '/songs': typeof NoneditorSongsRoute
   '/': typeof NoneditorIndexRoute
+  '/playlists/$playlistId': typeof NoneditorPlaylistsPlaylistIdRoute
+  '/playlists': typeof NoneditorPlaylistsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_noneditor': typeof NoneditorRouteRouteWithChildren
+  '/_noneditor/albums': typeof NoneditorAlbumsRoute
+  '/_noneditor/artists': typeof NoneditorArtistsRoute
+  '/_noneditor/favorites': typeof NoneditorFavoritesRoute
+  '/_noneditor/rewind': typeof NoneditorRewindRoute
+  '/_noneditor/search': typeof NoneditorSearchRoute
+  '/_noneditor/songs': typeof NoneditorSongsRoute
   '/_noneditor/': typeof NoneditorIndexRoute
+  '/_noneditor/playlists/$playlistId': typeof NoneditorPlaylistsPlaylistIdRoute
+  '/_noneditor/playlists/': typeof NoneditorPlaylistsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/albums'
+    | '/artists'
+    | '/favorites'
+    | '/rewind'
+    | '/search'
+    | '/songs'
+    | '/playlists/$playlistId'
+    | '/playlists/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/_noneditor' | '/_noneditor/'
+  to:
+    | '/albums'
+    | '/artists'
+    | '/favorites'
+    | '/rewind'
+    | '/search'
+    | '/songs'
+    | '/'
+    | '/playlists/$playlistId'
+    | '/playlists'
+  id:
+    | '__root__'
+    | '/_noneditor'
+    | '/_noneditor/albums'
+    | '/_noneditor/artists'
+    | '/_noneditor/favorites'
+    | '/_noneditor/rewind'
+    | '/_noneditor/search'
+    | '/_noneditor/songs'
+    | '/_noneditor/'
+    | '/_noneditor/playlists/$playlistId'
+    | '/_noneditor/playlists/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -61,15 +163,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NoneditorIndexRouteImport
       parentRoute: typeof NoneditorRouteRoute
     }
+    '/_noneditor/albums': {
+      id: '/_noneditor/albums'
+      path: '/albums'
+      fullPath: '/albums'
+      preLoaderRoute: typeof NoneditorAlbumsRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/artists': {
+      id: '/_noneditor/artists'
+      path: '/artists'
+      fullPath: '/artists'
+      preLoaderRoute: typeof NoneditorArtistsRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/favorites': {
+      id: '/_noneditor/favorites'
+      path: '/favorites'
+      fullPath: '/favorites'
+      preLoaderRoute: typeof NoneditorFavoritesRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/rewind': {
+      id: '/_noneditor/rewind'
+      path: '/rewind'
+      fullPath: '/rewind'
+      preLoaderRoute: typeof NoneditorRewindRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/search': {
+      id: '/_noneditor/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof NoneditorSearchRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/songs': {
+      id: '/_noneditor/songs'
+      path: '/songs'
+      fullPath: '/songs'
+      preLoaderRoute: typeof NoneditorSongsRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/playlists/': {
+      id: '/_noneditor/playlists/'
+      path: '/playlists'
+      fullPath: '/playlists/'
+      preLoaderRoute: typeof NoneditorPlaylistsIndexRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
+    '/_noneditor/playlists/$playlistId': {
+      id: '/_noneditor/playlists/$playlistId'
+      path: '/playlists/$playlistId'
+      fullPath: '/playlists/$playlistId'
+      preLoaderRoute: typeof NoneditorPlaylistsPlaylistIdRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
   }
 }
 
 interface NoneditorRouteRouteChildren {
+  NoneditorAlbumsRoute: typeof NoneditorAlbumsRoute
+  NoneditorArtistsRoute: typeof NoneditorArtistsRoute
+  NoneditorFavoritesRoute: typeof NoneditorFavoritesRoute
+  NoneditorRewindRoute: typeof NoneditorRewindRoute
+  NoneditorSearchRoute: typeof NoneditorSearchRoute
+  NoneditorSongsRoute: typeof NoneditorSongsRoute
   NoneditorIndexRoute: typeof NoneditorIndexRoute
+  NoneditorPlaylistsPlaylistIdRoute: typeof NoneditorPlaylistsPlaylistIdRoute
+  NoneditorPlaylistsIndexRoute: typeof NoneditorPlaylistsIndexRoute
 }
 
 const NoneditorRouteRouteChildren: NoneditorRouteRouteChildren = {
+  NoneditorAlbumsRoute: NoneditorAlbumsRoute,
+  NoneditorArtistsRoute: NoneditorArtistsRoute,
+  NoneditorFavoritesRoute: NoneditorFavoritesRoute,
+  NoneditorRewindRoute: NoneditorRewindRoute,
+  NoneditorSearchRoute: NoneditorSearchRoute,
+  NoneditorSongsRoute: NoneditorSongsRoute,
   NoneditorIndexRoute: NoneditorIndexRoute,
+  NoneditorPlaylistsPlaylistIdRoute: NoneditorPlaylistsPlaylistIdRoute,
+  NoneditorPlaylistsIndexRoute: NoneditorPlaylistsIndexRoute,
 }
 
 const NoneditorRouteRouteWithChildren = NoneditorRouteRoute._addFileChildren(

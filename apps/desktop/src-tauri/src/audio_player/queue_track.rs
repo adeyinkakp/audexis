@@ -1,13 +1,23 @@
 use std::fmt;
 
 use rubato::{Async, Indexing};
+use serde::{Deserialize, Serialize};
 use symphonia::core::codecs::audio::AudioDecoder;
 use symphonia::core::formats::FormatReader;
-
+use uuid::Uuid;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UnresolvedTrack {
+    pub id: i64,
+    pub path: String,
+    pub occurrence: Option<i64>,
+}
 pub struct QueueTrack {
+    pub queue_id: String,
+    pub playlist_ord: Option<i64>,
     pub format: Option<Box<dyn FormatReader>>,
     pub decoder: Option<Box<dyn AudioDecoder>>,
     pub track_id: u32,
+    pub database_id: i64,
     pub source_sample_rate: u32,
     pub channels_uz: usize,
     pub target_sample_rate: u32,
@@ -19,6 +29,8 @@ pub struct QueueTrack {
     pub path: String,
     pub decode_buffer: Vec<f32>,
     pub packet_samples: Vec<f32>,
+    pub duration_ms: Option<u64>,
+    pub duration_exact: bool,
 }
 impl fmt::Debug for QueueTrack {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -28,8 +40,10 @@ impl fmt::Debug for QueueTrack {
     }
 }
 impl QueueTrack {
-    pub fn new(path: String) -> Self {
+    pub fn new(unresolved_track: UnresolvedTrack) -> Self {
         Self {
+            queue_id: Uuid::new_v4().to_string(),
+            playlist_ord: unresolved_track.occurrence,
             format: None,
             decoder: None,
             is_preloaded: false,
@@ -37,7 +51,8 @@ impl QueueTrack {
             source_sample_rate: 44100,
             channels_uz: 2usize,
             target_sample_rate: 44100u32,
-            path: path,
+            path: unresolved_track.path,
+            database_id: unresolved_track.id as i64,
             resampler: None,
             indata: Vec::new(),
             outdata: Vec::new(),
@@ -45,6 +60,8 @@ impl QueueTrack {
 
             decode_buffer: Vec::new(),
             packet_samples: Vec::new(),
+            duration_ms: None,
+            duration_exact: true,
         }
     }
     pub fn unload(&mut self) {

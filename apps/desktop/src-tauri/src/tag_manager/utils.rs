@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FrameKeyKind {
@@ -238,9 +237,16 @@ pub struct SerializableFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "operation", content = "values", rename_all = "camelCase")]
+pub enum TagChange {
+    Replace(Vec<SerializableTagValue>),
+    Delete,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Changes {
     pub paths: Vec<String>,
-    pub tags: HashMap<FrameKey, Vec<SerializableTagValue>>,
+    pub tags: HashMap<FrameKey, TagChange>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -305,6 +311,7 @@ pub struct MetadataFile {
     pub tag_formats: Vec<Formats>,
     pub freeforms: Vec<FreeformTag>,
 }
+
 impl fmt::Display for TagValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

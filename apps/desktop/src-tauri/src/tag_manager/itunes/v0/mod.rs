@@ -8,100 +8,18 @@ use crate::tag_manager::utils::{FrameKey, FreeformTag, TagValue};
 use std::collections::HashMap;
 use std::fs;
 
+mod atoms;
+use atoms::Atom;
+
 #[derive(Debug, Clone)]
 pub struct V0 {}
-#[derive(Debug, Clone)]
-struct Atom {
-    atom_type: String,
-    size: u64,
-    position: u64,
-    buffer: Vec<u8>,
-}
-
 impl V0 {
-    fn parse_atoms(buffer: &Vec<u8>, start: u64, size: u64) -> Vec<Atom> {
-        let mut position = start;
-        let mut atoms: Vec<Atom> = Vec::new();
-
-        let end = size;
-        while position < end {
-            if position + 8 > end {
-                break;
-            }
-            let atom_size = u32::from_be_bytes([
-                buffer[position as usize],
-                buffer[position as usize + 1],
-                buffer[position as usize + 2],
-                buffer[position as usize + 3],
-            ]) as u64;
-
-            if atom_size < 8 {
-                break;
-            }
-
-            let first_byte = buffer[position as usize + 4];
-            let atom_type = if first_byte == 0xa9 {
-                format!(
-                    "©{}",
-                    String::from_utf8_lossy(&buffer[position as usize + 5..position as usize + 8])
-                )
-            } else {
-                String::from_utf8_lossy(&buffer[position as usize + 4..position as usize + 8])
-                    .to_string()
-            };
-
-            let atom_buffer =
-                buffer[position as usize..(position + atom_size).min(end) as usize].to_vec();
-            atoms.push(Atom {
-                atom_type,
-                size: atom_size,
-                position,
-                buffer: atom_buffer,
-            });
-            position += atom_size;
-        }
-        atoms
+    fn parse_atoms(buffer: &[u8], start: u64, end: u64) -> Vec<Atom> {
+        atoms::parse_atoms(buffer, start, end)
     }
-    fn ensure_ilst_atom(buffer: &Vec<u8>) -> Result<Atom, ()> {
-        let atoms = V0::parse_atoms(&buffer, 0, buffer.len() as u64);
 
-        let moov_atom = atoms.iter().find(|atom| atom.atom_type == "moov");
-        if moov_atom.is_none() {
-            return Err(());
-        }
-
-        let moov_atom = moov_atom.unwrap();
-
-        let moov_sub_atoms = V0::parse_atoms(&moov_atom.buffer, 8, moov_atom.size);
-
-        let udta_atom = moov_sub_atoms.iter().find(|atom| atom.atom_type == "udta");
-        let mut meta_atom: Option<Atom> = None;
-        let mut ilst_atom: Option<Atom> = None;
-        if udta_atom.is_some() {
-            let udta_atom = udta_atom.unwrap();
-            let udta_sub_atoms = V0::parse_atoms(&udta_atom.buffer, 8, udta_atom.size);
-
-            meta_atom = udta_sub_atoms
-                .iter()
-                .find(|atom| atom.atom_type == "meta")
-                .cloned();
-        }
-        if meta_atom.is_some() {
-            let meta_atom = meta_atom.unwrap();
-            let meta_sub_atoms = V0::parse_atoms(&meta_atom.buffer, 12, meta_atom.size);
-            ilst_atom = meta_sub_atoms
-                .iter()
-                .find(|atom| atom.atom_type == "ilst")
-                .cloned();
-            println!("onl");
-        }
-
-        if ilst_atom.is_some() {
-            let ilst_atom = ilst_atom.unwrap();
-            return Ok(ilst_atom);
-        }
-
-        Err(())
+    fn ensure_ilst_atom(buffer: &[u8]) -> Result<Atom, ()> {
+        atoms::find_ilst(buffer).ok_or(())
     }
     fn encode_ilst(raw_entries: Vec<(String, TagValue)>, old_ilst_atoms: Vec<Atom>) -> Vec<u8> {
         let mut ilst_entries: Vec<u8> = Vec::new();

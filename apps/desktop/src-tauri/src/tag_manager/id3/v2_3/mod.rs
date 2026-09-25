@@ -7,6 +7,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Read;
 
 use crate::tag_manager::id3::v2_3::utils::{build_frame, create_header, encode_text_payload};
+use crate::tag_manager::id3::v2_3::utils::{decode_text_payload, split_encoded_text};
 use std::path::PathBuf;
 
 pub mod utils;
@@ -32,14 +33,14 @@ impl TagFormat for V2_3 {
         let has_header = utils::ensure_header(&file_path);
 
         match has_header {
-            Err(_) => {
+            Ok(true) => {}
+            Ok(false) | Err(_) => {
                 return Err(BackendError::ReadFailed(TagError {
                     path: file_path.to_str().unwrap_or("").to_string(),
                     public_message: "File does not contain ID3 tag".to_string(),
                     internal_message: "File does not contain ID3 tag".to_string(),
                 }))
             }
-            _ => {}
         }
         let mut file = File::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -106,32 +107,9 @@ impl TagFormat for V2_3 {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
-                    let desc_end = rest.iter().position(|&b| b == 0x00).unwrap_or(rest.len());
-                    let (desc_bytes, _ignored_split) = rest.split_at(desc_end);
-                    let value_bytes = if desc_end < rest.len() {
-                        &rest[desc_end + 1..]
-                    } else {
-                        &[]
-                    };
-                    let decode = |bytes: &[u8]| match encoding {
-                        0x00 => String::from_utf8_lossy(bytes).to_string(),
-                        0x01 => {
-                            if bytes.starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &bytes[2..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                String::from_utf8_lossy(bytes).to_string()
-                            }
-                        }
-                        _ => String::from_utf8_lossy(bytes).to_string(),
-                    };
-                    let description = decode(desc_bytes);
-                    let value = decode(value_bytes);
+                    let (desc_bytes, value_bytes) = split_encoded_text(encoding, rest);
+                    let description = decode_text_payload(encoding, desc_bytes);
+                    let value = decode_text_payload(encoding, value_bytes);
                     let entry = if frame_id == "TXXX" {
                         TagValue::UserText(UserTextEntry { description, value })
                     } else {
@@ -145,23 +123,7 @@ impl TagFormat for V2_3 {
             } else if frame_id.starts_with('T') || frame_id.starts_with("W") {
                 if !content.is_empty() {
                     let encoding = content[0];
-                    let raw_string = match encoding {
-                        0x00 => String::from_utf8_lossy(&content[1..]).to_string(),
-                        0x01 => {
-                            if content[1..].starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &content[3..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                "<Unsupported UTF-16>".to_string()
-                            }
-                        }
-                        _ => "<Unknown Encoding>".to_string(),
-                    };
+                    let raw_string = decode_text_payload(encoding, &content[1..]);
 
                     let key = id3v23_key(&frame_id);
 
@@ -195,7 +157,6 @@ impl TagFormat for V2_3 {
                         continue;
                     }
                     let picture_type = content[picture_type_index];
-                    println!("pic type: {:?}", &picture_type.to_string());
                     let description_start = picture_type_index + 1;
                     let description_end = content[description_start..]
                         .iter()

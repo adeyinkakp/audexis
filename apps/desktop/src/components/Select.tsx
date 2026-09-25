@@ -192,10 +192,7 @@ export function Select<V extends string = string>({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className={cn(
-          "min-w-[12rem] z-[99999999999] p-1 max-h-56",
-          contentClassName,
-        )}
+        className={cn("min-w-48 z-99999999999 p-1 max-h-56", contentClassName)}
         align={align}
         side={side}
         sideOffset={6}

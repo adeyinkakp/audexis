@@ -14,3 +14,11 @@ pub struct DatabaseMediaFile {
     pub modified_at: i64,
     pub size: i64,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
+pub struct DatabaseMediaMetadata {
+    pub file_id: i64,
+    pub key: String,
+    pub value: String,
+    pub ord: i64,
+}

@@ -20,7 +20,10 @@ impl Database {
 
         let connection_options = SqliteConnectOptions::new()
             .create_if_missing(true)
-            .filename(db_path);
+            .filename(db_path)
+            .collation("METADATA_NOCASE", |a, b| {
+                a.trim().to_lowercase().cmp(&b.trim().to_lowercase())
+            });
 
         let pool = SqlitePoolOptions::new()
             .max_connections(5)

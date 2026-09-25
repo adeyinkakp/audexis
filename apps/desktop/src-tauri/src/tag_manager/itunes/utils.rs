@@ -492,9 +492,8 @@ pub static ITUNES_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         // ("ldes", FrameKey::Comments),       // Long description
         // ("©pub", FrameKey::EncodedBy),      // Publisher
         // ("purd", FrameKey::Year),           // Purchase date
-        ("catg", FrameKey::Genre),          // Category (podcast)
-        ("keyw", FrameKey::ContentGroup),   // Keywords
-        ("purl", FrameKey::UserDefinedURL), // Podcast URL
+        ("catg", FrameKey::Genre),        // Category (podcast)
+        ("keyw", FrameKey::ContentGroup), // Keywords
         // ("egid", FrameKey::UserDefinedURL), // Episode global unique ID
         // ("©mvn", FrameKey::Title),       // Movement name
         // ("©mvi", FrameKey::TrackNumber), // Movement number
@@ -1049,6 +1048,16 @@ pub static FREEFORM_REVERSE_MAP: Lazy<HashMap<(&'static str, &'static str), Fram
         map
     });
 
+fn split_values(text: &str) -> impl Iterator<Item = &str> {
+    if text.contains('\u{0}') {
+        text.split('\u{0}')
+    } else if text.contains(';') {
+        text.split(';')
+    } else {
+        text.split('/')
+    }
+}
+
 pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue>> {
     let mut result: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
 
@@ -1059,14 +1068,7 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
                     if matches!(key, FrameKey::Artist | FrameKey::Genre)
                         && (s.contains('/') || s.contains('\u{0}')) =>
                 {
-                    let splitter: fn(&str) -> Vec<&str> = |text: &str| {
-                        if text.contains('\u{0}') {
-                            text.split('\u{0}').collect()
-                        } else {
-                            text.split(';').collect()
-                        }
-                    };
-                    for part in splitter(s) {
+                    for part in split_values(s) {
                         let seg = part.trim();
                         if !seg.is_empty() {
                             result
@@ -1089,14 +1091,7 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
                 if mean == "com.apple.iTunes" {
                     use FrameKey::UserDefinedText;
                     if let TagValue::Text(s) = v {
-                        let parts: Vec<&str> = if s.contains('\u{0}') {
-                            s.split('\u{0}').collect()
-                        } else if s.contains(';') {
-                            s.split(';').collect()
-                        } else {
-                            vec![s.as_str()]
-                        };
-                        for part in parts {
+                        for part in split_values(s) {
                             let seg = part.trim();
                             if seg.is_empty() {
                                 continue;

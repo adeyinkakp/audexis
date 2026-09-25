@@ -1,7 +1,8 @@
 use crate::tag_manager;
 use crate::tag_manager::id3::utils::{id3v24_key, id3v24_raw_to_tags, id3v24_tags_to_raw};
 use crate::tag_manager::id3::v2_3::utils::{
-    create_header_with_version, encode_text_payload, to_synchsafe,
+    create_header_with_version, decode_text_payload, encode_text_payload, split_encoded_text,
+    to_synchsafe,
 };
 use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
@@ -96,32 +97,9 @@ impl TagFormat for V2_4 {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
-                    let desc_end = rest.iter().position(|&b| b == 0x00).unwrap_or(rest.len());
-                    let (desc_bytes, _ignored_split) = rest.split_at(desc_end);
-                    let value_bytes = if desc_end < rest.len() {
-                        &rest[desc_end + 1..]
-                    } else {
-                        &[]
-                    };
-                    let decode = |bytes: &[u8]| match encoding {
-                        0x00 => String::from_utf8_lossy(bytes).to_string(),
-                        0x01 => {
-                            if bytes.starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &bytes[2..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                String::from_utf8_lossy(bytes).to_string()
-                            }
-                        }
-                        _ => String::from_utf8_lossy(bytes).to_string(),
-                    };
-                    let description = decode(desc_bytes);
-                    let value = decode(value_bytes);
+                    let (desc_bytes, value_bytes) = split_encoded_text(encoding, rest);
+                    let description = decode_text_payload(encoding, desc_bytes);
+                    let value = decode_text_payload(encoding, value_bytes);
                     let entry = if id == "TXXX" {
                         TagValue::UserText(UserTextEntry { description, value })
                     } else {
@@ -135,23 +113,7 @@ impl TagFormat for V2_4 {
             } else if id.starts_with('T') || id.starts_with('W') {
                 if !content.is_empty() {
                     let encoding = content[0];
-                    let text = match encoding {
-                        0x00 => String::from_utf8_lossy(&content[1..]).to_string(),
-                        0x01 => {
-                            if content[1..].starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &content[3..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                "<Unsupported UTF-16>".to_string()
-                            }
-                        }
-                        _ => "<Unknown Encoding>".to_string(),
-                    };
+                    let text = decode_text_payload(encoding, &content[1..]);
                     let key = id3v24_key(&id);
 
                     if (key.is_some() && key.unwrap().is_multi_valued()) && text.contains('\u{0}') {

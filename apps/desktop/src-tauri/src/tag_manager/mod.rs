@@ -44,138 +44,94 @@ impl TagManager {
         }
     }
     pub fn detect_tag_format(&self, file_path: &PathBuf) -> Formats {
-        let mut f = match File::open(file_path) {
-            Ok(f) => f,
-            Err(_) => return Formats::Unknown,
-        };
-
-        const PREFIX_LEN: usize = 4096;
-        let mut header = vec![0u8; PREFIX_LEN];
-        let header_len = match f.read(&mut header) {
-            Ok(n) => n,
-            Err(_) => return Formats::Unknown,
-        };
-        header.truncate(header_len);
-
-        let header4 = if header.len() >= 4 {
-            Some(&header[0..4])
-        } else {
-            None
-        };
-
-        if header4 == Some(b"fLaC") {
-            return Formats::Flac;
-        }
-
-        if header4 == Some(b"RIFF") {
-            return Formats::Riff;
-        }
-
-        if header4 == Some(b"OggS") {
-            return Formats::Ogg;
-        }
-
-        let is_itunes_mp4 = {
-            let mut found = false;
-            let mut i = 0usize;
-            while i + 8 <= header.len() {
-                let size =
-                    u32::from_be_bytes([header[i], header[i + 1], header[i + 2], header[i + 3]])
-                        as usize;
-                let typ = &header[i + 4..i + 8];
-                if typ == b"ftyp" {
-                    if size >= 16 && i + 16 <= header.len() {
-                        let major = &header[i + 8..i + 12];
-                        let compat_start = i + 16;
-                        let compat_end = (i + size).min(header.len());
-                        let compat = if compat_start <= compat_end {
-                            &header[compat_start..compat_end]
-                        } else {
-                            &[]
-                        };
-
-                        let is_known_brand = |b: &[u8]| {
-                            matches!(
-                                b,
-                                b"M4A "
-                                    | b"M4B "
-                                    | b"M4V "
-                                    | b"mp41"
-                                    | b"mp42"
-                                    | b"isom"
-                                    | b"iso2"
-                                    | b"qt  "
-                            )
-                        };
-
-                        if is_known_brand(major) {
-                            found = true;
-                            break;
-                        }
-
-                        let mut j = 0usize;
-                        while j + 4 <= compat.len() {
-                            if is_known_brand(&compat[j..j + 4]) {
-                                found = true;
-                                break;
-                            }
-                            j += 4;
-                        }
-                    }
-                    break;
-                }
-
-                if size >= 8 {
-                    i = i.saturating_add(size);
-                } else {
-                    i += 1;
-                }
-            }
-            found
-        };
-
-        if is_itunes_mp4 {
-            return Formats::Itunes;
-        }
-
-        if header.len() >= 5 && &header[0..3] == b"ID3" {
-            let version_byte = header[3];
-            let revision_byte = header[4];
-
-            return match (version_byte, revision_byte) {
-                (2, 0) => Formats::Id3v22,
-                (3, 0) => Formats::Id3v23,
-                (4, 0) => Formats::Id3v24,
-                _ => Formats::Unknown,
-            };
-        }
-
-        if let Ok(meta) = f.metadata() {
-            let len = meta.len();
-            if len >= 128 {
-                if f.seek(SeekFrom::End(-128)).is_ok() {
-                    let mut tail = [0u8; 128];
-                    if f.read_exact(&mut tail).is_ok() {
-                        if &tail[0..3] == b"TAG" {
-                            return if tail[125] == 0 {
-                                Formats::Id3v11
-                            } else {
-                                Formats::Id3v10
-                            };
-                        }
-                    }
-                }
-            }
-        }
-        let file_extenssion = file_path.extension().and_then(|e| e.to_str());
-
-        if file_extenssion == Some("mp3")
-            || file_extenssion == Some("mp2")
-            || file_extenssion == Some("mp1")
-        {
-            return Formats::Id3v23;
-        }
-
-        Formats::Unknown
+        detect_formats(file_path, None)
+            .into_iter()
+            .next()
+            .unwrap_or(Formats::Unknown)
     }
+}
+
+pub(crate) fn detect_formats(file_path: &PathBuf, primary: Option<Formats>) -> Vec<Formats> {
+    let mut file = match File::open(file_path) {
+        Ok(file) => file,
+        Err(_) => return primary.into_iter().collect(),
+    };
+    let mut header = vec![0; 4096];
+    let length = match file.read(&mut header) {
+        Ok(length) => length,
+        Err(_) => return primary.into_iter().collect(),
+    };
+    header.truncate(length);
+
+    let mut formats = primary.into_iter().collect::<Vec<_>>();
+    let add = |formats: &mut Vec<Formats>, format| {
+        if !formats.contains(&format) {
+            formats.push(format);
+        }
+    };
+    match header.get(0..4) {
+        Some(b"fLaC") => add(&mut formats, Formats::Flac),
+        Some(b"OggS") => add(&mut formats, Formats::Ogg),
+        Some(b"RIFF") => add(&mut formats, Formats::Riff),
+        _ => {}
+    }
+    let known_brand = |brand: &[u8]| {
+        matches!(
+            brand,
+            b"M4A " | b"M4B " | b"M4V " | b"mp41" | b"mp42" | b"isom" | b"iso2" | b"qt  "
+        )
+    };
+    let mut offset = 0;
+    while offset + 8 <= header.len() {
+        let size = u32::from_be_bytes(header[offset..offset + 4].try_into().unwrap()) as usize;
+        if &header[offset + 4..offset + 8] == b"ftyp" && size >= 16 && offset + 16 <= header.len() {
+            let end = (offset + size).min(header.len());
+            if known_brand(&header[offset + 8..offset + 12])
+                || header[offset + 16..end].chunks_exact(4).any(known_brand)
+            {
+                add(&mut formats, Formats::Itunes);
+            }
+            break;
+        }
+        offset = if size >= 8 {
+            offset.saturating_add(size)
+        } else {
+            offset + 1
+        };
+    }
+    if let Some(version) = header.get(3..5).filter(|_| header.starts_with(b"ID3")) {
+        match version {
+            [2, 0] => add(&mut formats, Formats::Id3v22),
+            [3, 0] => add(&mut formats, Formats::Id3v23),
+            [4, 0] => add(&mut formats, Formats::Id3v24),
+            _ => {}
+        }
+    }
+    if file
+        .metadata()
+        .map(|meta| meta.len() >= 128)
+        .unwrap_or(false)
+        && file.seek(SeekFrom::End(-128)).is_ok()
+    {
+        let mut tail = [0; 128];
+        if file.read_exact(&mut tail).is_ok() && &tail[..3] == b"TAG" {
+            add(
+                &mut formats,
+                if tail[125] == 0 {
+                    Formats::Id3v11
+                } else {
+                    Formats::Id3v10
+                },
+            );
+        }
+    }
+    if formats.is_empty()
+        && matches!(
+            file_path.extension().and_then(|e| e.to_str()),
+            Some("mp3" | "mp2" | "mp1")
+        )
+    {
+        formats.push(Formats::Id3v23);
+    }
+    formats
 }

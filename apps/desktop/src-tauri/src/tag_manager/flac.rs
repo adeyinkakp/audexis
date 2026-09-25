@@ -81,10 +81,17 @@ impl TagFormat for FlacFormat {
         let pos = 4;
         let mut offset = pos;
         while offset < b.len() {
+            if offset + 4 > b.len() {
+                return Err(BackendError::ReadFailed(TagError {
+                    path: file_path.to_string_lossy().to_string(),
+                    public_message: "Truncated FLAC metadata block".to_string(),
+                    internal_message: "Metadata block header is shorter than four bytes"
+                        .to_string(),
+                }));
+            }
             let is_last = (b[offset] & 0x80) != 0;
 
             let block_type = FlacBlockType::from(b[offset] & 0x7F);
-            println!("Found block type: {:?}", block_type);
             let block_length = ((b[offset + 1] as u32) << 16)
                 | ((b[offset + 2] as u32) << 8)
                 | (b[offset + 3] as u32);
@@ -177,6 +184,14 @@ impl TagFormat for FlacFormat {
         let mut offset = 4;
 
         while offset < b.len() {
+            if offset + 4 > b.len() {
+                return Err(BackendError::ReadFailed(TagError {
+                    path: file_path.to_string_lossy().to_string(),
+                    public_message: "Truncated FLAC metadata block".to_string(),
+                    internal_message: "Metadata block header is shorter than four bytes"
+                        .to_string(),
+                }));
+            }
             let is_last = (b[offset] & 0x80) != 0;
             let block_type_raw = b[offset] & 0x7F;
             let block_type = FlacBlockType::from(block_type_raw);
