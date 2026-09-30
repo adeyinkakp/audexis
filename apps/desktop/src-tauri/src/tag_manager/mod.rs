@@ -1,7 +1,7 @@
 use crate::tag_manager::traits::{Formats, TagFamily};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::path::PathBuf;
+use std::path::Path;
 mod flac;
 mod id3;
 mod itunes;
@@ -18,6 +18,12 @@ pub struct TagManager {
     itunes: itunes::Itunes,
     flac: flac::Flac,
     ogg: ogg::Ogg,
+}
+
+impl Default for TagManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TagManager {
@@ -43,7 +49,7 @@ impl TagManager {
             _ => None,
         }
     }
-    pub fn detect_tag_format(&self, file_path: &PathBuf) -> Formats {
+    pub fn detect_tag_format(&self, file_path: &Path) -> Formats {
         detect_formats(file_path, None)
             .into_iter()
             .next()
@@ -51,7 +57,7 @@ impl TagManager {
     }
 }
 
-pub(crate) fn detect_formats(file_path: &PathBuf, primary: Option<Formats>) -> Vec<Formats> {
+pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<Formats> {
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(_) => return primary.into_iter().collect(),

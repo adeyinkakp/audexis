@@ -37,7 +37,7 @@ impl TagFormat for OggFormat {
     }
     fn get_tags(
         &self,
-        file_path: &std::path::PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let file = File::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -82,16 +82,14 @@ impl TagFormat for OggFormat {
     }
     fn write_tags(
         &self,
-        file_path: &std::path::PathBuf,
+        file_path: &std::path::Path,
         tags: std::collections::HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         let mut merged: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
-        merged.extend(tags.into_iter());
+        merged.extend(tags);
         if let Ok(existing) = self.get_tags(file_path) {
             for (k, v) in existing {
-                if !merged.contains_key(&k) {
-                    merged.insert(k, v);
-                }
+                merged.entry(k).or_insert(v);
             }
         }
 

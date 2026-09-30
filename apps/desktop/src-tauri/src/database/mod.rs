@@ -15,7 +15,7 @@ impl Database {
             panic!("No Config folder bruh")
         }
         let config_folder = config_folder.unwrap();
-        println!("{}", &config_folder.as_os_str().display());
+
         fs::create_dir_all(config_folder).expect("Could not create config folder");
 
         let connection_options = SqliteConnectOptions::new()

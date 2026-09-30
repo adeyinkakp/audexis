@@ -70,20 +70,19 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
 
     for (raw_key, values) in raw.iter() {
         let norm = normalize_vorbis_key(raw_key);
-        let key_opt =
-            VORBIS_REVERSE_MAP
-                .get(norm.as_str())
-                .copied()
-                .or_else(|| match norm.as_str() {
-                    "TRACKTOTAL" | "TOTALTRACKS" => Some(FrameKey::TotalTracks),
-                    "DISCTOTAL" | "TOTALDISCS" => Some(FrameKey::TotalDiscs),
-                    "DISCNUMBER" => Some(FrameKey::DiscNumber),
-                    "LABEL" => Some(FrameKey::Label),
-                    "ISRC" => Some(FrameKey::Isrc),
-                    "METADATA_BLOCK_PICTURE" => Some(FrameKey::AttachedPicture),
+        let key_opt = VORBIS_REVERSE_MAP
+            .get(norm.as_str())
+            .copied()
+            .or(match norm.as_str() {
+                "TRACKTOTAL" | "TOTALTRACKS" => Some(FrameKey::TotalTracks),
+                "DISCTOTAL" | "TOTALDISCS" => Some(FrameKey::TotalDiscs),
+                "DISCNUMBER" => Some(FrameKey::DiscNumber),
+                "LABEL" => Some(FrameKey::Label),
+                "ISRC" => Some(FrameKey::Isrc),
+                "METADATA_BLOCK_PICTURE" => Some(FrameKey::AttachedPicture),
 
-                    _ => None,
-                });
+                _ => None,
+            });
 
         let Some(frame_key) = key_opt else {
             continue;
@@ -149,7 +148,7 @@ pub fn parse_comments(data: &[u8]) -> Result<HashMap<FrameKey, Vec<TagValue>>, E
         let v = &v_with_eq[1..];
 
         let norm_key = normalize_vorbis_key(k);
-        if norm_key == "METADATA_BLOCK_PICTURE".to_string() {
+        if norm_key == "METADATA_BLOCK_PICTURE" {
             let pic_data = b64_gp::STANDARD.decode(v).map_err(|_| {
                 Error::new(
                     std::io::ErrorKind::InvalidData,

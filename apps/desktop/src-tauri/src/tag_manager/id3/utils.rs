@@ -418,7 +418,7 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
                     _ => expanded.push(v.clone()),
                 }
             }
-            result.entry(*key).or_insert_with(Vec::new).extend(expanded);
+            result.entry(*key).or_default().extend(expanded);
         }
     }
     result

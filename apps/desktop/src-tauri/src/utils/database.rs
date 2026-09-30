@@ -5,7 +5,7 @@ pub async fn get_library_roots(pool: &SqlitePool) -> Result<Vec<String>, Databas
     let roots: Vec<String> = sqlx::query_scalar("SELECT path FROM import_roots")
         .fetch_all(pool)
         .await
-        .map_err(|err| DatabaseError::Sqlx(err))?;
+        .map_err(DatabaseError::Sqlx)?;
 
     for root in &roots {
         println!("{:?}", root);

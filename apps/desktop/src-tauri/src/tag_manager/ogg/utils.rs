@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone)]
 pub struct OggPage {
@@ -84,32 +85,31 @@ pub fn write_page<W: Write>(w: &mut W, page: &OggPage) -> io::Result<()> {
 }
 
 pub fn ogg_crc32(data: &[u8]) -> u32 {
-    static mut TABLE: [u32; 256] = [0; 256];
-    static mut INIT: bool = false;
+    static TABLE: OnceLock<[u32; 256]> = OnceLock::new();
 
-    unsafe {
-        if !INIT {
-            for i in 0..256 {
-                let mut r = (i as u32) << 24;
-                for _ in 0..8 {
-                    if (r & 0x8000_0000) != 0 {
-                        r = (r << 1) ^ 0x04C11DB7;
-                    } else {
-                        r <<= 1;
-                    }
+    let table = TABLE.get_or_init(|| {
+        let mut t = [0u32; 256];
+
+        for (i, item) in t.iter_mut().enumerate() {
+            let mut r = (i as u32) << 24;
+            for _ in 0..8 {
+                if (r & 0x8000_0000) != 0 {
+                    r = (r << 1) ^ 0x04C11DB7;
+                } else {
+                    r <<= 1;
                 }
-                TABLE[i] = r;
             }
-            INIT = true;
+            *item = r;
         }
+        t
+    });
 
-        let mut crc: u32 = 0;
-        for &b in data {
-            let idx = ((crc >> 24) as u8) ^ b;
-            crc = (crc << 8) ^ TABLE[idx as usize];
-        }
-        crc
+    let mut crc: u32 = 0;
+    for &b in data {
+        let idx = ((crc >> 24) as u8) ^ b;
+        crc = (crc << 8) ^ table[idx as usize];
     }
+    crc
 }
 #[derive(Default)]
 pub struct StreamClassifier {

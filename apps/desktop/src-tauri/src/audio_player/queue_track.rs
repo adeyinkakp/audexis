@@ -52,7 +52,7 @@ impl QueueTrack {
             channels_uz: 2usize,
             target_sample_rate: 44100u32,
             path: unresolved_track.path,
-            database_id: unresolved_track.id as i64,
+            database_id: unresolved_track.id,
             resampler: None,
             indata: Vec::new(),
             outdata: Vec::new(),
@@ -82,6 +82,6 @@ impl QueueTrack {
         self.packet_samples = Vec::new();
     }
     pub fn get_indexing(&self) -> &Indexing {
-        return &self.indexing;
+        &self.indexing
     }
 }

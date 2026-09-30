@@ -100,7 +100,7 @@ export default function QueuePanel({
   }, [data, queueInfo]);
 
   return (
-    <aside className="fixed right-4 top-0 h-screen -z-40 w-80 overflow-hidden border border-border bg-popover shadow-xl">
+    <aside className="fixed right-0 top-0 h-screen -z-40 w-80 overflow-hidden border border-border bg-popover shadow-xl">
       <div className="flex h-12 items-center gap-2 border-b border-border px-4 font-semibold">
         <ListMusic size={16} /> Queue{" "}
         {queueItems.length ? `(${queueItems.length})` : ""}

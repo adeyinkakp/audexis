@@ -27,50 +27,46 @@ impl V0 {
 
         for (key, value) in &raw_entries {
             if key == "covr" {
-                match value {
-                    TagValue::Picture { mime, data, .. } => {
-                        let mut mime_buff: Vec<u8> = vec![0x00, 0x00, 0x00, 0x0d];
-                        if mime == "image/png" {
-                            mime_buff = vec![0x00, 0x00, 0x00, 0x0e];
-                        }
-                        let reserved = vec![0u8; 4];
-                        let mut data_buff = Vec::new();
-                        data_buff.extend_from_slice(&mime_buff);
-                        data_buff.extend_from_slice(&reserved);
-                        data_buff.extend_from_slice(&data);
-                        let data_atom_size = 8 + data_buff.len();
-                        let data_size_buffer = (data_atom_size as u32).to_be_bytes().to_vec();
-                        let mut data_atom = Vec::new();
-                        data_atom.extend_from_slice(&data_size_buffer);
-                        data_atom.extend_from_slice(b"data");
-                        data_atom.extend_from_slice(&data_buff);
-                        let key_atom_size = 8 + data_atom.len();
-                        let key_size_buffer = (key_atom_size as u32).to_be_bytes().to_vec();
-                        let mut key_atom = Vec::new();
-                        let key_bytes = V0::parse_key("covr");
-                        key_atom.extend_from_slice(&key_size_buffer);
-                        key_atom.extend_from_slice(&key_bytes);
-                        key_atom.extend_from_slice(&data_atom);
-                        ilst_entries.extend_from_slice(&key_atom);
-                        if !encoded_keys.iter().any(|k| k == "covr") {
-                            encoded_keys.push("covr".to_string());
-                        }
+                if let TagValue::Picture { mime, data, .. } = value {
+                    let mut mime_buff: Vec<u8> = vec![0x00, 0x00, 0x00, 0x0d];
+                    if mime == "image/png" {
+                        mime_buff = vec![0x00, 0x00, 0x00, 0x0e];
                     }
-
-                    _ => {}
+                    let reserved = vec![0u8; 4];
+                    let mut data_buff = Vec::new();
+                    data_buff.extend_from_slice(&mime_buff);
+                    data_buff.extend_from_slice(&reserved);
+                    data_buff.extend_from_slice(data);
+                    let data_atom_size = 8 + data_buff.len();
+                    let data_size_buffer = (data_atom_size as u32).to_be_bytes().to_vec();
+                    let mut data_atom = Vec::new();
+                    data_atom.extend_from_slice(&data_size_buffer);
+                    data_atom.extend_from_slice(b"data");
+                    data_atom.extend_from_slice(&data_buff);
+                    let key_atom_size = 8 + data_atom.len();
+                    let key_size_buffer = (key_atom_size as u32).to_be_bytes().to_vec();
+                    let mut key_atom = Vec::new();
+                    let key_bytes = V0::parse_key("covr");
+                    key_atom.extend_from_slice(&key_size_buffer);
+                    key_atom.extend_from_slice(&key_bytes);
+                    key_atom.extend_from_slice(&data_atom);
+                    ilst_entries.extend_from_slice(&key_atom);
+                    if !encoded_keys.iter().any(|k| k == "covr") {
+                        encoded_keys.push("covr".to_string());
+                    }
                 }
             } else if key.starts_with("----:") {
                 if let Some((_, rest)) = key.split_once(':') {
                     if let Some((mean, name)) = rest.split_once(':') {
                         let mut mean_buf = Vec::new();
-                        let mean_size = (8 + 4 + mean.as_bytes().len()) as u32;
+                        let mean_size = (8 + 4 + mean.len()) as u32;
                         mean_buf.extend_from_slice(&mean_size.to_be_bytes());
                         mean_buf.extend_from_slice(b"mean");
                         mean_buf.extend_from_slice(&[0u8; 4]);
                         mean_buf.extend_from_slice(mean.as_bytes());
 
                         let mut name_buf = Vec::new();
-                        let name_size = (8 + 4 + name.as_bytes().len()) as u32;
+                        let name_size = (8 + 4 + name.len()) as u32;
                         name_buf.extend_from_slice(&name_size.to_be_bytes());
                         name_buf.extend_from_slice(b"name");
                         name_buf.extend_from_slice(&[0u8; 4]);
@@ -118,13 +114,13 @@ impl V0 {
                     let key_atom_size = 8 + data_atom.len();
                     let key_size_buffer = (key_atom_size as u32).to_be_bytes().to_vec();
                     let mut key_atom = Vec::new();
-                    let key_bytes = V0::parse_key(&key);
+                    let key_bytes = V0::parse_key(key);
                     key_atom.extend_from_slice(&key_size_buffer);
                     key_atom.extend_from_slice(&key_bytes);
                     key_atom.extend_from_slice(&data_atom);
                     ilst_entries.extend_from_slice(&key_atom);
                 };
-                if let Some(data_buffer) = V0::data_to_buffer(&key, &value) {
+                if let Some(data_buffer) = V0::data_to_buffer(key, value) {
                     emit_key(data_buffer);
                     if !encoded_keys.iter().any(|k| k == key) {
                         encoded_keys.push(key.to_string());
@@ -207,10 +203,7 @@ impl V0 {
     }
     fn data_to_buffer(key: &str, value: &TagValue) -> Option<Vec<u8>> {
         let item = get_atom_flag(key);
-        if item.is_none() {
-            return None;
-        } else {
-            let item = item.unwrap();
+        if let Some(item) = item {
             if item.flag[3] == 0x01 {
                 match value {
                     TagValue::Text(text) => {
@@ -229,9 +222,7 @@ impl V0 {
 
                         Some(data_buffer)
                     }
-                    _ => {
-                        return None;
-                    }
+                    _ => None,
                 }
             } else if item.flag[3] == 0x15 || item.flag[3] == 0x00 {
                 match value {
@@ -259,10 +250,12 @@ impl V0 {
             } else {
                 None
             }
+        } else {
+            None
         }
     }
 
-    fn rebuild_file(ilst_buffer: Vec<u8>, file_buffer: &Vec<u8>) -> Option<Vec<u8>> {
+    fn rebuild_file(ilst_buffer: Vec<u8>, file_buffer: &[u8]) -> Option<Vec<u8>> {
         let top_level_atoms = V0::parse_atoms(file_buffer, 0, file_buffer.len() as u64);
 
         let moov_atom = top_level_atoms
@@ -351,13 +344,13 @@ impl V0 {
         }
 
         let shift = ilst_buffer.len() as i64 - ilst_atom.size as i64;
-        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, &new_moov_atom) {
+        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, new_moov_atom) {
             Some(V0::update_co64_offsets(
                 &almost_done_file,
                 shift,
                 &co64_atoms,
             ))
-        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, &new_moov_atom) {
+        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, new_moov_atom) {
             Some(V0::update_stco_offsets(
                 &almost_done_file,
                 shift,
@@ -368,10 +361,7 @@ impl V0 {
         }
     }
 
-    fn rebuild_file_insert_ilst(
-        ilst_atom_buffer: Vec<u8>,
-        file_buffer: &Vec<u8>,
-    ) -> Option<Vec<u8>> {
+    fn rebuild_file_insert_ilst(ilst_atom_buffer: Vec<u8>, file_buffer: &[u8]) -> Option<Vec<u8>> {
         let top_level_atoms = V0::parse_atoms(file_buffer, 0, file_buffer.len() as u64);
 
         let moov_atom = top_level_atoms.iter().find(|a| a.atom_type == "moov")?;
@@ -504,13 +494,13 @@ impl V0 {
         }
 
         let shift = moov_size_delta;
-        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, &new_moov_atom) {
+        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, new_moov_atom) {
             Some(V0::update_co64_offsets(
                 &almost_done_file,
                 shift,
                 &co64_atoms,
             ))
-        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, &new_moov_atom) {
+        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, new_moov_atom) {
             Some(V0::update_stco_offsets(
                 &almost_done_file,
                 shift,
@@ -521,7 +511,7 @@ impl V0 {
         }
     }
 
-    fn find_co64_atom(buffer: &Vec<u8>, moov_atom: &Atom) -> Option<Vec<Atom>> {
+    fn find_co64_atom(buffer: &[u8], moov_atom: &Atom) -> Option<Vec<Atom>> {
         let moov_end = moov_atom.position + moov_atom.size;
         let trak_atoms: Vec<Atom> = V0::parse_atoms(buffer, moov_atom.position + 8, moov_end)
             .into_iter()
@@ -565,7 +555,7 @@ impl V0 {
             Some(co64_atoms)
         }
     }
-    fn find_stco_atom(buffer: &Vec<u8>, moov_atom: &Atom) -> Option<Vec<Atom>> {
+    fn find_stco_atom(buffer: &[u8], moov_atom: &Atom) -> Option<Vec<Atom>> {
         let moov_end = moov_atom.position + moov_atom.size;
         let trak_atoms: Vec<Atom> = V0::parse_atoms(buffer, moov_atom.position + 8, moov_end)
             .into_iter()
@@ -609,12 +599,8 @@ impl V0 {
             Some(stco_atoms)
         }
     }
-    fn update_co64_offsets(
-        file_buffer: &Vec<u8>,
-        shift: i64,
-        co64_sub_atoms: &Vec<Atom>,
-    ) -> Vec<u8> {
-        let mut buff = file_buffer.clone();
+    fn update_co64_offsets(file_buffer: &[u8], shift: i64, co64_sub_atoms: &Vec<Atom>) -> Vec<u8> {
+        let mut buff = file_buffer.to_owned();
 
         for atom in co64_sub_atoms {
             if atom.size == 0 {
@@ -654,12 +640,8 @@ impl V0 {
 
         buff
     }
-    fn update_stco_offsets(
-        file_buffer: &Vec<u8>,
-        shift: i64,
-        stco_sub_atoms: &Vec<Atom>,
-    ) -> Vec<u8> {
-        let mut buff = file_buffer.clone();
+    fn update_stco_offsets(file_buffer: &[u8], shift: i64, stco_sub_atoms: &Vec<Atom>) -> Vec<u8> {
+        let mut buff = file_buffer.to_owned();
 
         for atom in stco_sub_atoms {
             if atom.size == 0 {
@@ -708,7 +690,7 @@ impl TagFormat for V0 {
 
     fn get_tags(
         &self,
-        file_path: &std::path::PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<tag_manager::utils::FrameKey, Vec<TagValue>>, BackendError> {
         let buffer = fs::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -838,7 +820,7 @@ impl TagFormat for V0 {
                 .collect::<String>();
                 let key = itunes_key(&atom.atom_type);
 
-                if let Some(_) = key {
+                if key.is_some() {
                     for part in text.split(';').map(|s| s.trim()) {
                         let seg = part.trim();
                         if !seg.is_empty() {
@@ -852,11 +834,11 @@ impl TagFormat for V0 {
             }
         }
         let vec_map = raw_to_tags(&raw_entries);
-        return Ok(vec_map);
+        Ok(vec_map)
     }
     fn write_tags(
         &self,
-        file_path: &std::path::PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<tag_manager::utils::FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         let mut updated_entries: Vec<(String, TagValue)> = Vec::new();
@@ -1078,10 +1060,7 @@ impl TagFormat for V0 {
         Ok(())
     }
 
-    fn get_freeforms(
-        &self,
-        file_path: &std::path::PathBuf,
-    ) -> Result<Vec<FreeformTag>, BackendError> {
+    fn get_freeforms(&self, file_path: &std::path::Path) -> Result<Vec<FreeformTag>, BackendError> {
         let buffer = std::fs::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 internal_message: "Unable to open and read file".to_string(),

@@ -10,7 +10,6 @@ use crate::tag_manager::utils::{FrameKey, TagValue, UserTextEntry, UserUrlEntry}
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct V2_4 {}
@@ -45,7 +44,7 @@ impl TagFormat for V2_4 {
     }
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut file = File::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -175,7 +174,7 @@ impl TagFormat for V2_4 {
     }
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
@@ -346,9 +345,7 @@ impl TagFormat for V2_4 {
                         payload.extend_from_slice(&lang_bytes[0..3]);
                     } else {
                         payload.extend_from_slice(lang_bytes);
-                        for _ in 0..(3 - lang_bytes.len()) {
-                            payload.push(0x00);
-                        }
+                        payload.extend(std::iter::repeat_n(0x00, 3 - lang_bytes.len()));
                     }
                     payload.extend_from_slice(description.as_bytes());
                     payload.push(0x00);

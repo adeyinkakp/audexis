@@ -5,7 +5,6 @@ use crate::tag_manager::vorbis_comments::utils;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Flac;
@@ -57,7 +56,7 @@ impl TagFormat for FlacFormat {
     }
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut data: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
         let b = fs::read(file_path);
@@ -116,7 +115,7 @@ impl TagFormat for FlacFormat {
                     }));
                 }
                 let tags = tags.unwrap();
-                data.extend(tags.into_iter());
+                data.extend(tags);
             } else if FlacBlockType::Picture == block_type {
                 let pic = utils::parse_picture(block_data);
                 if pic.is_err() {
@@ -139,10 +138,10 @@ impl TagFormat for FlacFormat {
     }
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
-        let b = fs::read(&file_path);
+        let b = fs::read(file_path);
         if b.is_err() {
             return Err(BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
@@ -170,12 +169,10 @@ impl TagFormat for FlacFormat {
         }
         let mut tags: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
 
-        tags.extend(updated_tags.into_iter());
+        tags.extend(updated_tags);
 
         old_tags.into_iter().for_each(|(k, v)| {
-            if !tags.contains_key(&k) {
-                tags.insert(k, v);
-            }
+            tags.entry(k).or_insert(v);
         });
         let payload = utils::build_comments(&tags, false);
 

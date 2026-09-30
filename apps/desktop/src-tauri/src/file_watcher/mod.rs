@@ -73,7 +73,7 @@ impl FileWatcher {
 
         for root in &roots {
             let pth = Path::new(&root);
-            if pth.exists() == false {
+            if !pth.exists() {
                 continue;
             }
             if pth.is_file() {
@@ -111,7 +111,7 @@ impl FileWatcher {
     pub fn watch_folders(&mut self, folders: Vec<String>) {
         for root in folders {
             let pth = Path::new(&root);
-            if pth.exists() == false {
+            if !pth.exists() {
                 continue;
             }
             if pth.is_file() {
@@ -350,7 +350,7 @@ impl FileWatcher {
                         return;
                     }
                     discovered += 1;
-                    if discovered % 50 == 0 {
+                    if discovered.is_multiple_of(50) {
                         crate::utils::tasks::update(
                             &progress_app,
                             "library-scan",
@@ -377,7 +377,7 @@ impl FileWatcher {
         )
         .execute(&mut *connection)
         .await
-        .map_err(|err| DatabaseError::Sqlx(err))?;
+        .map_err(DatabaseError::Sqlx)?;
 
         let mut batch = Vec::with_capacity(300);
         while let Some(item) = scan_rx.recv().await {
@@ -385,12 +385,12 @@ impl FileWatcher {
             if batch.len() >= 300 {
                 FileWatcher::flush_batch(&mut connection, &mut batch)
                     .await
-                    .map_err(|err| DatabaseError::Sqlx(err))?;
+                    .map_err(DatabaseError::Sqlx)?;
             }
         }
         FileWatcher::flush_batch(&mut connection, &mut batch)
             .await
-            .map_err(|err| DatabaseError::Sqlx(err))?;
+            .map_err(DatabaseError::Sqlx)?;
         walk_handle.await.map_err(DatabaseError::Tauri)?;
 
         let mut changed_ids = sqlx::query_scalar::<_, i64>(
@@ -422,7 +422,7 @@ impl FileWatcher {
         sqlx::query("DROP TABLE scan_results")
             .execute(&mut *connection)
             .await
-            .map_err(|err| DatabaseError::Sqlx(err))?;
+            .map_err(DatabaseError::Sqlx)?;
 
         changed_ids.extend(deleted_ids);
         let changed_count = changed_ids.len();
@@ -665,7 +665,7 @@ fn is_audio_file(p: &Path) -> bool {
     ];
     p.extension().is_some_and(|v| {
         v.to_str()
-            .is_some_and(|s| SUPPORTED_EXTENSIONS.contains(&&s))
+            .is_some_and(|s| SUPPORTED_EXTENSIONS.contains(&s))
     })
 }
 // fn systemtime_to_unix(time: SystemTime) -> i64 {

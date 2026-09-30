@@ -4,7 +4,6 @@ use symphonia::core::units::{Time, TimeBase};
 #[derive(Debug, Clone, Copy)]
 pub struct DurationResult {
     pub ms: u64,
-    pub exact: bool,
 }
 
 fn ticks_to_ms(ticks: u64, time_base: TimeBase) -> u64 {
@@ -20,10 +19,7 @@ pub fn resolve_duration_ms(
 ) -> DurationResult {
     let track = format.tracks().iter().find(|t| t.id == track_id);
     if track.is_none() {
-        return DurationResult {
-            ms: 0,
-            exact: false,
-        };
+        return DurationResult { ms: 0 };
     }
 
     let track = track.unwrap().clone();
@@ -37,28 +33,21 @@ pub fn resolve_duration_ms(
     if let (Some(dur), Some(tb)) = (track.duration, track.time_base) {
         return DurationResult {
             ms: ticks_to_ms(dur.get(), tb),
-            exact: true,
         };
     }
 
     if let (Some(dur), Some(sr)) = (track.duration, sample_rate) {
         return DurationResult {
             ms: dur.get().saturating_mul(1000) / sr as u64,
-            exact: true,
         };
     }
 
     let mut last_ts_end: u64 = 0;
     let mut saw_any_packet = false;
-    loop {
-        match format.next_packet() {
-            Ok(Some(packet)) => {
-                if packet.track_id == track_id {
-                    saw_any_packet = true;
-                    last_ts_end = packet.pts.get() as u64 + packet.dur.get() as u64;
-                }
-            }
-            Ok(None) | Err(_) => break,
+    while let Ok(Some(packet)) = format.next_packet() {
+        if packet.track_id == track_id {
+            saw_any_packet = true;
+            last_ts_end = packet.pts.get() as u64 + packet.dur.get();
         }
     }
 
@@ -74,13 +63,11 @@ pub fn resolve_duration_ms(
         if let Some(tb) = track.time_base {
             return DurationResult {
                 ms: ticks_to_ms(last_ts_end, tb),
-                exact: true,
             };
         }
         if let Some(sr) = sample_rate {
             return DurationResult {
                 ms: last_ts_end.saturating_mul(1000) / sr as u64,
-                exact: true,
             };
         }
     }
@@ -94,16 +81,10 @@ pub fn resolve_duration_ms(
         .map(|(bits, sr)| bits as u64 * sr as u64 * 2);
 
     if let (Some(size), Some(bps)) = (file_size_bytes, bitrate) {
-        if bps > 0 {
-            return DurationResult {
-                ms: size.saturating_mul(8000) / bps,
-                exact: false,
-            };
+        if let Some(result) = size.saturating_mul(8000).checked_div(bps) {
+            return DurationResult { ms: result };
         }
     }
 
-    DurationResult {
-        ms: 0,
-        exact: false,
-    }
+    DurationResult { ms: 0 }
 }

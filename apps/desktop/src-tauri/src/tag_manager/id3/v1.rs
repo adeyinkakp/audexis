@@ -4,7 +4,7 @@ use crate::tag_manager::utils::{FrameKey, TagValue};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::Path;
 
 const TAG_SIZE: usize = 128;
 const TAG_ID: &[u8; 3] = b"TAG";
@@ -13,7 +13,7 @@ const TAG_ID: &[u8; 3] = b"TAG";
 pub struct V1 {}
 
 impl V1 {
-    fn read_tail(path: &PathBuf) -> std::io::Result<Option<[u8; TAG_SIZE]>> {
+    fn read_tail(path: &Path) -> std::io::Result<Option<[u8; TAG_SIZE]>> {
         let mut f = File::open(path)?;
         let len = f.metadata()?.len();
         if len < TAG_SIZE as u64 {
@@ -39,7 +39,7 @@ impl V1 {
     }
 
     fn write_tag(
-        path: &PathBuf,
+        path: &Path,
         fields: &HashMap<FrameKey, TagValue>,
         existing: Option<[u8; TAG_SIZE]>,
         is_v11: bool,
@@ -114,7 +114,7 @@ impl TagFormat for V1 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut map: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
         if let Some(buf) = Self::read_tail(file_path).map_err(|_| {
@@ -184,7 +184,7 @@ impl TagFormat for V1 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         let supported_keys = [

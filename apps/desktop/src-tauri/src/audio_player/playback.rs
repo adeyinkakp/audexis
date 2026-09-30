@@ -19,13 +19,25 @@ use tauri::{AppHandle, Emitter};
 use super::queue::Queue;
 use super::types::{AudioPlayerError, PartialMetadata, PlayerCmd};
 use super::worker::{self, WorkerContext};
+type ConsumerType = Arc<Mutex<Caching<Arc<SharedRb<Heap<f32>>>, false, true>>>;
+
+#[derive(Clone)]
+struct MediaNavigationContext {
+    queue: Arc<Mutex<Queue>>,
+    position_ms: Arc<AtomicU64>,
+    paused: Arc<AtomicBool>,
+    duration: Arc<AtomicU64>,
+    database_id: Arc<std::sync::atomic::AtomicI64>,
+    controls: Arc<Mutex<MediaControls>>,
+    cmd_tx: crossbeam_channel::Sender<PlayerCmd>,
+}
 
 pub struct AudioPlayer {
     pub queue: Arc<Mutex<Queue>>,
     play_counter: Arc<Mutex<super::play_count::PlayCounter>>,
     stream: Option<Stream>,
     cmd_tx: crossbeam_channel::Sender<PlayerCmd>,
-    consumer: Arc<Mutex<Caching<Arc<SharedRb<Heap<f32>>>, false, true>>>,
+    consumer: ConsumerType,
     flush_output: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     position_ms: Arc<AtomicU64>,
@@ -90,6 +102,15 @@ impl AudioPlayer {
         let duration_controls = Arc::clone(&audio_duration);
         let db_id_controls = Arc::clone(&database_id);
         let controls_ref = Arc::clone(&controls);
+        let navigation_context = MediaNavigationContext {
+            queue: Arc::clone(&state_queue),
+            position_ms: Arc::clone(&position_controls),
+            paused: Arc::clone(&paused_controls),
+            duration: Arc::clone(&duration_controls),
+            database_id: Arc::clone(&db_id_controls),
+            controls: Arc::clone(&controls_ref),
+            cmd_tx: cmd_tx_controls.clone(),
+        };
 
         controls
             .lock()
@@ -113,34 +134,17 @@ impl AudioPlayer {
                     }
                 }
                 MediaControlEvent::Next => {
-                    let queue = Arc::clone(&state_queue);
-                    let position = Arc::clone(&position_controls);
-                    let paused = Arc::clone(&paused_controls);
-                    let duration = Arc::clone(&duration_controls);
-                    let db_id = Arc::clone(&db_id_controls);
-                    let controls = Arc::clone(&controls_ref);
-                    let cmd_tx = cmd_tx_controls.clone();
+                    let context = navigation_context.clone();
                     std::thread::spawn(move || {
-                        if let Err(error) = handle_media_navigation(
-                            &queue, &position, &paused, &duration, &db_id, &controls, &cmd_tx, true,
-                        ) {
+                        if let Err(error) = handle_media_navigation(&context, true) {
                             tauri_plugin_log::log::error!("{error}");
                         }
                     });
                 }
                 MediaControlEvent::Previous => {
-                    let queue = Arc::clone(&state_queue);
-                    let position = Arc::clone(&position_controls);
-                    let paused = Arc::clone(&paused_controls);
-                    let duration = Arc::clone(&duration_controls);
-                    let db_id = Arc::clone(&db_id_controls);
-                    let controls = Arc::clone(&controls_ref);
-                    let cmd_tx = cmd_tx_controls.clone();
+                    let context = navigation_context.clone();
                     std::thread::spawn(move || {
-                        if let Err(error) = handle_media_navigation(
-                            &queue, &position, &paused, &duration, &db_id, &controls, &cmd_tx,
-                            false,
-                        ) {
+                        if let Err(error) = handle_media_navigation(&context, false) {
                             tauri_plugin_log::log::error!("{error}");
                         }
                     });
@@ -348,18 +352,10 @@ impl AudioPlayer {
     }
 }
 
-fn handle_media_navigation(
-    queue: &Arc<Mutex<Queue>>,
-    position_ms: &Arc<AtomicU64>,
-    paused: &Arc<AtomicBool>,
-    duration: &Arc<AtomicU64>,
-    database_id: &Arc<std::sync::atomic::AtomicI64>,
-    controls: &Arc<Mutex<MediaControls>>,
-    cmd_tx: &crossbeam_channel::Sender<PlayerCmd>,
-    next: bool,
-) -> Result<(), String> {
+fn handle_media_navigation(context: &MediaNavigationContext, next: bool) -> Result<(), String> {
     let next_path = {
-        let mut queue = queue
+        let mut queue = context
+            .queue
             .lock()
             .map_err(|_| "Audio queue is unavailable".to_string())?;
         if next {
@@ -371,19 +367,20 @@ fn handle_media_navigation(
 
     match next_path {
         Some(_) => {
-            position_ms.store(0, Ordering::Release);
-            paused.store(false, Ordering::Release);
-            duration.store(0, Ordering::Release);
-            let _ = cmd_tx.send(PlayerCmd::Play { resuming: false });
+            context.position_ms.store(0, Ordering::Release);
+            context.paused.store(false, Ordering::Release);
+            context.duration.store(0, Ordering::Release);
+            let _ = context.cmd_tx.send(PlayerCmd::Play { resuming: false });
             Ok(())
         }
         None => {
-            paused.store(true, Ordering::Release);
-            position_ms.store(0, Ordering::Release);
-            duration.store(0, Ordering::Release);
-            database_id.store(0, Ordering::Relaxed);
-            let _ = cmd_tx.send(PlayerCmd::Stop);
-            if let Err(error) = controls
+            context.paused.store(true, Ordering::Release);
+            context.position_ms.store(0, Ordering::Release);
+            context.duration.store(0, Ordering::Release);
+            context.database_id.store(0, Ordering::Relaxed);
+            let _ = context.cmd_tx.send(PlayerCmd::Stop);
+            if let Err(error) = context
+                .controls
                 .lock()
                 .unwrap()
                 .set_playback(souvlaki::MediaPlayback::Stopped)

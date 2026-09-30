@@ -8,7 +8,6 @@ use crate::tag_manager::utils::{FrameKey, TagValue, UserTextEntry, UserUrlEntry}
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct V2_2 {}
@@ -26,7 +25,7 @@ impl TagFormat for V2_2 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut file = File::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -158,7 +157,7 @@ impl TagFormat for V2_2 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
@@ -281,7 +280,7 @@ impl TagFormat for V2_2 {
             }
 
             for (key, value) in updated.iter() {
-                if key.clone() == FrameKey::Comments {
+                if *key == FrameKey::Comments {
                     if let TagValue::Comment {
                         encoding,
                         language,

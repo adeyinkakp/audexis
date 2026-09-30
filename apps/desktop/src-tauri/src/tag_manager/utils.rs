@@ -1,12 +1,13 @@
+use crate::tag_manager::tag_backend::BackendError;
 use crate::tag_manager::traits::Formats;
 
+use crate::tag_manager::tag_backend::TagError;
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FrameKeyKind {
     Image,
@@ -146,18 +147,18 @@ pub enum FrameKey {
 }
 impl FrameKey {
     pub fn is_multi_valued(&self) -> bool {
-        match self {
+        matches!(
+            self,
             FrameKey::AttachedPicture
-            | FrameKey::UserDefinedText
-            | FrameKey::UserDefinedURL
-            | FrameKey::Genre
-            | FrameKey::Artist
-            | FrameKey::AlbumArtist
-            | FrameKey::Composer
-            | FrameKey::Lyricist
-            | FrameKey::Comments => true,
-            _ => false,
-        }
+                | FrameKey::UserDefinedText
+                | FrameKey::UserDefinedURL
+                | FrameKey::Genre
+                | FrameKey::Artist
+                | FrameKey::AlbumArtist
+                | FrameKey::Composer
+                | FrameKey::Lyricist
+                | FrameKey::Comments
+        )
     }
     pub fn get_kind(&self) -> FrameKeyKind {
         match self {
@@ -351,8 +352,6 @@ impl fmt::Display for TagValue {
     }
 }
 
-/// FrameKey to string
-
 impl fmt::Display for FrameKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
@@ -488,7 +487,7 @@ impl fmt::Display for FrameKey {
 }
 
 impl FrameKey {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn to_key(s: &str) -> Option<Self> {
         match s {
             "title" => Some(FrameKey::Title),
             "artist" => Some(FrameKey::Artist),
@@ -685,7 +684,7 @@ impl From<SerializableTagValuesWrapper> for Vec<TagValue> {
 
                     let data = STANDARD.decode(data_base64);
                     let data = data.unwrap_or_default();
-                    let picture_type = picture_type.clone();
+                    let picture_type = *picture_type;
                     let description = description.clone();
                     TagValue::Picture {
                         mime,
@@ -793,17 +792,25 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
     p
 }
 
-//// Replaces the target file with the temporary file.
-pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), ()> {
+/// Replaces the target file with the temporary file.
+pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), BackendError> {
     #[cfg(not(windows))]
     {
         let ez = fs::remove_file(target);
         if ez.is_err() {
-            return Err(());
+            return Err(BackendError::WriteFailed(TagError {
+                path: target.to_str().unwrap_or("").to_string(),
+                public_message: "Could not replace file".to_string(),
+                internal_message: "Failed to replace file".to_string(),
+            }));
         }
         let rename_result = fs::rename(tmp, target);
         if rename_result.is_err() {
-            return Err(());
+            return Err(BackendError::WriteFailed(TagError {
+                path: target.to_str().unwrap_or("").to_string(),
+                public_message: "Could not replace file".to_string(),
+                internal_message: "Failed to replace file".to_string(),
+            }));
         }
         Ok(())
     }
@@ -812,7 +819,11 @@ pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), ()> {
         let _ = fs::remove_file(target);
         let rename_result = fs::rename(tmp, target);
         if rename_result.is_err() {
-            return Err(());
+            return Err(BackendError::WriteFailed(TagError {
+                path: target.to_str().unwrap_or("").to_string(),
+                public_message: "Could not replace file".to_string(),
+                internal_message: "Failed to replace file".to_string(),
+            }));
         }
         Ok(())
     }

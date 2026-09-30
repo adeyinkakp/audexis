@@ -5,9 +5,9 @@ use base64::Engine;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 pub trait TagBackend {
-    fn read(&self, path: &PathBuf) -> Result<MetadataFile, BackendError>;
+    fn read(&self, path: &Path) -> Result<MetadataFile, BackendError>;
 
     fn write_changes(&self, changes: &Changes) -> Vec<BackendError>;
 }
@@ -17,6 +17,12 @@ pub struct DefaultBackend {
     manager: TagManager,
 }
 
+impl Default for DefaultBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DefaultBackend {
     pub fn new() -> Self {
         Self {
@@ -24,7 +30,7 @@ impl DefaultBackend {
         }
     }
 
-    pub fn resolve_format(&self, path: &PathBuf) -> Formats {
+    pub fn resolve_format(&self, path: &Path) -> Formats {
         self.manager.detect_tag_format(path)
     }
 
@@ -32,7 +38,7 @@ impl DefaultBackend {
         self.manager.get_release_class(fmt)
     }
 
-    fn ensure_mp3_header(&self, path: &PathBuf) -> Result<(), BackendError> {
+    fn ensure_mp3_header(&self, path: &Path) -> Result<(), BackendError> {
         let is_mp3 = path
             .extension()
             .and_then(|extension| extension.to_str())
@@ -50,7 +56,7 @@ impl DefaultBackend {
         Ok(())
     }
 
-    pub fn detect_all_formats(&self, path: &PathBuf, primary: &Formats) -> Vec<Formats> {
+    pub fn detect_all_formats(&self, path: &Path, primary: &Formats) -> Vec<Formats> {
         super::detect_formats(path, Some(primary.clone()))
     }
 
@@ -137,7 +143,7 @@ impl TagBackend for DefaultBackend {
     ///
     /// * `Ok(File)` - If the tags were successfully read, returns a `File` struct containing the tag information.
     /// * `Err(BackendError)` - If there was an error reading the tags, returns a `BackendError` with details about the failure.
-    fn read(&self, path: &PathBuf) -> Result<MetadataFile, BackendError> {
+    fn read(&self, path: &Path) -> Result<MetadataFile, BackendError> {
         self.ensure_mp3_header(path)?;
         let fmt = self.resolve_format(path);
 
@@ -152,7 +158,7 @@ impl TagBackend for DefaultBackend {
         let freeforms = release.get_freeforms(path)?;
         let tag_formats = self.detect_all_formats(path, &fmt);
         Ok(MetadataFile {
-            path: path.clone(),
+            path: path.to_path_buf(),
             tags: tag_map,
             tag_format: fmt,
             tag_formats,

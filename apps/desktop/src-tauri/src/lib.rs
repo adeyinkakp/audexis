@@ -74,7 +74,7 @@ pub fn run() {
                     .await
                     .expect("Database failed to initialize")
             });
-            let fw = FileWatcher::new(&app.handle());
+            let fw = FileWatcher::new(app.handle());
             if fw.is_err() {
                 panic!("File watcher could not b created");
             }
@@ -85,7 +85,7 @@ pub fn run() {
                 library_scan_lock: tauri::async_runtime::Mutex::new(()),
                 db: db.clone(),
                 file_watcher: Mutex::new(fw),
-                audio_player: AudioPlayer::new(&app.handle(), controls, db.pool.clone())?,
+                audio_player: AudioPlayer::new(app.handle(), controls, db.pool.clone())?,
                 pending_worker_running: Arc::new(AtomicBool::new(false)),
                 now_playing: Mutex::new(None),
             });

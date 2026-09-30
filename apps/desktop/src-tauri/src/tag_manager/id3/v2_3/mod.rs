@@ -8,7 +8,6 @@ use std::io::Read;
 
 use crate::tag_manager::id3::v2_3::utils::{build_frame, create_header, encode_text_payload};
 use crate::tag_manager::id3::v2_3::utils::{decode_text_payload, split_encoded_text};
-use std::path::PathBuf;
 
 pub mod utils;
 
@@ -28,9 +27,9 @@ impl TagFormat for V2_3 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let has_header = utils::ensure_header(&file_path);
+        let has_header = utils::ensure_header(file_path);
 
         match has_header {
             Ok(true) => {}
@@ -195,7 +194,7 @@ impl TagFormat for V2_3 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
@@ -361,7 +360,8 @@ impl TagFormat for V2_3 {
             }
         }
         let comments = updated_tags.get(&FrameKey::Comments);
-        comments.map(|vals| {
+
+        if let Some(vals) = comments {
             for val in vals {
                 if let TagValue::Comment {
                     encoding: _,
@@ -377,9 +377,7 @@ impl TagFormat for V2_3 {
                         payload.extend_from_slice(&lang_bytes[0..3]);
                     } else {
                         payload.extend_from_slice(lang_bytes);
-                        for _ in 0..(3 - lang_bytes.len()) {
-                            payload.push(0x00);
-                        }
+                        payload.extend(std::iter::repeat_n(0x00, 3 - lang_bytes.len()));
                     }
                     payload.extend_from_slice(description.as_bytes());
                     payload.push(0x00);
@@ -387,7 +385,7 @@ impl TagFormat for V2_3 {
                     raw_frames.push(("COMM".to_string(), payload));
                 }
             }
-        });
+        }
         for v in pictures.into_iter() {
             if let TagValue::Picture {
                 mime,

@@ -1,13 +1,13 @@
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub(crate) use super::super::v2_common::{
     build_frame, decode_text_payload, encode_img_payload, encode_text_payload, split_encoded_text,
     to_synchsafe,
 };
 
-pub fn ensure_header(file_path: &PathBuf) -> std::io::Result<bool> {
+pub fn ensure_header(file_path: &Path) -> std::io::Result<bool> {
     let mut file = File::open(file_path)?;
     let mut header = [0u8; 10];
     file.read_exact(&mut header)?;

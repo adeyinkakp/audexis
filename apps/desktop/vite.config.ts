@@ -12,7 +12,6 @@ export default defineConfig(async () => ({
       target: "react",
       autoCodeSplitting: true,
     }),
-    ,
     react(),
     tailwindcss(),
   ],

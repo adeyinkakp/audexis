@@ -1,5 +1,6 @@
 use ringbuf::traits::{Observer, Producer};
 use souvlaki::{MediaMetadata, MediaPlayback};
+use std::panic;
 use std::sync::{atomic::Ordering, Arc};
 use std::time::Duration;
 use symphonia::core::formats::TrackType;
@@ -335,14 +336,13 @@ fn update_controls_metadata<P>(ctx: &mut WorkerContext<P>, metadata: PartialMeta
 where
     P: Producer<Item = f32> + Observer + Send,
 {
-    let res = ctx.controls.lock().unwrap().set_metadata(MediaMetadata {
-        title: metadata.title.as_deref(),
-        album: metadata.album.as_deref(),
-        artist: metadata.artist.as_deref(),
-        cover_url: metadata.cover_url.as_deref(),
-        duration: metadata.duration.map(Duration::from_millis),
+    let _ = panic::catch_unwind(|| {
+        let _ = ctx.controls.lock().unwrap().set_metadata(MediaMetadata {
+            title: metadata.title.as_deref(),
+            album: metadata.album.as_deref(),
+            artist: metadata.artist.as_deref(),
+            cover_url: metadata.cover_url.as_deref(),
+            duration: metadata.duration.map(Duration::from_millis),
+        });
     });
-    if let Err(err) = res {
-        tauri_plugin_log::log::error!("Error occurred: {}", err);
-    }
 }
