@@ -122,18 +122,6 @@ export function CollectionSongs({
                         Unknown artist
                       </span>
                     )}
-                    {tag.album && (
-                      <Link
-                        to="/albums"
-                        search={{
-                          album: tag.album,
-                          artist: tag.albumArtist || tag.artist || "",
-                        }}
-                        className="block truncate text-xs text-muted-foreground hover:text-primary"
-                      >
-                        {tag.album}
-                      </Link>
-                    )}
                   </div>
                   <HeartButton fileId={file.id} />
                   <span className="text-xs tabular-nums text-muted-foreground">

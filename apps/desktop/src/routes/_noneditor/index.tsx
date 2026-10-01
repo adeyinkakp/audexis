@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Disc3, Heart, ListMusic, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { HomeDiscovery } from "../../components/home/HomeDiscovery";
 export const Route = createFileRoute("/_noneditor/")({ component: HomePage });
 function HomePage() {

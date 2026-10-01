@@ -1,7 +1,9 @@
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
-use sqlx::Executor;
+use sqlx::{ConnectOptions, Executor};
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
+use tauri_plugin_log::log::LevelFilter;
 pub mod types;
 #[derive(Clone, Debug)]
 pub struct Database {
@@ -21,6 +23,8 @@ impl Database {
         let connection_options = SqliteConnectOptions::new()
             .create_if_missing(true)
             .filename(db_path)
+            .log_statements(LevelFilter::Debug)
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(50))
             .collation("METADATA_NOCASE", |a, b| {
                 a.trim().to_lowercase().cmp(&b.trim().to_lowercase())
             });

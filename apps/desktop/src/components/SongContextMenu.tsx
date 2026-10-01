@@ -6,6 +6,7 @@ import { ContextMenuArea, type MenuOptions } from "./ContextMenu";
 import { usePlaylists, useAddPlaylistTrack } from "../hooks/usePlaylists";
 import { useFavorites } from "../hooks/useFavorites";
 import { fetchMediaFiles } from "../hooks/useMediaFiles";
+import { useStore } from "../hooks/useStore";
 export function SongContextMenu({
   fileId,
   playlistId,
@@ -23,6 +24,7 @@ export function SongContextMenu({
   const add = useAddPlaylistTrack();
   const favorites = useFavorites();
   const navigate = useNavigate();
+  const { openTrackInfo } = useStore();
   if (fileId <= 0) return <>{children}</>;
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -41,6 +43,12 @@ export function SongContextMenu({
       action: () => run(() => invoke("enqueue_song", { fileId, next: false })),
     },
     { item: "separator" },
+    {
+      text: "Get Info",
+      action: () => {
+        openTrackInfo([fileId]);
+      },
+    },
     {
       text: "Heart",
       checked: favorites.data?.includes(fileId) ?? false,

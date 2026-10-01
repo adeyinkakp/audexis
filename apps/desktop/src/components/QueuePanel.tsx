@@ -6,6 +6,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ListMusic } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaFiles } from "../hooks/useMediaFiles";
+import { useNowPlayingState } from "../hooks/useNowPlayingState";
 
 type QueueInfo = {
   paths: string[];
@@ -130,7 +131,7 @@ export default function QueuePanel({
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{file.title}</div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {file.fileName}
+                      {file.path}
                     </div>
                   </div>
                   <span className="ml-auto text-xs tabular-nums text-muted-foreground">

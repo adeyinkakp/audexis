@@ -13,6 +13,7 @@ import { OnboardingModal } from "../modals/OnboardingModal";
 import { SettingsModal } from "../modals/SettingsModal";
 import { LogsModal } from "../modals/LogsModal";
 import { logError } from "../utils/logger";
+import TrackInfoModal from "../modals/TrackInfoModal";
 
 const store = new LazyStore("./settings.json");
 export type ThemePreference = "light" | "dark" | "system";
@@ -33,6 +34,7 @@ type StoreContextValue = {
   preferences: Preferences;
   savePreferences: (values: Preferences) => Promise<void>;
   openSettings: () => void;
+  openTrackInfo: (fileIds: number[]) => void;
   openLogs: () => void;
 };
 const defaults: Preferences = {
@@ -53,6 +55,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [trackInfoOpen, setTrackInfoOpen] = useState(false);
+  const [trackInfoIds, setTrackInfoIds] = useState<number[]>([]);
   const [logsOpen, setLogsOpen] = useState(false);
   const currentTheme =
     preferences.theme === "system"
@@ -182,6 +186,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await store.save();
     setNeedsOnboarding(false);
   };
+  function openTrackInfo(fileIds: number[]) {
+    setTrackInfoIds(fileIds);
+    setTrackInfoOpen(true);
+  }
   return (
     <StoreContext.Provider
       value={{
@@ -190,6 +198,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         preferences,
         savePreferences,
         openSettings: () => setSettingsOpen(true),
+        openTrackInfo,
         openLogs: () => setLogsOpen(true),
       }}
     >
@@ -208,6 +217,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             }}
           />
         )}
+        {trackInfoOpen && (
+          <TrackInfoModal
+            open
+            fileIds={trackInfoIds}
+            onClose={() => {
+              setTrackInfoOpen(false);
+              setTrackInfoIds([]);
+            }}
+          />
+        )}
+
         {logsOpen && <LogsModal open onClose={() => setLogsOpen(false)} />}
       </div>
     </StoreContext.Provider>
