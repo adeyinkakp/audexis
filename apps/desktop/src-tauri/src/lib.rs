@@ -8,6 +8,7 @@ use audio_player::AudioPlayer;
 use database::Database;
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use tauri::{async_runtime, Manager};
+use tauri_plugin_log::{log::LevelFilter, RotationStrategy};
 pub mod tag_manager;
 use crate::file_watcher::FileWatcher;
 use souvlaki::{MediaControls, PlatformConfig};
@@ -29,7 +30,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(tauri_plugin_log::log::LevelFilter::Info)
+                .level(LevelFilter::Debug)
+                .level(LevelFilter::Info)
+                .level(LevelFilter::Warn)
+                .max_file_size(2_097_152)
+                .rotation_strategy(RotationStrategy::KeepSome(4))
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
