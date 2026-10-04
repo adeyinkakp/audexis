@@ -149,8 +149,8 @@ The pull request description should explain:
 - How the change was tested
 - Any known limitations or follow-up work
 
-A pull request does not need to solve every related problem, but it should leave the
-project in a buildable and understandable state.
+A pull request does not need to solve every related problem, but it should leave
+the project in a buildable and understandable state.
 
 ## License
 

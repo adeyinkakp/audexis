@@ -50,7 +50,7 @@ export function PlaylistNameModal({
           }
         }}
       >
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/25 to-muted text-primary">
+        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-linear-to-br from-primary/25 to-muted text-primary">
           <ListMusic size={42} />
         </div>
         <label

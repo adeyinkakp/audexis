@@ -1,9 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FolderSearch, Trash2 } from "lucide-react";
-import { useEffect } from "react";
 import toast from "react-hot-toast";
 
 type MissingFile = {
@@ -25,15 +23,6 @@ function MissingFilesPage() {
     queryKey: ["missingFiles"],
     queryFn: () => invoke<MissingFile[]>("get_missing_files"),
   });
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    void listen("library-changed", () => {
-      void client.invalidateQueries({ queryKey: ["missingFiles"] });
-    }).then((unlisten) => {
-      cleanup = unlisten;
-    });
-    return () => cleanup?.();
-  }, [client]);
 
   const relink = useMutation({
     mutationFn: (fileId: number) =>

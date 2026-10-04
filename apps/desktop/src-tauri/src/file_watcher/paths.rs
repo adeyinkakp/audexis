@@ -120,3 +120,130 @@ pub(crate) fn is_audio_file(p: &Path) -> bool {
             .is_some_and(|s| SUPPORTED_EXTENSIONS.contains(&s))
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::Database;
+
+    struct TestDirectory(PathBuf);
+    impl TestDirectory {
+        fn new() -> Self {
+            let path =
+                std::env::temp_dir().join(format!("audexis-path-tests-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    async fn insert_file(pool: &sqlx::SqlitePool, path: &Path) -> i64 {
+        sqlx::query_scalar(
+            "INSERT INTO files (path, file_name, size) VALUES (?1, 'song.mp3', 0) RETURNING id",
+        )
+        .bind(path.to_string_lossy().as_ref())
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn link_file(pool: &sqlx::SqlitePool, id: i64) {
+        sqlx::query("INSERT INTO media_info (file_id, loved) VALUES (?1, 1)")
+            .bind(id)
+            .execute(pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO playlists (id, name) VALUES (1, 'Favorites')")
+            .execute(pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO playlist_tracks (playlist_id, file_id, ord) VALUES (1, ?1, 0)")
+            .bind(id)
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
+    async fn assert_links(pool: &sqlx::SqlitePool, id: i64) {
+        let loved: i64 = sqlx::query_scalar("SELECT loved FROM media_info WHERE file_id = ?1")
+            .bind(id)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        let linked: i64 = sqlx::query_scalar(
+            "SELECT file_id FROM playlist_tracks WHERE playlist_id = 1 AND ord = 0",
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        assert_eq!(loved, 1);
+        assert_eq!(linked, id);
+    }
+
+    #[test]
+    fn missing_directory_preserves_links_and_does_not_match_sibling_prefixes() {
+        tauri::async_runtime::block_on(async {
+            let dir = TestDirectory::new();
+            let db = Database::init(&dir.0.join("test.db")).await.unwrap();
+            let album = dir.0.join("album");
+            let id = insert_file(&db.pool, &album.join("song.mp3")).await;
+            let sibling = insert_file(&db.pool, &dir.0.join("album-other/song.mp3")).await;
+            link_file(&db.pool, id).await;
+            assert_eq!(
+                mark_indexed_path_missing(&db.pool, &album).await.unwrap(),
+                vec![id]
+            );
+            assert!(mark_indexed_path_missing(&db.pool, &album)
+                .await
+                .unwrap()
+                .is_empty());
+            let missing: Option<i64> =
+                sqlx::query_scalar("SELECT missing_since FROM files WHERE id = ?1")
+                    .bind(sibling)
+                    .fetch_one(&db.pool)
+                    .await
+                    .unwrap();
+            assert!(missing.is_none());
+            assert_links(&db.pool, id).await;
+            db.pool.close().await;
+        });
+    }
+
+    #[test]
+    fn renamed_directory_keeps_file_identity_favorites_and_playlist_membership() {
+        tauri::async_runtime::block_on(async {
+            let dir = TestDirectory::new();
+            let db = Database::init(&dir.0.join("test.db")).await.unwrap();
+            let old = dir.0.join("old");
+            let new = dir.0.join("renamed");
+            std::fs::create_dir_all(old.join("disc1")).unwrap();
+
+            std::fs::write(old.join("disc1/song.mp3"), b"fixture").unwrap();
+            let id = insert_file(&db.pool, &old.join("disc1/song.mp3")).await;
+            link_file(&db.pool, id).await;
+            mark_indexed_path_missing(&db.pool, &old).await.unwrap();
+            std::fs::rename(&old, &new).unwrap();
+            assert_eq!(
+                rebase_indexed_directory(&db.pool, &old, &new)
+                    .await
+                    .unwrap(),
+                vec![id]
+            );
+            let (path, missing, status): (String, Option<i64>, String) =
+                sqlx::query_as("SELECT path, missing_since, status FROM files WHERE id = ?1")
+                    .bind(id)
+                    .fetch_one(&db.pool)
+                    .await
+                    .unwrap();
+            assert_eq!(Path::new(&path), new.join("disc1/song.mp3"));
+            assert!(missing.is_none());
+            assert_eq!(status, "pending");
+            assert_links(&db.pool, id).await;
+            db.pool.close().await;
+        });
+    }
+}

@@ -31,7 +31,7 @@ still being improved before a stable release.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 20 or newer
+- [Node.js](https://nodejs.org/) 22.18 or newer
 - [pnpm](https://pnpm.io/) 9
 - A stable [Rust toolchain](https://www.rust-lang.org/tools/install)
 - The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/)

@@ -70,7 +70,7 @@ export function useRewind(year: number, month: number | null) {
       timer = setTimeout(() => void refresh(), 250);
     };
     void Promise.all(
-      ["listening-time-changed", "library-changed"].map(async (event) => {
+      ["listening-time-changed"].map(async (event) => {
         const cleanup = await listen(event, schedule);
         if (disposed) cleanup();
         else cleanups.push(cleanup);

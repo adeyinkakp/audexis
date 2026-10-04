@@ -29,13 +29,14 @@ pub(crate) fn encode_text_payload(text: &str, prefer_utf16: bool) -> Vec<u8> {
 
 pub(crate) fn decode_text_payload(encoding: u8, bytes: &[u8]) -> String {
     match encoding {
-        0x00 => String::from_utf8_lossy(bytes).to_string(),
+        0x00 => bytes.iter().map(|byte| char::from(*byte)).collect(),
         0x01 => {
             let bytes = bytes.strip_prefix(&[0xFF, 0xFE]).unwrap_or(bytes);
+            let (code_units, _) = bytes.as_chunks::<2>();
             String::from_utf16_lossy(
-                &bytes
-                    .chunks_exact(2)
-                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                &code_units
+                    .iter()
+                    .map(|chunk| u16::from_le_bytes(*chunk))
                     .collect::<Vec<_>>(),
             )
         }

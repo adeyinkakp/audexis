@@ -103,7 +103,6 @@ export function useHomeDiscovery(period: string) {
       [
         "play-count-changed",
         "listening-history-changed",
-        "library-changed",
         "library-scan-completed",
       ].map(async (event) => {
         const cleanup = await listen(event, () => {

@@ -652,3 +652,7 @@ mod library_reconcile_tests {
         assert_eq!(queue.index, 0);
     }
 }
+
+#[cfg(test)]
+#[path = "queue_tests.rs"]
+mod playback_tests;

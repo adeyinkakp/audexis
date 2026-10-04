@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MutationCache, QueryCache } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorPage } from "./components/ErrorPage";
+import { StartupValidate } from "./components/StartupValidate";
 import { installErrorLogging, logError } from "./utils/logger";
 
 installErrorLogging();
@@ -77,12 +78,14 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         }}
       />
 
-      <QueryClientProvider client={queryClient}>
-        <StoreProvider>
-          <LibraryEvents />
-          <RouterProvider router={router} />
-        </StoreProvider>
-      </QueryClientProvider>
+      <StartupValidate>
+        <QueryClientProvider client={queryClient}>
+          <StoreProvider>
+            <LibraryEvents />
+            <RouterProvider router={router} />
+          </StoreProvider>
+        </QueryClientProvider>
+      </StartupValidate>
     </ErrorBoundary>
   </React.StrictMode>,
 );

@@ -1,12 +1,20 @@
 import { ArrowLeft, Disc3, Home, RefreshCw } from "lucide-react";
 
 type ErrorPageProps = {
-  kind: "not-found" | "error" | "fatal";
+  kind: "not-found" | "error" | "fatal" | "startup";
   error?: unknown;
   onRetry?: () => void;
+  message?: string;
+  retryPending?: boolean;
+  retryError?: string;
 };
 
 const content = {
+  startup: {
+    mainMessage: "Unable to start",
+    title: "Audexis could not start.",
+    description: "A required service could not be initialized. Relaunch Audexis to try again.",
+  },
   "not-found": {
     mainMessage: "404 - not found",
     title: "Page could not be found",
@@ -32,7 +40,7 @@ function getErrorMessage(error: unknown) {
   return null;
 }
 
-export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
+export function ErrorPage({ kind, error, onRetry, message, retryPending, retryError }: ErrorPageProps) {
   const copy = content[kind];
   const errorMessage = getErrorMessage(error);
   const isNotFound = kind === "not-found";
@@ -73,28 +81,34 @@ export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
               {copy.title}
             </h1>
             <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-              {copy.description}
+              {message ?? copy.description}
             </p>
+            {kind === "startup" && message && (
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Relaunch Audexis to try again. If the problem continues, use the technical details below to troubleshoot it.
+              </p>
+            )}
 
             <div className="mt-7 flex flex-wrap gap-3">
               {!isNotFound && onRetry && (
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  disabled={retryPending}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <RefreshCw size={16} />
-                  {kind === "fatal" ? "Reload Audexis" : "Try again"}
+                  {kind === "startup" ? (retryPending ? "Relaunching…" : "Relaunch Audexis") : kind === "fatal" ? "Reload Audexis" : "Try again"}
                 </button>
               )}
-              <button
+              {kind !== "startup" && <button
                 type="button"
                 onClick={() => window.location.assign("/")}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
               >
                 <Home size={16} />
                 Go home
-              </button>
+              </button>}
               {isNotFound && (
                 <button
                   type="button"
@@ -106,6 +120,7 @@ export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
                 </button>
               )}
             </div>
+            {retryError && <p role="alert" className="mt-3 text-sm text-destructive">{retryError}</p>}
           </div>
         </div>
 

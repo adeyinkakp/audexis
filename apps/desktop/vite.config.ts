@@ -6,6 +6,7 @@ const host = process.env.TAURI_DEV_HOST;
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 
 // https://vite.dev/config/
+// @ts-expect-error
 export default defineConfig(async () => ({
   plugins: [
     tanstackRouter({

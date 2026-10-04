@@ -3,11 +3,11 @@ mod commands;
 mod database;
 mod file_watcher;
 pub mod utils;
-use crate::utils::errors::DatabaseError;
 use audio_player::AudioPlayer;
 use database::Database;
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use tauri::{async_runtime, Manager};
+mod startup;
 use tauri_plugin_log::{log::LevelFilter, RotationStrategy};
 pub mod tag_manager;
 use crate::file_watcher::FileWatcher;
@@ -28,91 +28,26 @@ pub fn run() {
         tauri_plugin_log::log::error!("panic: {panic}");
     }));
     tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(LevelFilter::Debug)
-                .level(LevelFilter::Info)
-                .level(LevelFilter::Warn)
-                .max_file_size(2_097_152)
-                .rotation_strategy(RotationStrategy::KeepSome(4))
-                .build(),
-        )
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             crate::utils::errors::init_error_reporting(app.handle());
-            #[cfg(target_os = "windows")]
-            let main_window = app
-                .get_webview_window("main")
-                .expect("main window should be available during setup");
-
-            #[cfg(target_os = "windows")]
-            main_window.set_decorations(false)?;
-
-            let app_path = app.path().app_data_dir();
-            if app_path.is_err() {
-                panic!("No app path");
+            let error = initialize(app).err();
+            if let Some(error) = &error {
+                eprintln!("Startup failed: {} | {}", error.message, error.details);
+                tauri_plugin_log::log::error!(
+                    "Startup failed: {} | {}",
+                    error.message,
+                    error.details
+                );
             }
 
-            #[cfg(not(target_os = "windows"))]
-            let hwnd = None;
-
-            #[cfg(target_os = "windows")]
-            let hwnd = {
-                use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-                if let Ok(handle) = main_window.window_handle() {
-                    match handle.as_raw() {
-                        RawWindowHandle::Win32(win32_handle) => {
-                            Some(win32_handle.hwnd.get() as *mut std::ffi::c_void)
-                        }
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            };
-
-            let config = PlatformConfig {
-                dbus_name: "com.audexis",
-                display_name: "My Tauri Music Player",
-                hwnd,
-            };
-
-            let controls = MediaControls::new(config);
-
-            let app_path = app_path.unwrap();
-            let db_path = app_path.join("audexis_testing1234.db");
-            let db = async_runtime::block_on(async {
-                Database::init(&db_path)
-                    .await
-                    .expect("Database failed to initialize")
-            });
-            let fw = FileWatcher::new(app.handle());
-            if fw.is_err() {
-                panic!("File watcher could not b created");
-            }
-            let fw = fw.unwrap();
-            let controls = controls.unwrap();
-
-            app.manage(AppState {
-                library_scan_lock: tauri::async_runtime::Mutex::new(()),
-                db: db.clone(),
-                file_watcher: Mutex::new(fw),
-                audio_player: AudioPlayer::new(app.handle(), controls, db.pool.clone())?,
-                pending_worker_running: Arc::new(AtomicBool::new(false)),
-                now_playing: Mutex::new(None),
-            });
-
-            if let Ok(mut watcher) = app.state::<AppState>().file_watcher.lock() {
-                async_runtime::block_on(async {
-                    let res: Result<(), DatabaseError> = watcher.init().await;
-                    drop(res);
-                });
-            }
+            app.manage(startup::StartupStatus { error });
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            startup::get_startup_error,
+            startup::relaunch_app,
             commands::discovery::home_discovery::get_home_discovery,
             commands::discovery::rewind::get_rewind,
             commands::library::browse_library::browse_library,
@@ -168,4 +103,95 @@ pub fn run() {
                 }
             }
         });
+}
+
+fn initialize(app: &mut tauri::App) -> Result<(), startup::StartupError> {
+    use startup::StartupError;
+
+    let app_path = app.path().app_data_dir().map_err(|error| {
+        StartupError::new(
+            "Audexis could not locate its application data folder.",
+            error,
+        )
+    })?;
+
+    app.handle()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(LevelFilter::Warn)
+                .max_file_size(2_097_152)
+                .rotation_strategy(RotationStrategy::KeepSome(4))
+                .build(),
+        )
+        .map_err(|error| {
+            StartupError::new("Audexis could not initialize application logging.", error)
+        })?;
+
+    #[cfg(target_os = "windows")]
+    let main_window = app.get_webview_window("main").ok_or_else(|| {
+        StartupError::new(
+            "Audexis could not initialize its window.",
+            "Main window is unavailable",
+        )
+    })?;
+
+    #[cfg(not(target_os = "windows"))]
+    let hwnd = None;
+    #[cfg(target_os = "windows")]
+    let hwnd = {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        main_window
+            .window_handle()
+            .ok()
+            .and_then(|handle| match handle.as_raw() {
+                RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as *mut std::ffi::c_void),
+                _ => None,
+            })
+    };
+    let controls = MediaControls::new(PlatformConfig {
+        dbus_name: "com.audexis",
+        display_name: "My Tauri Music Player",
+        hwnd,
+    })
+    .map_err(|error| {
+        StartupError::new("Audexis could not initialize system media controls.", error)
+    })?;
+    let db_path = app_path.join("audexis_testing1234.db");
+    let db = async_runtime::block_on(Database::init(&db_path)).map_err(|error| {
+        StartupError::new("Audexis could not open its library database.", error)
+    })?;
+    let fw = FileWatcher::new(app.handle()).map_err(|error| {
+        StartupError::new("Audexis could not create its library file watcher.", error)
+    })?;
+    let audio_player =
+        AudioPlayer::new(app.handle(), controls, db.pool.clone()).map_err(|error| {
+            StartupError::new("Audexis could not initialize audio playback.", error)
+        })?;
+    app.manage(AppState {
+        library_scan_lock: tauri::async_runtime::Mutex::new(()),
+        db,
+        file_watcher: Mutex::new(fw),
+        audio_player,
+        pending_worker_running: Arc::new(AtomicBool::new(false)),
+        now_playing: Mutex::new(None),
+    });
+    let state = app.state::<AppState>();
+    let mut watcher = state.file_watcher.lock().map_err(|error| {
+        StartupError::new(
+            "Audexis could not initialize its library file watcher.",
+            error,
+        )
+    })?;
+    async_runtime::block_on(watcher.init()).map_err(|error| {
+        StartupError::new(
+            "Audexis could not initialize its library file watcher.",
+            error,
+        )
+    })?;
+
+    #[cfg(target_os = "windows")]
+    main_window
+        .set_decorations(false)
+        .map_err(|error| StartupError::new("Audexis could not initialize its window.", error))?;
+    Ok(())
 }

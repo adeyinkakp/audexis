@@ -1,4 +1,4 @@
-use crate::tag_manager::id3::utils::{id3v23_key, raw_to_tags, tags_to_raw};
+use crate::tag_manager::id3::utils::{id3v23_code, id3v23_key, raw_to_tags, tags_to_raw};
 use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagMap, TagValue, UserTextEntry, UserUrlEntry};
@@ -301,12 +301,17 @@ impl TagFormat for V2_3 {
             }
         }
         let raw_updated_tags = tags_to_raw(&flattened);
-        let mut updated_keys: Vec<String> =
-            raw_updated_tags.keys().map(|k| k.to_string()).collect();
-        if !pictures.is_empty() {
-            updated_keys.push("APIC".to_string());
-        }
-        raw_frames.retain(|(id, _)| !updated_keys.iter().any(|k| k == id));
+
+        let updated_keys: Vec<&str> = updated_tags
+            .keys()
+            .map(|key| {
+                id3v23_code(match key {
+                    FrameKey::Artists => FrameKey::Artist,
+                    _ => *key,
+                })
+            })
+            .collect();
+        raw_frames.retain(|(id, _)| !updated_keys.iter().any(|key| *key == id));
 
         for (k, v) in raw_updated_tags {
             match v {

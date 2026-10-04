@@ -92,8 +92,9 @@ pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<
         let size = u32::from_be_bytes(header[offset..offset + 4].try_into().unwrap()) as usize;
         if &header[offset + 4..offset + 8] == b"ftyp" && size >= 16 && offset + 16 <= header.len() {
             let end = (offset + size).min(header.len());
+            let (brands, _) = header[offset + 16..end].as_chunks::<4>();
             if known_brand(&header[offset + 8..offset + 12])
-                || header[offset + 16..end].chunks_exact(4).any(known_brand)
+                || brands.iter().any(|brand| known_brand(brand))
             {
                 add(&mut formats, Formats::Itunes);
             }

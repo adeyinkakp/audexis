@@ -448,3 +448,7 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "tag_backend_tests.rs"]
+mod round_trip_tests;

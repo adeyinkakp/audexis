@@ -46,7 +46,7 @@ impl FileWatcher {
                 ),
             },
         )
-        .map_err(|_| DatabaseError::Unknown(String::from("Unknown")))?;
+        .map_err(|error| DatabaseError::Unknown(error.to_string()))?;
         let new_watcher = Self {
             app_handle: app.clone(),
             debouncer,
