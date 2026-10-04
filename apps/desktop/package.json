@@ -5,9 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "tsc && vite build",
+    "build:frontend": "vite build",
     "preview": "vite preview",
-    "clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
+    "format:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
+    "check:rust": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "validate:frontend": "pnpm run typecheck && pnpm run build:frontend",
+    "validate:rust": "pnpm run format:check && pnpm run check:rust && pnpm run clippy && pnpm run test:rust",
+    "validate": "pnpm run validate:frontend && pnpm run validate:rust",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -7,7 +7,8 @@ use tauri::{async_runtime, AppHandle};
 
 pub(super) async fn backfill(pool: &SqlitePool, app: &AppHandle) -> Result<(), DatabaseError> {
     let total = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = '' OR last_validated = 0 OR size = 0 OR modified_at = 0",
+        "SELECT COUNT(*) FROM files WHERE missing_since IS NULL AND
+         (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = '' OR last_validated = 0 OR size = 0 OR modified_at = 0)",
     )
     .fetch_one(pool)
     .await
@@ -22,7 +23,7 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &AppHandle) -> Result<(), D
     let mut cursor: i64 = 0;
     loop {
         let rows: Vec<(i64, String, Option<String>)> = sqlx::query_as(
-            "SELECT id, path, format FROM files WHERE id > ?1 AND
+            "SELECT id, path, format FROM files WHERE id > ?1 AND missing_since IS NULL AND
              (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = ''
               OR last_validated = 0 OR size = 0 OR modified_at = 0)
              ORDER BY id LIMIT 50",
@@ -41,7 +42,7 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &AppHandle) -> Result<(), D
                 .filter_map(|(id, path, format)| {
                     let path = PathBuf::from(path);
                     let stat = std::fs::metadata(&path).ok()?;
-                    let duration = super::read_duration_ms(&path);
+                    let duration = super::metadata::read_duration_ms(&path);
                     let format = format.filter(|value| !value.is_empty()).or_else(|| {
                         DefaultBackend::new()
                             .read(&path)

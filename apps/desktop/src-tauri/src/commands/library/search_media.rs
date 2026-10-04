@@ -115,7 +115,7 @@ async fn search_media_with_pool(
             sep = TAG_SEP as u32
         ));
     }
-    query.push(" WHERE 1=1");
+    query.push(" WHERE f.missing_since IS NULL");
     if input.favorites_only {
         query.push(
             " AND EXISTS (SELECT 1 FROM media_info i WHERE i.file_id = f.id AND i.loved = 1)",

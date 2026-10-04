@@ -10,6 +10,12 @@ use crate::audio_player::{
     AudioPlayerError, PlayerCmd,
 };
 
+pub struct LibraryReconcileResult {
+    pub current_removed: bool,
+    pub current_path_changed: bool,
+    pub current_path: Option<String>,
+}
+
 pub struct Queue {
     pub tracks: Vec<Arc<Mutex<QueueTrack>>>,
     pub index: i32,
@@ -327,6 +333,106 @@ impl Queue {
             .collect()
     }
 
+    pub fn reconcile_library_files(
+        &mut self,
+        path_updates: &std::collections::HashMap<i64, String>,
+        missing_ids: &std::collections::HashSet<i64>,
+    ) -> LibraryReconcileResult {
+        let current_queue_id = self.current_queue_id();
+        let current_index = self.index.max(0) as usize;
+        let mut current_path_changed = false;
+
+        for track in &self.tracks {
+            if let Ok(mut track) = track.lock() {
+                if let Some(path) = path_updates.get(&track.database_id) {
+                    if current_queue_id.as_deref() == Some(track.queue_id.as_str())
+                        && track.path != *path
+                    {
+                        current_path_changed = true;
+                    }
+                    track.path.clone_from(path);
+                    if let Some(original_index) = self
+                        .original_queue_ids
+                        .iter()
+                        .position(|queue_id| queue_id == &track.queue_id)
+                    {
+                        self.original_order[original_index].clone_from(path);
+                    }
+                }
+            }
+        }
+
+        let removed_before_current = self
+            .tracks
+            .iter()
+            .take(current_index)
+            .filter(|track| {
+                track
+                    .lock()
+                    .ok()
+                    .is_some_and(|track| missing_ids.contains(&track.database_id))
+            })
+            .count();
+        let current_removed = self
+            .tracks
+            .get(current_index)
+            .and_then(|track| track.lock().ok())
+            .is_some_and(|track| missing_ids.contains(&track.database_id));
+
+        let removed_queue_ids = self
+            .tracks
+            .iter()
+            .filter_map(|track| {
+                track.lock().ok().and_then(|track| {
+                    missing_ids
+                        .contains(&track.database_id)
+                        .then(|| track.queue_id.clone())
+                })
+            })
+            .collect::<std::collections::HashSet<_>>();
+        self.tracks.retain(|track| {
+            track
+                .lock()
+                .map(|track| !missing_ids.contains(&track.database_id))
+                .unwrap_or(false)
+        });
+        let mut original_index = 0;
+        self.original_queue_ids.retain(|queue_id| {
+            let keep = !removed_queue_ids.contains(queue_id);
+            if !keep {
+                self.original_order.remove(original_index);
+            } else {
+                original_index += 1;
+            }
+            keep
+        });
+
+        if self.tracks.is_empty() {
+            self.index = 0;
+        } else if current_removed {
+            self.index = current_index
+                .saturating_sub(removed_before_current)
+                .min(self.tracks.len() - 1) as i32;
+        } else if let Some(queue_id) = current_queue_id {
+            self.index = self
+                .tracks
+                .iter()
+                .position(|track| {
+                    track
+                        .lock()
+                        .ok()
+                        .is_some_and(|track| track.queue_id == queue_id)
+                })
+                .unwrap_or(0) as i32;
+        }
+
+        LibraryReconcileResult {
+            current_removed,
+            current_path_changed,
+            current_path: self.current_path(),
+        }
+    }
+
     pub fn preload(&mut self) -> Result<(), AudioPlayerError> {
         let next_index = self.index as usize + 1;
         let track_to_preload = self.tracks.get(next_index);
@@ -499,4 +605,50 @@ fn stable_shuffle_key(identity: &str, seed: usize) -> u64 {
         hash ^= hash >> 32;
     }
     hash
+}
+
+#[cfg(test)]
+mod library_reconcile_tests {
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+
+    fn queue() -> Queue {
+        let (sender, _receiver) = crossbeam_channel::unbounded();
+        let mut queue = Queue::new(sender);
+        for id in 1..=3 {
+            queue.append(UnresolvedTrack {
+                id,
+                path: format!("/music/{id}.mp3"),
+                occurrence: None,
+            });
+        }
+        queue
+    }
+
+    #[test]
+    fn updates_paths_without_changing_current_track() {
+        let mut queue = queue();
+        queue.index = 1;
+        let outcome = queue.reconcile_library_files(
+            &HashMap::from([(2, "/renamed/2.mp3".to_string())]),
+            &HashSet::new(),
+        );
+
+        assert!(!outcome.current_removed);
+        assert!(outcome.current_path_changed);
+        assert_eq!(outcome.current_path.as_deref(), Some("/renamed/2.mp3"));
+        assert_eq!(queue.file_ids(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn removing_current_track_advances_to_next_available_track() {
+        let mut queue = queue();
+        queue.index = 1;
+        let outcome = queue.reconcile_library_files(&HashMap::new(), &HashSet::from([1, 2]));
+
+        assert!(outcome.current_removed);
+        assert_eq!(outcome.current_path.as_deref(), Some("/music/3.mp3"));
+        assert_eq!(queue.file_ids(), vec![3]);
+        assert_eq!(queue.index, 0);
+    }
 }

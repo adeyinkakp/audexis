@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { logError } from "../utils/logger";
+import { ErrorPage } from "./ErrorPage";
 
 export class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -18,21 +19,11 @@ export class ErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="flex h-screen items-center justify-center bg-background p-8 text-foreground">
-          <div className="max-w-lg rounded-2xl border border-border bg-popover p-8 text-center">
-            <h1 className="text-xl font-semibold">Audexis ran into a problem</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              The error was saved to the application log.
-            </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-6 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-            >
-              Reload
-            </button>
-          </div>
-        </div>
+        <ErrorPage
+          kind="fatal"
+          error={this.state.error}
+          onRetry={() => window.location.reload()}
+        />
       );
     }
     return this.props.children;

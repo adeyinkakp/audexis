@@ -12,6 +12,7 @@ export type DatabaseMediaFile = {
   format: string | null;
   modified_at: number;
   size: number;
+  missing_since: number | null;
 };
 
 export type DatabaseMediaMetadata = {

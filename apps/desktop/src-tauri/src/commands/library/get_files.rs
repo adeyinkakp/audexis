@@ -23,7 +23,7 @@ pub async fn get_media_page(
     let mut tx = db.pool.begin().await.map_err(|_| ())?;
     let files = sqlx::query_as::<_, DatabaseMediaFile>(
         "SELECT * FROM files
-         WHERE id > ?1
+         WHERE id > ?1 AND missing_since IS NULL
          ORDER BY id
          LIMIT ?2",
     )
@@ -43,7 +43,7 @@ pub async fn get_media_page(
          WHERE key IN ('title', 'album', 'artist', 'genre')
            AND file_id IN (
                SELECT id FROM files
-               WHERE id > ?1
+               WHERE id > ?1 AND missing_since IS NULL
                ORDER BY id
                LIMIT ?2
            )

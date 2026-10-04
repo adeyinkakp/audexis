@@ -2,7 +2,7 @@ use crate::AppState;
 
 #[tauri::command]
 pub async fn get_favorite_ids(state: tauri::State<'_, AppState>) -> Result<Vec<i64>, String> {
-    sqlx::query_scalar("SELECT file_id FROM media_info WHERE loved = 1 ORDER BY file_id")
+    sqlx::query_scalar("SELECT i.file_id FROM media_info i JOIN files f ON f.id=i.file_id WHERE i.loved = 1 AND f.missing_since IS NULL ORDER BY i.file_id")
         .fetch_all(&state.db.pool)
         .await
         .map_err(|e| e.to_string())

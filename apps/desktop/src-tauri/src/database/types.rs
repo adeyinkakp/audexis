@@ -13,6 +13,7 @@ pub struct DatabaseMediaFile {
     pub format: Option<String>,
     pub modified_at: i64,
     pub size: i64,
+    pub missing_since: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]

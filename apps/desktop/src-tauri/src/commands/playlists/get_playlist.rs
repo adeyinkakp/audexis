@@ -19,7 +19,7 @@ pub async fn get_playlist(
         "SELECT f.id, f.path, f.file_name, f.duration_ms, pt.ord
          FROM playlist_tracks pt
          JOIN files f ON f.id = pt.file_id
-         WHERE pt.playlist_id = ?1
+         WHERE pt.playlist_id = ?1 AND f.missing_since IS NULL
          ORDER BY pt.ord",
     )
     .bind(playlist_id)

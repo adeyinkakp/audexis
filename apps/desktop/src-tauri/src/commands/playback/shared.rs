@@ -4,6 +4,7 @@ use crate::{
 };
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use tauri::{AppHandle, Emitter};
 
 use crate::audio_player::queue_track::UnresolvedTrack;
@@ -63,6 +64,67 @@ pub fn emit_queue_changed(
     let queue = get_queue_info(state)?;
     app.emit("queue-changed", queue)
         .map_err(|error| error.to_string())
+}
+
+pub async fn reconcile_queue_with_library(
+    app: &AppHandle,
+    state: &tauri::State<'_, AppState>,
+    path_updates: HashMap<i64, String>,
+    missing_ids: HashSet<i64>,
+) -> Result<(), String> {
+    if path_updates.is_empty() && missing_ids.is_empty() {
+        return Ok(());
+    }
+    let outcome = {
+        let player = state
+            .audio_player
+            .lock()
+            .map_err(|_| "Audio player is unavailable".to_string())?;
+        let outcome = player
+            .queue
+            .lock()
+            .map_err(|_| "Audio queue is unavailable".to_string())?
+            .reconcile_library_files(&path_updates, &missing_ids);
+        if outcome.current_removed {
+            if outcome.current_path.is_some() {
+                player.restart();
+            } else {
+                player.stop();
+            }
+        }
+        outcome
+    };
+
+    emit_queue_changed(app, state)?;
+    if outcome.current_removed {
+        if let Some(path) = outcome.current_path {
+            let info = load_now_playing(state, &path).await?;
+            publish_now_playing(app, state, info)?;
+        } else {
+            *state
+                .now_playing
+                .lock()
+                .map_err(|_| "Now playing state is unavailable".to_string())? = None;
+            app.emit("now-playing-changed", Option::<NowPlayingInfo>::None)
+                .map_err(|error| error.to_string())?;
+            app.emit("playback-queue-done", ())
+                .map_err(|error| error.to_string())?;
+        }
+    } else if outcome.current_path_changed {
+        let updated = {
+            let mut now_playing = state
+                .now_playing
+                .lock()
+                .map_err(|_| "Now playing state is unavailable".to_string())?;
+            if let (Some(info), Some(path)) = (now_playing.as_mut(), outcome.current_path) {
+                info.path = path;
+            }
+            now_playing.clone()
+        };
+        app.emit("now-playing-changed", updated)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 pub fn get_playback_modes_info(

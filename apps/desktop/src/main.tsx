@@ -2,16 +2,16 @@ import React from "react";
 import { useLibraryEvents } from "./hooks/useLibraryEvents";
 import ReactDOM from "react-dom/client";
 
-import Titlebar from "./components/Titlebar";
 import { StoreProvider } from "./hooks/useStore";
 import { Toaster } from "react-hot-toast";
 import "./styles/main.css";
-import { Link, RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MutationCache, QueryCache } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorPage } from "./components/ErrorPage";
 import { installErrorLogging, logError } from "./utils/logger";
 
 installErrorLogging();
@@ -41,16 +41,10 @@ const router = createRouter({
   context: { queryClient },
   defaultPreload: "intent",
   scrollRestoration: true,
-  defaultErrorComponent: () => {
-    return <div></div>;
-  },
-  defaultNotFoundComponent: () => {
-    return (
-      <div>
-        <Link to="/">go home</Link>
-      </div>
-    );
-  },
+  defaultErrorComponent: ({ error, reset }) => (
+    <ErrorPage kind="error" error={error} onRetry={reset} />
+  ),
+  defaultNotFoundComponent: () => <ErrorPage kind="not-found" />,
 });
 
 declare module "@tanstack/react-router" {
@@ -86,7 +80,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <QueryClientProvider client={queryClient}>
         <StoreProvider>
           <LibraryEvents />
-          <Titlebar />
           <RouterProvider router={router} />
         </StoreProvider>
       </QueryClientProvider>

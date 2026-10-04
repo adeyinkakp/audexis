@@ -14,6 +14,7 @@ import { Route as NoneditorIndexRouteImport } from './routes/_noneditor/index'
 import { Route as NoneditorAlbumsRouteImport } from './routes/_noneditor/albums'
 import { Route as NoneditorArtistsRouteImport } from './routes/_noneditor/artists'
 import { Route as NoneditorFavoritesRouteImport } from './routes/_noneditor/favorites'
+import { Route as NoneditorMissingRouteImport } from './routes/_noneditor/missing'
 import { Route as NoneditorRewindRouteImport } from './routes/_noneditor/rewind'
 import { Route as NoneditorSearchRouteImport } from './routes/_noneditor/search'
 import { Route as NoneditorSongsRouteImport } from './routes/_noneditor/songs'
@@ -42,6 +43,11 @@ const NoneditorArtistsRoute = NoneditorArtistsRouteImport.update({
 const NoneditorFavoritesRoute = NoneditorFavoritesRouteImport.update({
   id: '/favorites',
   path: '/favorites',
+  getParentRoute: () => NoneditorRouteRoute,
+} as any)
+const NoneditorMissingRoute = NoneditorMissingRouteImport.update({
+  id: '/missing',
+  path: '/missing',
   getParentRoute: () => NoneditorRouteRoute,
 } as any)
 const NoneditorRewindRoute = NoneditorRewindRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/albums': typeof NoneditorAlbumsRoute
   '/artists': typeof NoneditorArtistsRoute
   '/favorites': typeof NoneditorFavoritesRoute
+  '/missing': typeof NoneditorMissingRoute
   '/rewind': typeof NoneditorRewindRoute
   '/search': typeof NoneditorSearchRoute
   '/songs': typeof NoneditorSongsRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/albums': typeof NoneditorAlbumsRoute
   '/artists': typeof NoneditorArtistsRoute
   '/favorites': typeof NoneditorFavoritesRoute
+  '/missing': typeof NoneditorMissingRoute
   '/rewind': typeof NoneditorRewindRoute
   '/search': typeof NoneditorSearchRoute
   '/songs': typeof NoneditorSongsRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/_noneditor/albums': typeof NoneditorAlbumsRoute
   '/_noneditor/artists': typeof NoneditorArtistsRoute
   '/_noneditor/favorites': typeof NoneditorFavoritesRoute
+  '/_noneditor/missing': typeof NoneditorMissingRoute
   '/_noneditor/rewind': typeof NoneditorRewindRoute
   '/_noneditor/search': typeof NoneditorSearchRoute
   '/_noneditor/songs': typeof NoneditorSongsRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/albums'
     | '/artists'
     | '/favorites'
+    | '/missing'
     | '/rewind'
     | '/search'
     | '/songs'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/albums'
     | '/artists'
     | '/favorites'
+    | '/missing'
     | '/rewind'
     | '/search'
     | '/songs'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/_noneditor/albums'
     | '/_noneditor/artists'
     | '/_noneditor/favorites'
+    | '/_noneditor/missing'
     | '/_noneditor/rewind'
     | '/_noneditor/search'
     | '/_noneditor/songs'
@@ -184,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NoneditorFavoritesRouteImport
       parentRoute: typeof NoneditorRouteRoute
     }
+    '/_noneditor/missing': {
+      id: '/_noneditor/missing'
+      path: '/missing'
+      fullPath: '/missing'
+      preLoaderRoute: typeof NoneditorMissingRouteImport
+      parentRoute: typeof NoneditorRouteRoute
+    }
     '/_noneditor/rewind': {
       id: '/_noneditor/rewind'
       path: '/rewind'
@@ -226,6 +245,7 @@ interface NoneditorRouteRouteChildren {
   NoneditorAlbumsRoute: typeof NoneditorAlbumsRoute
   NoneditorArtistsRoute: typeof NoneditorArtistsRoute
   NoneditorFavoritesRoute: typeof NoneditorFavoritesRoute
+  NoneditorMissingRoute: typeof NoneditorMissingRoute
   NoneditorRewindRoute: typeof NoneditorRewindRoute
   NoneditorSearchRoute: typeof NoneditorSearchRoute
   NoneditorSongsRoute: typeof NoneditorSongsRoute
@@ -238,6 +258,7 @@ const NoneditorRouteRouteChildren: NoneditorRouteRouteChildren = {
   NoneditorAlbumsRoute: NoneditorAlbumsRoute,
   NoneditorArtistsRoute: NoneditorArtistsRoute,
   NoneditorFavoritesRoute: NoneditorFavoritesRoute,
+  NoneditorMissingRoute: NoneditorMissingRoute,
   NoneditorRewindRoute: NoneditorRewindRoute,
   NoneditorSearchRoute: NoneditorSearchRoute,
   NoneditorSongsRoute: NoneditorSongsRoute,

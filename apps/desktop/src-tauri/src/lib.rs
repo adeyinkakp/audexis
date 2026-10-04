@@ -40,6 +40,14 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             crate::utils::errors::init_error_reporting(app.handle());
+            #[cfg(target_os = "windows")]
+            let main_window = app
+                .get_webview_window("main")
+                .expect("main window should be available during setup");
+
+            #[cfg(target_os = "windows")]
+            main_window.set_decorations(false)?;
+
             let app_path = app.path().app_data_dir();
             if app_path.is_err() {
                 panic!("No app path");
@@ -73,7 +81,7 @@ pub fn run() {
             let controls = MediaControls::new(config);
 
             let app_path = app_path.unwrap();
-            let db_path = app_path.join("audexis_testing12.db");
+            let db_path = app_path.join("audexis_testing1234.db");
             let db = async_runtime::block_on(async {
                 Database::init(&db_path)
                     .await
@@ -114,6 +122,9 @@ pub fn run() {
             commands::library::get_library_roots::get_library_roots,
             commands::library::get_media_files::get_media_files,
             commands::library::import_roots::import_roots,
+            commands::library::missing_files::delete_missing_file,
+            commands::library::missing_files::get_missing_files,
+            commands::library::missing_files::relink_missing_file,
             commands::library::rescan_library::rescan_library,
             commands::library::search_media::search_media,
             commands::library::set_library_roots::set_library_roots,

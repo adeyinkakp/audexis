@@ -42,17 +42,20 @@ pub async fn get_home_discovery(
     until: Option<i64>,
 ) -> Result<HomeDiscovery, String> {
     let mut tx = state.db.pool.begin().await.map_err(|e| e.to_string())?;
-    let recent_ids = sqlx::query_scalar("SELECT id FROM files ORDER BY id DESC LIMIT 5")
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-    let favorite_ids = sqlx::query_scalar("SELECT f.id FROM files f JOIN media_info i ON i.file_id=f.id WHERE i.loved=1 ORDER BY RANDOM() LIMIT 5")
+    let recent_ids = sqlx::query_scalar(
+        "SELECT id FROM files WHERE missing_since IS NULL ORDER BY id DESC LIMIT 5",
+    )
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let favorite_ids = sqlx::query_scalar("SELECT f.id FROM files f JOIN media_info i ON i.file_id=f.id WHERE i.loved=1 AND f.missing_since IS NULL ORDER BY RANDOM() LIMIT 5")
         .fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
 
     let heavy_rotation = sqlx::query_as::<_, super::listening::SongTotal>(
         "SELECT file_id, COUNT(*) AS plays
-         FROM counted_plays
+         FROM counted_plays c JOIN files f ON f.id=c.file_id
          WHERE played_at >= unixepoch('now', 'start of month')
+           AND f.missing_since IS NULL
          GROUP BY file_id
          ORDER BY plays DESC, MAX(played_at) DESC, file_id
          LIMIT 6",
@@ -64,6 +67,7 @@ pub async fn get_home_discovery(
         "SELECT f.id AS file_id, MAX(h.played_at) AS last_played
          FROM files f
          LEFT JOIN listening_history h ON h.file_id = f.id
+         WHERE f.missing_since IS NULL
          GROUP BY f.id
          ORDER BY last_played IS NOT NULL, last_played, f.id
          LIMIT 6",
@@ -73,8 +77,8 @@ pub async fn get_home_discovery(
     .map_err(|e| e.to_string())?;
     let summary = sqlx::query_as::<_, LibrarySummary>(
         "SELECT
-            (SELECT COUNT(*) FROM files) AS total_tracks,
-            (SELECT COALESCE(SUM(size), 0) FROM files) AS total_size,
+            (SELECT COUNT(*) FROM files WHERE missing_since IS NULL) AS total_tracks,
+            (SELECT COALESCE(SUM(size), 0) FROM files WHERE missing_since IS NULL) AS total_size,
             (SELECT COUNT(*) FROM (
                 SELECT album.value,
                        COALESCE((SELECT owner.value FROM metadata_texts owner
@@ -85,6 +89,7 @@ pub async fn get_home_discovery(
                                           owner.ord LIMIT 1), '') AS artist
                 FROM metadata_texts album
                 WHERE album.key = 'album' AND TRIM(album.value) <> ''
+                  AND EXISTS (SELECT 1 FROM files f WHERE f.id=album.file_id AND f.missing_since IS NULL)
                 GROUP BY album.value COLLATE NOCASE, artist COLLATE NOCASE
             )) AS album_count,
             (SELECT MAX(last_scanned) FROM import_roots) AS last_scanned",
@@ -98,8 +103,9 @@ pub async fn get_home_discovery(
                 COALESCE(SUM(f.size), 0) AS total_size,
                 r.last_scanned
          FROM import_roots r
-         LEFT JOIN files f ON instr(f.path, r.path || '/') = 1
-                           OR instr(f.path, r.path || char(92)) = 1
+         LEFT JOIN files f ON f.missing_since IS NULL AND
+                              (instr(f.path, r.path || '/') = 1
+                               OR instr(f.path, r.path || char(92)) = 1)
          GROUP BY r.id, r.path, r.last_scanned
          ORDER BY r.path COLLATE NOCASE",
     )

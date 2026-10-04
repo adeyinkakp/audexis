@@ -1,6 +1,19 @@
 {
-	"dependencies": {
-		"tailwindcss": "^4.3.3",
-		"@tailwindcss/vite": "^4.3.3"
-	}
+  "name": "audexis",
+  "private": true,
+  "scripts": {
+    "typecheck": "pnpm --filter desktop run typecheck",
+    "build": "pnpm --filter desktop run build",
+    "format:check": "pnpm --filter desktop run format:check",
+    "check:rust": "pnpm --filter desktop run check:rust",
+    "clippy": "pnpm --filter desktop run clippy",
+    "test": "pnpm --filter desktop run test:rust",
+    "validate:frontend": "pnpm --filter desktop run validate:frontend",
+    "validate:rust": "pnpm --filter desktop run validate:rust",
+    "validate": "pnpm --filter desktop run validate"
+  },
+  "dependencies": {
+    "tailwindcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3"
+  }
 }

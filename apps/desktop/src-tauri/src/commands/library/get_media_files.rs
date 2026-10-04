@@ -25,7 +25,8 @@ pub async fn get_media_files(
         .begin()
         .await
         .map_err(|error| error.to_string())?;
-    let mut files = QueryBuilder::<Sqlite>::new("SELECT * FROM files WHERE id IN (");
+    let mut files =
+        QueryBuilder::<Sqlite>::new("SELECT * FROM files WHERE missing_since IS NULL AND id IN (");
     files.push_bind(ids[0]);
     for id in &ids[1..] {
         files.push(",").push_bind(id);
