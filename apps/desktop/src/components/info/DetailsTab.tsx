@@ -22,6 +22,10 @@ type Draft = Record<MetadataKey, string>;
 type TagChange =
   | { operation: "replace"; values: { type: "Text"; value: string }[] }
   | { operation: "delete" };
+type UpdateMetadataResult = {
+  updatedFileIds: number[];
+  failures: { fileId: number; path: string; message: string }[];
+};
 
 const multiValueKeys = new Set<MetadataKey>([
   "artist",
@@ -80,22 +84,33 @@ function DetailsForm({ files }: { files: FilesResponse }) {
   const [dirtyKeys, setDirtyKeys] = useState<Set<MetadataKey>>(new Set());
 
   useEffect(() => {
+    if (dirtyKeys.size) return;
     setDraft(initialDraft);
-    setDirtyKeys(new Set());
-  }, [initialDraft]);
+  }, [initialDraft, dirtyKeys.size]);
 
   const mutation = useMutation({
     mutationFn: (changes: Partial<Record<MetadataKey, TagChange>>) =>
-      invoke("update_metadata", {
+      invoke<UpdateMetadataResult>("update_metadata", {
         input: {
           fileIds: files.files.map((file) => file.id),
           changes,
         },
       }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["mediaFiles"] });
+    onSuccess: async (result) => {
+      if (result.updatedFileIds.length) {
+        await queryClient.invalidateQueries({ queryKey: ["mediaFiles"] });
+      }
+      if (result.failures.length) {
+        const first = result.failures[0];
+        const file = first.path.split(/[\\/]/).pop() || `File ${first.fileId}`;
+        toast.error(
+          `${result.updatedFileIds.length} updated, ${result.failures.length} failed. ${file}: ${first.message}`,
+          { duration: 7000 },
+        );
+        return;
+      }
       setDirtyKeys(new Set());
-      toast.success("Metadata updated");
+      toast.success(`${result.updatedFileIds.length} file${result.updatedFileIds.length === 1 ? "" : "s"} updated`);
     },
     onError: (error) => toast.error(`Could not update metadata: ${String(error)}`),
   });

@@ -6,7 +6,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ListMusic } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaFiles } from "../hooks/useMediaFiles";
-import { useNowPlayingState } from "../hooks/useNowPlayingState";
 
 type QueueInfo = {
   paths: string[];

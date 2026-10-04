@@ -2,7 +2,7 @@ import React from "react";
 import { useLibraryEvents } from "./hooks/useLibraryEvents";
 import ReactDOM from "react-dom/client";
 
-// import Titlebar from "./components/Titlebar";
+import Titlebar from "./components/Titlebar";
 import { StoreProvider } from "./hooks/useStore";
 import { Toaster } from "react-hot-toast";
 import "./styles/main.css";
@@ -86,6 +86,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <QueryClientProvider client={queryClient}>
         <StoreProvider>
           <LibraryEvents />
+          <Titlebar />
           <RouterProvider router={router} />
         </StoreProvider>
       </QueryClientProvider>

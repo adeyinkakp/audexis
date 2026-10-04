@@ -25,6 +25,10 @@ type ArtworkItem = {
 };
 
 type ImportedArtwork = Omit<ArtworkItem, "id">;
+type UpdateMetadataResult = {
+  updatedFileIds: number[];
+  failures: { fileId: number; path: string; message: string }[];
+};
 
 const pictureTypes = [
   { id: 3, name: "Front cover" },
@@ -107,14 +111,14 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
   const selected = items[selectedIndex] ?? null;
 
   useEffect(() => {
+    if (dirty) return;
     setItems(initialItems);
     setSelectedIndex(0);
-    setDirty(false);
-  }, [initialItems]);
+  }, [initialItems, dirty]);
 
   const mutation = useMutation({
     mutationFn: () =>
-      invoke("update_metadata", {
+      invoke<UpdateMetadataResult>("update_metadata", {
         input: {
           fileIds,
           changes: {
@@ -135,13 +139,24 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
           },
         },
       }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["artworkDetails"] }),
-        queryClient.invalidateQueries({ queryKey: ["libraryArtwork"] }),
-      ]);
+    onSuccess: async (result) => {
+      if (result.updatedFileIds.length) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["artworkDetails"] }),
+          queryClient.invalidateQueries({ queryKey: ["libraryArtwork"] }),
+        ]);
+      }
+      if (result.failures.length) {
+        const first = result.failures[0];
+        const file = first.path.split(/[\\/]/).pop() || `File ${first.fileId}`;
+        toast.error(
+          `${result.updatedFileIds.length} updated, ${result.failures.length} failed. ${file}: ${first.message}`,
+          { duration: 7000 },
+        );
+        return;
+      }
       setDirty(false);
-      toast.success("Artwork updated");
+      toast.success(`Artwork updated for ${result.updatedFileIds.length} file${result.updatedFileIds.length === 1 ? "" : "s"}`);
     },
     onError: (error) => toast.error(`Could not update artwork: ${String(error)}`),
   });

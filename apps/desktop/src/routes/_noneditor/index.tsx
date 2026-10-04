@@ -14,7 +14,7 @@ function HomePage() {
         ? "Good afternoon."
         : "Good evening.";
   return (
-    <main className="h-[calc(100dvh-3rem)] overflow-auto px-6 pb-10 pt-7 lg:px-9">
+    <main className="h-[calc(100dvh)] overflow-auto px-6 pb-10 pt-7 lg:px-9">
       <header className="mb-7 flex items-end justify-between gap-4">
         <div className="flex flex-col gap-4 w-full">
           <Link
@@ -65,11 +65,12 @@ function HomePage() {
       </header>
 
       <HomeDiscovery selection={discovery} />
+      <div className="h-20" />
     </main>
   );
 }
 
-function getRelativeTime(time: number) {
+export function getRelativeTime(time: number) {
   const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
   const dateObj = new Date(time);
   console.log({ dateObj });

@@ -538,7 +538,7 @@ impl FileWatcher {
         }
     }
 
-    async fn store_metadata(
+    pub(crate) async fn store_metadata(
         pool: &sqlx::SqlitePool,
         file_id: i64,
         metadata: &MetadataFile,

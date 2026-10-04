@@ -13,7 +13,7 @@ function RouteComponent() {
 
   return (
     <div
-      className="min-h-full w-full"
+      className="min-h-full w-full mt-14"
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <Sidebar width={sidebarWidth} onWidthChange={setSidebarWidth} />
@@ -22,11 +22,12 @@ function RouteComponent() {
         style={{
           paddingLeft: sidebarWidth,
           paddingRight: "var(--queue-width, 0px)",
-          paddingBottom: "5.5rem",
         }}
       >
         <Outlet />
+
         <TaskProgress />
+
         <NowPlaying />
       </div>
     </div>

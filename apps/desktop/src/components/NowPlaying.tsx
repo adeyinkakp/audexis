@@ -10,7 +10,6 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
-  Square,
 } from "lucide-react";
 import SeekBar, { formatSeekTime } from "./SeekBar";
 import { cn } from "../utils";
@@ -205,13 +204,7 @@ export default function NowPlaying() {
               )}
             </div>
           </ControlButton>
-          <ControlButton
-            title="Stop"
-            disabled={!song}
-            onClick={() => void control("stop_playback")}
-          >
-            <Square size={14} />
-          </ControlButton>
+
           <ControlButton
             title="Queue"
             active={showQueue}

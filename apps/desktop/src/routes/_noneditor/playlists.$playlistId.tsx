@@ -16,7 +16,7 @@ function PlaylistPage() {
   const { q = "" } = Route.useSearch();
 
   return (
-    <main className="min-h-screen px-8 pb-28 pt-16">
+    <main className="min-h-screen px-8  pt-16">
       <div className="mb-6 flex">
         <LibrarySearchInput
           value={q}
@@ -38,6 +38,7 @@ function PlaylistPage() {
           void navigate({ to: "/playlists" });
         }}
       />
+      <div className="h-20" />
     </main>
   );
 }

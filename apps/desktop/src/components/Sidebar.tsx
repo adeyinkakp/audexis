@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronDown, Heart, ListMusic, Music4, Settings2 } from "lucide-react";
+import { ChevronDown, ListMusic, Music4, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { usePlaylists } from "../hooks/usePlaylists";
 import { useStore } from "../hooks/useStore";
@@ -65,10 +65,12 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
     router.location.pathname.startsWith("/playlists");
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40  pt-0" style={{ width }}>
-      <div className="h-full overflow-hidden rounded-xl bg-popover/95 backdrop-blur">
-        <div className="h-12" data-tauri-drag-region={true}></div>
-        <div className="h-[calc(100%-7rem)] overflow-auto px-2 pb-4">
+    <aside
+      className="fixed inset-y-0 left-0 z-40 top-14 pt-0 select-none"
+      style={{ width }}
+    >
+      <div className="h-full overflow-hidden  bg-popover/80 backdrop-blur">
+        <div className="h-[calc(100%-4rem)] overflow-auto px-2 pb-4">
           {links.map(({ label, children }) => (
             <div key={label || "primary"} className="py-4">
               <span className="px-2 text-[11px] uppercase text-muted-foreground">
@@ -129,17 +131,6 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
                   <span>All Playlists</span>
                 </Link>
 
-                <Link
-                  to="/favorites"
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium hover:bg-muted/60",
-                    router.location.pathname === "/favorites" &&
-                      "bg-active text-primary",
-                  )}
-                >
-                  <Heart size={15} fill="currentColor" />
-                  Favorites
-                </Link>
                 {playlists?.map((playlist) => {
                   const path = `/playlists/${playlist.id}`;
                   const isActive = router.location.pathname === path;

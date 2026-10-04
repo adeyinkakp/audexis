@@ -11,6 +11,7 @@ import { useStore } from "../../hooks/useStore";
 import { Artwork } from "../library/CollectionGrid";
 import { SongContextMenu } from "../SongContextMenu";
 import { HomeShelf } from "./HomeShelf";
+import { getRelativeTime } from "../../routes/_noneditor";
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 B";
@@ -24,7 +25,7 @@ function formatBytes(bytes: number) {
 
 function lastPlayedLabel(timestamp: number | null) {
   if (!timestamp) return "Never played";
-  return `Last played ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp * 1000)}`;
+  return `Last played ${getRelativeTime(timestamp * 1000)}`;
 }
 
 export function HomeDiscovery({
@@ -147,7 +148,7 @@ export function HomeDiscovery({
               </span>
             )}
             <div className="aspect-square">
-              <Artwork round id={id} />
+              <Artwork id={id} />
             </div>
             <span className="flex-1  min-w-0 flex flex-col gap-1">
               <p className=" truncate text-md font-medium" title={title}>
@@ -180,33 +181,7 @@ export function HomeDiscovery({
     .map((item) => item.file_id);
   return (
     <div>
-      <HomeShelf
-        title="Heavy Rotation"
-        subtitle="Your most-played songs this month"
-        row
-      >
-        {renderSongsRow(heavyRotationIds, true, (id) => {
-          const item = data.heavy_rotation.find((song) => song.file_id === id);
-          return `${item?.plays ?? 0} ${item?.plays === 1 ? "play" : "plays"}`;
-        })}
-      </HomeShelf>
-      {!heavyRotationIds.length && (
-        <p className="pb-6 text-sm text-muted-foreground">
-          Your most-played songs will appear here.
-        </p>
-      )}
-      <HomeShelf
-        title="Recently Played"
-        subtitle="Your songs"
-        action={
-          <Link
-            to="/rewind"
-            className="rounded-full border border-border px-4 py-2 text-sm hover:bg-muted"
-          >
-            Your Rewind
-          </Link>
-        }
-      >
+      <HomeShelf title="Recently Played" subtitle="Your songs">
         {recent.map((item) => {
           const tag = tags.get(item.file_id) ?? {};
           const title =
@@ -275,12 +250,35 @@ export function HomeDiscovery({
           Play some music and it’ll appear here.
         </p>
       )}
+
+      <HomeShelf
+        title="Heavy Rotation"
+        subtitle="Your most-played songs this month"
+        row
+        action={
+          <Link
+            to="/rewind"
+            className="rounded-full border border-border px-4 py-2 text-sm hover:bg-muted"
+          >
+            Your Rewind
+          </Link>
+        }
+      >
+        {renderSongsRow(heavyRotationIds, true, (id) => {
+          const item = data.heavy_rotation.find((song) => song.file_id === id);
+          return `${item?.plays ?? 0} ${item?.plays === 1 ? "play" : "plays"}`;
+        })}
+      </HomeShelf>
+      {!heavyRotationIds.length && (
+        <p className="pb-6 text-sm text-muted-foreground">
+          Your most-played songs will appear here.
+        </p>
+      )}
       <HomeShelf
         title="Rediscover"
         subtitle="Songs you haven’t heard in a while"
-        row
       >
-        {renderSongsRow(neglectedIds, false, (id) => {
+        {renderSongs(neglectedIds, (id) => {
           const item = data.neglected_songs.find((song) => song.file_id === id);
           return lastPlayedLabel(item?.last_played ?? null);
         })}

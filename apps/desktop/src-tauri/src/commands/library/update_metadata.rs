@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 use tauri::{AppHandle, Emitter};
 
-use crate::tag_manager::tag_backend::{DefaultBackend, TagBackend};
-use crate::tag_manager::utils::{Changes, FrameKey, SerializableTagValue, TagChange, TagValue};
+use crate::file_watcher::FileWatcher;
+use crate::tag_manager::tag_backend::{BackendError, DefaultBackend, TagBackend};
+use crate::tag_manager::utils::{Changes, FrameKey, SerializableTagValue, TagChange};
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -15,16 +17,36 @@ pub struct UpdateMetadataInput {
     changes: HashMap<FrameKey, TagChange>,
 }
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct LibraryChange<'a> {
     file_ids: &'a [i64],
 }
 
-struct StoredPicture {
-    data: Vec<u8>,
-    mime: String,
-    picture_type: i64,
-    description: String,
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileUpdateFailure {
+    file_id: i64,
+    path: String,
+    message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMetadataResult {
+    updated_file_ids: Vec<i64>,
+    failures: Vec<FileUpdateFailure>,
+}
+
+fn error_message(error: &BackendError) -> String {
+    let detail = match error {
+        BackendError::ReadFailed(error) | BackendError::WriteFailed(error) => error,
+    };
+    if detail.internal_message == detail.public_message {
+        detail.public_message.clone()
+    } else {
+        format!("{}: {}", detail.public_message, detail.internal_message)
+    }
 }
 
 #[tauri::command]
@@ -32,11 +54,21 @@ pub async fn update_metadata(
     app_handle: AppHandle,
     state: tauri::State<'_, AppState>,
     input: UpdateMetadataInput,
-) -> Result<(), String> {
+) -> Result<UpdateMetadataResult, String> {
     if input.file_ids.is_empty() || input.changes.is_empty() {
-        return Ok(());
+        return Ok(UpdateMetadataResult {
+            updated_file_ids: Vec::new(),
+            failures: Vec::new(),
+        });
     }
-    if input.file_ids.len() > 200 {
+
+    let mut seen = HashSet::new();
+    let file_ids = input
+        .file_ids
+        .into_iter()
+        .filter(|file_id| seen.insert(*file_id))
+        .collect::<Vec<_>>();
+    if file_ids.len() > 200 {
         return Err("Update at most 200 files at a time".into());
     }
     for (key, change) in &input.changes {
@@ -57,155 +89,102 @@ pub async fn update_metadata(
     }
 
     let mut paths_query = QueryBuilder::<Sqlite>::new("SELECT id, path FROM files WHERE id IN (");
-    paths_query.push_bind(input.file_ids[0]);
-    for id in &input.file_ids[1..] {
+    paths_query.push_bind(file_ids[0]);
+    for id in &file_ids[1..] {
         paths_query.push(",").push_bind(id);
     }
-    paths_query.push(") ORDER BY id");
-    let rows = paths_query
+    paths_query.push(")");
+    let paths_by_id = paths_query
         .build_query_as::<(i64, String)>()
         .fetch_all(&state.db.pool)
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .collect::<HashMap<_, _>>();
 
-    if rows.len() != input.file_ids.len() {
-        return Err("One or more selected files no longer exist in the library".into());
-    }
+    let mut failures = Vec::new();
+    let jobs = file_ids
+        .iter()
+        .filter_map(|file_id| {
+            paths_by_id
+                .get(file_id)
+                .map(|path| (*file_id, path.clone()))
+                .or_else(|| {
+                    failures.push(FileUpdateFailure {
+                        file_id: *file_id,
+                        path: String::new(),
+                        message: "File no longer exists in the library".into(),
+                    });
+                    None
+                })
+        })
+        .collect::<Vec<_>>();
+    let changes = input.changes;
 
-    let paths = rows.iter().map(|(_, path)| path.clone()).collect();
-    let write_changes = Changes {
-        paths,
-        tags: input.changes.clone(),
-    };
-    let errors = tauri::async_runtime::spawn_blocking(move || {
-        DefaultBackend::new().write_changes(&write_changes)
+    let outcomes = tauri::async_runtime::spawn_blocking(move || {
+        let backend = DefaultBackend::new();
+        jobs.into_iter()
+            .map(|(file_id, path)| {
+                let errors = backend.write_changes(&Changes {
+                    paths: vec![path.clone()],
+                    tags: changes.clone(),
+                });
+                if !errors.is_empty() {
+                    let message = errors
+                        .iter()
+                        .map(error_message)
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    return (file_id, path, Err(message));
+                }
+
+                let metadata = backend.read(Path::new(&path)).map_err(|error| {
+                    format!(
+                        "Could not reread written metadata: {}",
+                        error_message(&error)
+                    )
+                });
+                (file_id, path, metadata)
+            })
+            .collect::<Vec<_>>()
     })
     .await
     .map_err(|error| error.to_string())?;
 
-    if !errors.is_empty() {
-        let message = errors
-            .into_iter()
-            .map(|error| format!("{error:?}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        return Err(message);
-    }
-
-    let artwork_by_file = if input.changes.contains_key(&FrameKey::AttachedPicture) {
-        let files = rows.clone();
-        Some(
-            tauri::async_runtime::spawn_blocking(move || {
-                let backend = DefaultBackend::new();
-                files
-                    .into_iter()
-                    .map(|(file_id, path)| {
-                        let metadata = backend
-                            .read(std::path::Path::new(&path))
-                            .map_err(|error| format!("Could not reread artwork: {error:?}"))?;
-                        let pictures = metadata
-                            .tags
-                            .get(&FrameKey::AttachedPicture)
-                            .into_iter()
-                            .flatten()
-                            .filter_map(|value| match value {
-                                TagValue::Picture {
-                                    mime,
-                                    data,
-                                    picture_type,
-                                    description,
-                                } => Some(StoredPicture {
-                                    data: data.clone(),
-                                    mime: mime.clone(),
-                                    picture_type: i64::from(picture_type.unwrap_or(3)),
-                                    description: description.clone().unwrap_or_default(),
-                                }),
-                                _ => None,
-                            })
-                            .collect::<Vec<_>>();
-                        Ok((file_id, pictures))
-                    })
-                    .collect::<Result<HashMap<_, _>, String>>()
-            })
-            .await
-            .map_err(|error| error.to_string())??,
-        )
-    } else {
-        None
-    };
-
-    let mut tx = state
-        .db
-        .pool
-        .begin()
-        .await
-        .map_err(|error| error.to_string())?;
-    for (key, change) in &input.changes {
-        let key = key.to_string();
-        for file_id in &input.file_ids {
-            if key == FrameKey::AttachedPicture.to_string() {
-                sqlx::query("DELETE FROM metadata_pictures WHERE file_id = ?1")
-                    .bind(file_id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|error| error.to_string())?;
-
-                if let Some(pictures) = artwork_by_file
-                    .as_ref()
-                    .and_then(|pictures| pictures.get(file_id))
+    let mut updated_file_ids = Vec::new();
+    for (file_id, path, outcome) in outcomes {
+        match outcome {
+            Ok(metadata) => {
+                if let Err(error) =
+                    FileWatcher::store_metadata(&state.db.pool, file_id, &metadata).await
                 {
-                    for picture in pictures {
-                        sqlx::query(
-                            "INSERT INTO metadata_pictures
-                             (file_id, data, mime_type, picture_type, description)
-                             VALUES (?1, ?2, ?3, ?4, ?5)",
-                        )
-                        .bind(file_id)
-                        .bind(&picture.data)
-                        .bind(&picture.mime)
-                        .bind(picture.picture_type)
-                        .bind(&picture.description)
-                        .execute(&mut *tx)
-                        .await
-                        .map_err(|error| error.to_string())?;
-                    }
-                }
-                continue;
-            }
-
-            sqlx::query("DELETE FROM metadata_texts WHERE file_id = ?1 AND key = ?2")
-                .bind(file_id)
-                .bind(&key)
-                .execute(&mut *tx)
-                .await
-                .map_err(|error| error.to_string())?;
-
-            if let TagChange::Replace(values) = change {
-                for (ord, value) in values.iter().enumerate() {
-                    let SerializableTagValue::Text(value) = value else {
-                        unreachable!("text values were validated before writing")
-                    };
-                    sqlx::query(
-                        "INSERT INTO metadata_texts (file_id, key, value, ord)
-                         VALUES (?1, ?2, ?3, ?4)",
-                    )
-                    .bind(file_id)
-                    .bind(&key)
-                    .bind(value)
-                    .bind(ord as i64)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|error| error.to_string())?;
+                    failures.push(FileUpdateFailure {
+                        file_id,
+                        path,
+                        message: format!(
+                            "Metadata was written, but the library cache could not be rebuilt: {error:?}"
+                        ),
+                    });
+                } else {
+                    updated_file_ids.push(file_id);
                 }
             }
+            Err(message) => failures.push(FileUpdateFailure {
+                file_id,
+                path,
+                message,
+            }),
         }
     }
-    tx.commit().await.map_err(|error| error.to_string())?;
 
-    for file_ids in input.file_ids.chunks(200) {
+    for ids in updated_file_ids.chunks(200) {
         app_handle
-            .emit("library-changed", LibraryChange { file_ids })
+            .emit("library-changed", LibraryChange { file_ids: ids })
             .map_err(|error| error.to_string())?;
     }
-    Ok(())
+
+    Ok(UpdateMetadataResult {
+        updated_file_ids,
+        failures,
+    })
 }

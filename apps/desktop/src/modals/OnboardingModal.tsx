@@ -6,14 +6,13 @@ import {
   Folder,
   Headphones,
   Library,
-  Music2,
   Palette,
 } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { AppearanceOptions } from "../components/settings/AppearanceOptions";
 import { LibraryFolders } from "../components/settings/LibraryFolders";
 import { useSettingsDraft } from "../hooks/useSettingsDraft";
-import { cn } from "../utils";
+
 const steps = [
   { label: "Your library", Icon: Folder },
   { label: "Make it yours", Icon: Palette },

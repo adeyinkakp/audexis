@@ -18,7 +18,7 @@ function AlbumsPage() {
   const { album, artist, q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main className="h-[calc(100dvh-5.5r)] overflow-auto px-7 py-7">
+    <main className="h-[calc(100dvh)] overflow-auto px-7 py-7">
       <div className="mb-5 flex">
         <LibrarySearchInput
           value={q}
@@ -52,6 +52,7 @@ function AlbumsPage() {
           <CollectionGrid query={q} kind="albums" />
         </>
       )}
+      <div className="h-20" />
     </main>
   );
 }

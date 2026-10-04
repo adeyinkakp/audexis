@@ -16,7 +16,7 @@ function SearchPage() {
   const searching = !!text.trim() || hasFilters;
   return (
     <main
-      className="h-[calc(100dvh-3rem)] overflow-auto px-7 pb-10"
+      className="h-[calc(100dvh)] overflow-auto px-7 pb-10"
       aria-label="Search library"
     >
       <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/95 py-5 backdrop-blur">
@@ -93,6 +93,7 @@ function SearchPage() {
           )}
         </>
       )}
+      <div className="h-20" />
     </main>
   );
 }
