@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -11,7 +11,21 @@ export type ListeningCollection = {
 export type Discovery = {
   recent_ids: number[];
   favorite_ids: number[];
-  album_ids: number[];
+
+  heavy_rotation: { file_id: number; plays: number }[];
+  neglected_songs: { file_id: number; last_played: number | null }[];
+  summary: {
+    total_tracks: number;
+    total_size: number;
+    album_count: number;
+    last_scanned: number | null;
+  };
+  watched_folders: {
+    path: string;
+    track_count: number;
+    total_size: number;
+    last_scanned: number;
+  }[];
   listening: {
     most_songs: { file_id: number; plays: number }[];
     most_albums: ListeningCollection[];
@@ -32,7 +46,9 @@ export function discoveryIds(data?: Discovery) {
     ...new Set([
       ...data.recent_ids,
       ...data.favorite_ids,
-      ...data.album_ids,
+
+      ...data.heavy_rotation.map((item) => item.file_id),
+      ...data.neglected_songs.map((item) => item.file_id),
       ...data.listening.recent_items.map((item) => item.file_id),
       ...data.listening.most_songs.map((item) => item.file_id),
       ...data.listening.most_albums.map((item) => item.file_id),
@@ -84,7 +100,12 @@ export function useHomeDiscovery(period: string) {
       }
     };
     void Promise.all(
-      ["play-count-changed", "listening-history-changed"].map(async (event) => {
+      [
+        "play-count-changed",
+        "listening-history-changed",
+        "library-changed",
+        "library-scan-completed",
+      ].map(async (event) => {
         const cleanup = await listen(event, () => {
           void refresh();
         });

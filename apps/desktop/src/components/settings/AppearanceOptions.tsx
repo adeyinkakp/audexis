@@ -1,7 +1,9 @@
-import { Check, Monitor, Moon, Sun } from "lucide-react";
+import { Check, LucideProps, Monitor, Moon, Sun } from "lucide-react";
 import type { RowDensity, ThemePreference } from "../../hooks/useStore";
 import { cn } from "../../utils";
-import { ForwardedRef } from "react";
+
+import { ForwardRefExoticComponent, RefAttributes } from "react";
+
 export type Appearance = {
   theme: ThemePreference;
   density: RowDensity;
@@ -10,7 +12,9 @@ export type Appearance = {
 type ThemeOptions = {
   id: "light" | "dark" | "system";
   label: string;
-  Icon: Function;
+  Icon: ForwardRefExoticComponent<
+    Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
+  >;
 };
 export function AppearanceOptions({
   value,
@@ -49,7 +53,7 @@ export function AppearanceOptions({
                   id === "dark"
                     ? "border-white/10 bg-zinc-900"
                     : id === "system"
-                      ? "border-black/10 bg-gradient-to-r from-stone-100 from-50% to-zinc-900 to-50%"
+                      ? "border-black/10 bg-linear-to-r from-stone-100 from-50% to-zinc-900 to-50%"
                       : "border-black/10 bg-stone-100",
                 )}
               >
@@ -115,7 +119,7 @@ export function AppearanceOptions({
           onChange={(event) =>
             onChange({ ...value, reduceMotion: event.target.checked })
           }
-          className="mt-1 size-4 accent-[var(--primary)]"
+          className="mt-1 size-4 accent-primary"
         />
       </label>
     </div>

@@ -12,7 +12,7 @@ function FavoritesPage() {
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main className="h-[calc(100dvh-5.5rem)] overflow-auto px-7 py-7">
+    <main className="h-[calc(100dvh-3rem)] overflow-auto px-7 py-7">
       <LibrarySearchInput
         value={q}
         label="Search Favorites"
@@ -21,7 +21,7 @@ function FavoritesPage() {
         }
       />
       <header className="flex items-center gap-6 py-10">
-        <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-pink-400 text-white">
+        <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-pink-400 text-white">
           <Heart size={48} fill="currentColor" />
         </div>
         <div>

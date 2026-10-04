@@ -7,3 +7,4 @@ pub mod import_roots;
 pub mod rescan_library;
 pub mod search_media;
 pub mod set_library_roots;
+pub mod update_metadata;

@@ -16,7 +16,7 @@ function ArtistsPage() {
   const { artist, q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main className="h-[calc(100dvh-5.5rem)] overflow-auto px-7 py-7">
+    <main className="h-[calc(100dvh-3rem)] overflow-auto px-7 py-7">
       <div className="mb-5 flex">
         <LibrarySearchInput
           value={q}

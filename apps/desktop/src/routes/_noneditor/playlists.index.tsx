@@ -24,7 +24,7 @@ function PlaylistsIndexPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   return (
-    <main className="h-[calc(100dvh-5.5rem)] overflow-auto px-8 pb-10 pt-7">
+    <main className="h-[calc(100dvh-3rem)] overflow-auto px-8 pb-10 pt-7">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-5 border-b border-border/60 pb-6">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -67,7 +67,7 @@ function PlaylistsIndexPage() {
             to="/favorites"
             className="group min-w-0 rounded-xl focus-visible:outline-primary"
           >
-            <div className="flex aspect-square items-center justify-center rounded-xl bg-gradient-to-br from-rose-400 via-pink-500 to-violet-600 text-white shadow-sm transition-shadow group-hover:shadow-lg">
+            <div className="flex aspect-square items-center justify-center rounded-xl bg-linear-to-br from-rose-400 via-pink-500 to-violet-600 text-white shadow-sm transition-shadow group-hover:shadow-lg">
               <Heart size={64} fill="currentColor" strokeWidth={1} />
             </div>
             <p className="mt-3 font-medium">Favorites</p>

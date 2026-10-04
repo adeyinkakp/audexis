@@ -150,7 +150,7 @@ function SongsPage() {
 
   return (
     <main
-      className="flex flex-col h-[calc(100dvh-5.5rem)] min-h-0 w-full overflow-hidden"
+      className="flex flex-col h-[calc(100dvh-3rem)] min-h-0 w-full overflow-hidden"
       aria-label="Songs"
     >
       <header className="flex shrink-0 items-center gap-4 px-5 py-4">

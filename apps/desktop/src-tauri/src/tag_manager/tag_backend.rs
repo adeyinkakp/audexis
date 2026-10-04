@@ -62,6 +62,7 @@ impl DefaultBackend {
 
     fn write_verified(
         &self,
+        format: &Formats,
         release: &dyn TagFormat,
         path: &PathBuf,
         updated: HashMap<FrameKey, Vec<TagValue>>,
@@ -86,7 +87,7 @@ impl DefaultBackend {
                     if written.get(key).is_some_and(|written| !written.is_empty()) {
                         return Err(format!("Codec did not delete {}", key));
                     }
-                } else if written.get(key) != Some(values) {
+                } else if !values_preserved(format, *key, values, written.get(key)) {
                     return Err(format!("Codec did not preserve {}", key));
                 }
             }
@@ -97,6 +98,58 @@ impl DefaultBackend {
         }
         result
     }
+}
+
+fn values_preserved(
+    format: &Formats,
+    key: FrameKey,
+    expected: &[TagValue],
+    actual: Option<&Vec<TagValue>>,
+) -> bool {
+    let Some(actual) = actual else {
+        return false;
+    };
+    if key != FrameKey::AttachedPicture {
+        return actual == expected;
+    }
+    if actual.len() != expected.len() {
+        return false;
+    }
+
+    expected.iter().zip(actual).all(|(expected, actual)| {
+        let (
+            TagValue::Picture {
+                mime: expected_mime,
+                data: expected_data,
+                picture_type: expected_type,
+                description: expected_description,
+            },
+            TagValue::Picture {
+                mime: actual_mime,
+                data: actual_data,
+                picture_type: actual_type,
+                description: actual_description,
+            },
+        ) = (expected, actual)
+        else {
+            return false;
+        };
+
+        let is_jpeg = |mime: &str| {
+            mime.eq_ignore_ascii_case("image/jpg") || mime.eq_ignore_ascii_case("image/jpeg")
+        };
+        let mime_matches = expected_mime.eq_ignore_ascii_case(actual_mime)
+            || (is_jpeg(expected_mime) && is_jpeg(actual_mime));
+        let image_matches = mime_matches && expected_data == actual_data;
+        if *format == Formats::Itunes {
+            return image_matches;
+        }
+
+        image_matches
+            && expected_type.unwrap_or(3) == actual_type.unwrap_or(3)
+            && expected_description.as_deref().unwrap_or_default()
+                == actual_description.as_deref().unwrap_or_default()
+    })
 }
 
 fn to_tag_value(value: &SerializableTagValue) -> Result<TagValue, String> {
@@ -241,7 +294,7 @@ impl TagBackend for DefaultBackend {
                 }
             }
 
-            let write_res = self.write_verified(release.as_ref(), &path, updated);
+            let write_res = self.write_verified(&fmt, release.as_ref(), &path, updated);
             if let Err(message) = write_res {
                 results.push(BackendError::WriteFailed(TagError {
                     path: path_str.clone(),
@@ -337,5 +390,61 @@ impl TagDiff {
             before: conv_vec(before),
             after: conv_vec(after),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn picture(mime: &str, picture_type: Option<u8>, description: Option<&str>) -> TagValue {
+        TagValue::Picture {
+            mime: mime.to_string(),
+            data: vec![1, 2, 3, 4],
+            picture_type,
+            description: description.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn artwork_verification_normalizes_empty_optional_fields() {
+        let expected = vec![picture("image/jpeg", Some(3), Some(""))];
+        let actual = vec![picture("image/jpg", None, None)];
+
+        assert!(values_preserved(
+            &Formats::Id3v23,
+            FrameKey::AttachedPicture,
+            &expected,
+            Some(&actual),
+        ));
+    }
+
+    #[test]
+    fn itunes_artwork_verification_ignores_unsupported_fields() {
+        let expected = vec![picture("image/png", Some(4), Some("Back cover"))];
+        let actual = vec![picture("image/png", None, None)];
+
+        assert!(values_preserved(
+            &Formats::Itunes,
+            FrameKey::AttachedPicture,
+            &expected,
+            Some(&actual),
+        ));
+    }
+
+    #[test]
+    fn artwork_verification_still_rejects_changed_image_data() {
+        let expected = vec![picture("image/png", Some(3), None)];
+        let mut actual = vec![picture("image/png", Some(3), None)];
+        if let TagValue::Picture { data, .. } = &mut actual[0] {
+            data.push(5);
+        }
+
+        assert!(!values_preserved(
+            &Formats::Flac,
+            FrameKey::AttachedPicture,
+            &expected,
+            Some(&actual),
+        ));
     }
 }

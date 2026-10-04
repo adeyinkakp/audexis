@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Music2 } from "lucide-react";
+import { ChevronRight, Disc2, Music2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 export type CollectionKind = "albums" | "artists" | "playlists";
 export type Collection = {
@@ -15,9 +15,11 @@ type CollectionPage = { items: Collection[]; next_cursor: number | null };
 export function Artwork({
   id,
   round = false,
+  isAlbum = false,
 }: {
   id: number | null;
   round?: boolean;
+  isAlbum?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -38,10 +40,12 @@ export function Artwork({
   return (
     <div
       ref={ref}
-      className={`flex aspect-square w-full items-center justify-center overflow-hidden bg-gradient-to-br from-muted to-primary/20 ${round ? "rounded-full" : "rounded-xl"}`}
+      className={`flex aspect-square w-full items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary/20 ${round ? "rounded-full" : "rounded-xl"}`}
     >
       {visible && art.data ? (
         <img src={art.data} alt="" className="h-full w-full object-cover" />
+      ) : isAlbum ? (
+        <Disc2 className="h-1/3 w-1/3 text-muted-foreground/50" />
       ) : (
         <Music2 className="h-1/3 w-1/3 text-muted-foreground/50" />
       )}

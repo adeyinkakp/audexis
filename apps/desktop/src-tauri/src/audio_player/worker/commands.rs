@@ -1,6 +1,5 @@
 use ringbuf::traits::{Observer, Producer};
 use souvlaki::{MediaMetadata, MediaPlayback};
-use std::panic;
 use std::sync::{atomic::Ordering, Arc};
 use std::time::Duration;
 use symphonia::core::formats::TrackType;
@@ -21,8 +20,7 @@ where
     P: Producer<Item = f32> + Observer + Send,
 {
     let mut q = ctx.queue.lock().unwrap();
-    let current_t = q.tracks.get(q.index as usize);
-    if current_t.is_none() {
+    if q.tracks.get(q.index as usize).is_none() {
         if let Ok(mut counter) = ctx.play_counter.lock() {
             counter.stop();
         }
@@ -60,7 +58,15 @@ where
         return;
     }
 
+    let queue_info = QueueInfo {
+        paths: q.paths(),
+        file_ids: q.file_ids(),
+        occurrences: q.playlist_ordinals(),
+        current_index: q.index,
+        playlist_id: q.playlist_id,
+    };
     drop(q);
+    let _ = ctx.app_handle.emit("queue-changed", queue_info);
     let _ = ctx.cmd_tx.send(PlayerCmd::Play { resuming: false });
     let _ = ctx.app_handle.emit("playback-media-done", ());
     state.is_done = false;
@@ -336,13 +342,30 @@ fn update_controls_metadata<P>(ctx: &mut WorkerContext<P>, metadata: PartialMeta
 where
     P: Producer<Item = f32> + Observer + Send,
 {
-    let _ = panic::catch_unwind(|| {
-        let _ = ctx.controls.lock().unwrap().set_metadata(MediaMetadata {
-            title: metadata.title.as_deref(),
-            album: metadata.album.as_deref(),
-            artist: metadata.artist.as_deref(),
-            cover_url: metadata.cover_url.as_deref(),
-            duration: metadata.duration.map(Duration::from_millis),
-        });
-    });
+    // Panics sometimes and unable to handle err due to crate
+    #[cfg(target_os = "macos")]
+    let cover_url = None;
+
+    #[cfg(not(target_os = "macos"))]
+    let cover_url = metadata
+        .cover_url
+        .as_deref()
+        .filter(|url| !url.trim().is_empty());
+
+    match ctx.controls.lock() {
+        Ok(mut controls) => {
+            if let Err(error) = controls.set_metadata(MediaMetadata {
+                title: metadata.title.as_deref(),
+                album: metadata.album.as_deref(),
+                artist: metadata.artist.as_deref(),
+                cover_url,
+                duration: metadata.duration.map(Duration::from_millis),
+            }) {
+                tauri_plugin_log::log::error!("Could not update media-control metadata: {error}");
+            }
+        }
+        Err(_) => {
+            tauri_plugin_log::log::error!("Media controls are unavailable");
+        }
+    }
 }

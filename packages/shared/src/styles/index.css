@@ -5,20 +5,44 @@
 @import "./animations.css";
 
 @font-face {
-  font-family: "Open Sans";
-  src: url("../assets/Open_Sans/OpenSans-VariableFont_wdth,wght.ttf")
-    format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
+    font-family: "JetBrains Mono";
+    src: url("../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
+        format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
 }
-html,
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("../assets/JetBrains_Mono/JetBrainsMono-Italic-VariableFont_wght.ttf")
+        format("truetype");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+html {
+    background-color: var(--background);
+    width: 100%;
+    font-family: "JetBrains Mono", monospace;
+}
+
 body {
-  background-color: var(--background);
-  width: 100%;
-  font-family: "Open Sans", sans-serif;
-  box-sizing: border-box;
-  color: var(--foreground);
-  border-color: var(--border) !important;
-  outline-color: var(--primary) !important;
+    background-color: var(--background);
+    width: 100%;
+    font-family: inherit;
+    box-sizing: border-box;
+    color: var(--foreground);
+    border-color: var(--border) !important;
+    outline-color: var(--primary) !important;
+}
+
+button,
+input,
+select,
+textarea,
+pre,
+code {
+    font-family: inherit;
 }

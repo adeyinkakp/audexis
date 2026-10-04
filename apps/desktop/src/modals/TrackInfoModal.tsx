@@ -1,10 +1,10 @@
 import { X } from "lucide-react";
 import { Modal } from "../components/Modal";
 import DetailsTab from "../components/info/DetailsTab";
+import ArtworkTab from "../components/info/ArtworkTab";
 import { useEffect, useState } from "react";
 import { cn } from "../utils";
 import { useMediaFiles } from "../hooks/useMediaFiles";
-import { FilesResponse } from "../hooks/useFileWatcher";
 
 export default function TrackInfoModal({
   open,
@@ -17,28 +17,14 @@ export default function TrackInfoModal({
 }) {
   const f = useMediaFiles(fileIds);
   const tabs = [
-    {
-      title: "Details",
-      id: "details",
-      Comp: DetailsTab,
-    },
-    {
-      title: "Artwork",
-      id: "artork",
-      Comp: DetailsTab,
-    },
-  ];
+    { title: "Details", id: "details" },
+    { title: "Artwork", id: "artwork" },
+  ] as const;
   const [currentTabId, setCurrentTabId] = useState("details");
-  const [currentTab, setCurrentTab] = useState(tabs[0]);
 
-  useEffect(() => {}, [f]);
   useEffect(() => {
-    let currTab = tabs.find((tab) => tab.id === currentTabId);
-    if (!currTab) {
-      currTab = tabs[0];
-    }
-    setCurrentTab(currTab);
-  }, [currentTabId]);
+    if (open) setCurrentTabId("details");
+  }, [open]);
 
   return (
     <Modal
@@ -65,8 +51,8 @@ export default function TrackInfoModal({
           <X size={18} />
         </button>
       </div>
-      <div className="px-2 mt-2">
-        <div className="flex h-8 rounded gap-2 ">
+      <div className="flex min-h-0 flex-1 flex-col px-2 pt-2">
+        <div className="flex h-9 shrink-0 gap-2 rounded px-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -81,19 +67,24 @@ export default function TrackInfoModal({
             </button>
           ))}
         </div>
-        {f.isLoading ? (
-          <div> Loading</div>
-        ) : (
-          !f.isError && (
-            <>
-              {" "}
-              <currentTab.Comp
-                files={f.data}
-                fileIds={fileIds}
-              ></currentTab.Comp>
-            </>
-          )
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {f.isLoading && (
+            <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+              Loading track info…
+            </div>
+          )}
+          {f.isError && (
+            <div className="flex h-64 items-center justify-center text-sm text-destructive">
+              Track information could not be loaded.
+            </div>
+          )}
+          {f.data && currentTabId === "details" && (
+            <DetailsTab files={f.data} />
+          )}
+          {f.data && currentTabId === "artwork" && (
+            <ArtworkTab files={f.data} />
+          )}
+        </div>
       </div>
     </Modal>
   );

@@ -53,6 +53,10 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
           name: "Songs",
           path: "/songs",
         },
+        {
+          name: "Favorites",
+          path: "/favorites",
+        },
       ],
     },
   ];

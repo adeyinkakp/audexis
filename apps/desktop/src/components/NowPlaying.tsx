@@ -147,7 +147,9 @@ export default function NowPlaying() {
               </div>
 
               {currentTrackId != null && (
-                <HeartButton fileId={currentTrackId} />
+                <div className="h-full flex items-center">
+                  <HeartButton fileId={currentTrackId} />
+                </div>
               )}
               <div
                 className={cn(

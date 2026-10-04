@@ -73,6 +73,10 @@ html:not([data-theme="dark"]) {
 }
 
 @theme {
+    --font-sans: "JetBrains Mono", monospace;
+    --font-mono: "JetBrains Mono", monospace;
+    --font-serif: "JetBrains Mono", monospace;
+
     --color-headings: var(--heading);
     --color-active: var(--active);
     --color-border: var(--border);

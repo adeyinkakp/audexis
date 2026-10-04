@@ -16,7 +16,7 @@ export function AlbumHeader({
   return (
     <header className="flex flex-col gap-7 py-10 sm:flex-row sm:items-end">
       <div className="w-52 shrink-0">
-        <Artwork id={result.data?.pages[0]?.files[0]?.id ?? null} />
+        <Artwork isAlbum id={result.data?.pages[0]?.files[0]?.id ?? null} />
       </div>
       <div>
         <p className="mb-3 text-sm uppercase tracking-widest text-muted-foreground">

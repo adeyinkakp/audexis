@@ -18,11 +18,15 @@ installErrorLogging();
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error, query) => logError(`Query failed [${query.queryHash}]`, error),
+    onError: (error, query) =>
+      logError(`Query failed [${query.queryHash}]`, error),
   }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) =>
-      logError(`Mutation failed [${String(mutation.options.mutationKey ?? "unknown")}]`, error),
+      logError(
+        `Mutation failed [${String(mutation.options.mutationKey ?? "unknown")}]`,
+        error,
+      ),
   }),
   defaultOptions: {
     queries: {
@@ -37,6 +41,9 @@ const router = createRouter({
   context: { queryClient },
   defaultPreload: "intent",
   scrollRestoration: true,
+  defaultErrorComponent: () => {
+    return <div></div>;
+  },
   defaultNotFoundComponent: () => {
     return (
       <div>
@@ -60,27 +67,28 @@ function LibraryEvents() {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-    <Toaster
-      position="top-right"
-      containerStyle={{
-        marginTop: "64px",
-      }}
-      toastOptions={{
-        className: "!bg-background !text-foreground !border !border-border",
-        style: {
-          background: "var(--background)",
-          color: "var(--foreground)",
-          border: "1px solid var(--border)",
-        },
-      }}
-    />
+      <Toaster
+        position="top-right"
+        containerStyle={{
+          marginTop: "64px",
+          zIndex: 20000,
+        }}
+        toastOptions={{
+          className: "!bg-background !text-foreground !border !border-border",
+          style: {
+            background: "var(--background)",
+            color: "var(--foreground)",
+            border: "1px solid var(--border)",
+          },
+        }}
+      />
 
-    <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        <LibraryEvents />
-        <RouterProvider router={router} />
-      </StoreProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <StoreProvider>
+          <LibraryEvents />
+          <RouterProvider router={router} />
+        </StoreProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

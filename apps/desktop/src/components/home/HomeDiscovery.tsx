@@ -2,16 +2,37 @@ import { Link } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { useHomeDiscovery } from "../../hooks/useHomeDiscovery";
+import {
+  discoveryIds,
+  type useHomeDiscovery,
+} from "../../hooks/useHomeDiscovery";
 import { useMediaFiles } from "../../hooks/useMediaFiles";
 import { useStore } from "../../hooks/useStore";
 import { Artwork } from "../library/CollectionGrid";
 import { SongContextMenu } from "../SongContextMenu";
 import { HomeShelf } from "./HomeShelf";
-export function HomeDiscovery() {
-  const selection = useHomeDiscovery("all");
-  const visibleIds =
-    selection.data?.listening.recent_items.map((item) => item.file_id) ?? [];
+
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const unit = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  return `${(bytes / 1024 ** unit).toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`;
+}
+
+function lastPlayedLabel(timestamp: number | null) {
+  if (!timestamp) return "Never played";
+  return `Last played ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp * 1000)}`;
+}
+
+export function HomeDiscovery({
+  selection,
+}: {
+  selection: ReturnType<typeof useHomeDiscovery>;
+}) {
+  const visibleIds = discoveryIds(selection.data);
   const media = useMediaFiles([...new Set(visibleIds)]);
   const { openSettings } = useStore();
   const [starting, setStarting] = useState(false);
@@ -79,6 +100,78 @@ export function HomeDiscovery() {
     );
   const listening = data.listening;
 
+  const renderSongs = (ids: number[], detail: (id: number) => string) =>
+    ids.flatMap((id, index) => {
+      const file = files.get(id);
+      if (!file) return [];
+      const tag = tags.get(id) ?? {};
+      const title = tag.title || file.file_name;
+      return [
+        <SongContextMenu key={`${id}-${index}`} fileId={id}>
+          <button
+            disabled={starting}
+            onClick={() => void play(ids, index)}
+            className="min-w-0 text-left"
+          >
+            <Artwork id={id} />
+            <p className="mt-3 truncate font-medium" title={title}>
+              {title}
+            </p>
+            <p className="mt-1 truncate text-xs text-primary">{detail(id)}</p>
+          </button>
+        </SongContextMenu>,
+      ];
+    });
+
+  const renderSongsRow = (
+    ids: number[],
+    showOrder: boolean,
+    detail: (id: number) => string,
+  ) =>
+    ids.flatMap((id, index) => {
+      const file = files.get(id);
+      if (!file) return [];
+      const tag = tags.get(id) ?? {};
+      const title = tag.title || file.file_name;
+      const artist = tag.artist ?? "";
+      return [
+        <SongContextMenu key={`${id}-${index}`} fileId={id}>
+          <button
+            disabled={starting}
+            onClick={() => void play(ids, index)}
+            className="min-w-0 text-left w-full  gap-4 flex h-12"
+          >
+            {showOrder && (
+              <span className="items-center h-full flex text-muted-foreground">
+                {index + 1}.
+              </span>
+            )}
+            <div className="aspect-square">
+              <Artwork round id={id} />
+            </div>
+            <span className="flex-1  min-w-0 flex flex-col gap-1">
+              <p className=" truncate text-md font-medium" title={title}>
+                {title}
+              </p>
+              <p
+                className=" truncate text-xs text-muted-foreground font-medium"
+                title={title}
+              >
+                {artist}
+              </p>
+            </span>
+
+            <p className="mt-3  w-20  mx-2 truncate text-xs text-primary ml-auto">
+              {detail(id)}
+            </p>
+          </button>
+        </SongContextMenu>,
+      ];
+    });
+
+  const heavyRotationIds = data.heavy_rotation.map((item) => item.file_id);
+  const neglectedIds = data.neglected_songs.map((item) => item.file_id);
+
   const recent = listening.recent_items
     .filter((item) => files.has(item.file_id))
     .filter((item) => item.kind === "song" || item.kind === "playlist");
@@ -87,6 +180,21 @@ export function HomeDiscovery() {
     .map((item) => item.file_id);
   return (
     <div>
+      <HomeShelf
+        title="Heavy Rotation"
+        subtitle="Your most-played songs this month"
+        row
+      >
+        {renderSongsRow(heavyRotationIds, true, (id) => {
+          const item = data.heavy_rotation.find((song) => song.file_id === id);
+          return `${item?.plays ?? 0} ${item?.plays === 1 ? "play" : "plays"}`;
+        })}
+      </HomeShelf>
+      {!heavyRotationIds.length && (
+        <p className="pb-6 text-sm text-muted-foreground">
+          Your most-played songs will appear here.
+        </p>
+      )}
       <HomeShelf
         title="Recently Played"
         subtitle="Your songs"
@@ -118,7 +226,7 @@ export function HomeDiscovery() {
               <p className="mt-3 truncate font-medium" title={title}>
                 {title}
               </p>
-              <p className="mt-1 truncate text-xs text-muted-foreground">
+              <p className="mt-1 truncate text-xs text-primary">
                 {item.kind === "song"
                   ? `Song · ${tag.artist || "Unknown artist"}`
                   : item.kind === "album"
@@ -167,6 +275,46 @@ export function HomeDiscovery() {
           Play some music and it’ll appear here.
         </p>
       )}
+      <HomeShelf
+        title="Rediscover"
+        subtitle="Songs you haven’t heard in a while"
+        row
+      >
+        {renderSongsRow(neglectedIds, false, (id) => {
+          const item = data.neglected_songs.find((song) => song.file_id === id);
+          return lastPlayedLabel(item?.last_played ?? null);
+        })}
+      </HomeShelf>
+
+      <section className="py-6">
+        <header className="mb-5">
+          <h2 className="text-2xl font-semibold">Watched Folders</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Indexed music in each library location
+          </p>
+        </header>
+        <div className="grid gap-3 md:grid-cols-2">
+          {data.watched_folders.map((folder) => (
+            <div
+              key={folder.path}
+              className="min-w-0 rounded-2xl border border-border/60 bg-card/40 p-4"
+            >
+              <p className="truncate font-medium" title={folder.path}>
+                {folder.path}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {folder.track_count.toLocaleString()} tracks ·{" "}
+                {formatBytes(folder.total_size)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {folder.last_scanned
+                  ? `Last scanned ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(folder.last_scanned * 1000)}`
+                  : "Not scanned yet"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

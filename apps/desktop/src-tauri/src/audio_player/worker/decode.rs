@@ -90,15 +90,10 @@ where
     }
 
     let mut q = ctx.queue.lock().unwrap();
-    let has_next = q.advance_after_eof();
+    q.advance_after_eof();
     drop(q);
 
     state.is_done = true;
-    if has_next {
-        let _ = ctx
-            .cmd_tx
-            .send(crate::audio_player::PlayerCmd::Play { resuming: false });
-    }
 
     false
 }

@@ -5,10 +5,12 @@ export function HomeShelf({
   subtitle,
   action,
   children,
+  row,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  row?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -30,32 +32,50 @@ export function HomeShelf({
             <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
           )}
         </div>
+
         <div className="flex items-center gap-2">
           {action}
-          <button
-            aria-label={`Scroll ${title} left`}
-            onClick={() => scroll(-1)}
-            className="rounded-full p-2 hover:bg-muted"
-          >
-            <ChevronLeft size={19} />
-          </button>
-          <button
-            aria-label={`Scroll ${title} right`}
-            onClick={() => scroll(1)}
-            className="rounded-full p-2 hover:bg-muted"
-          >
-            <ChevronRight size={19} />
-          </button>
+
+          {!row && (
+            <>
+              <button
+                aria-label={`Scroll ${title} left`}
+                onClick={() => scroll(-1)}
+                className="rounded-full p-2 hover:bg-muted"
+              >
+                <ChevronLeft size={19} />
+              </button>
+              <button
+                aria-label={`Scroll ${title} right`}
+                onClick={() => scroll(1)}
+                className="rounded-full p-2 hover:bg-muted"
+              >
+                <ChevronRight size={19} />
+              </button>
+            </>
+          )}
         </div>
       </header>
-      <div
-        ref={ref}
-        tabIndex={0}
-        aria-label={title}
-        className="flex snap-x snap-proximity gap-5 overflow-x-auto overscroll-x-contain pb-4 pt-1 [&>*]:w-44 [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-48"
-      >
-        {children}
-      </div>
+
+      {!row ? (
+        <div
+          ref={ref}
+          tabIndex={0}
+          aria-label={title}
+          className="flex snap-x snap-proximity gap-5 overflow-x-auto overscroll-x-contain pb-4 pt-1 *:w-44 *:shrink-0 *:snap-start sm:*:w-48"
+        >
+          {children}
+        </div>
+      ) : (
+        <div
+          ref={ref}
+          tabIndex={0}
+          aria-label={title}
+          className="grid grid-cols-2 snap-x snap-proximity gap-5 overflow-x-auto overscroll-x-contain pb-4 pt-1"
+        >
+          {children}
+        </div>
+      )}
     </section>
   );
 }

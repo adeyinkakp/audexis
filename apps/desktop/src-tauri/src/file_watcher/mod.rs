@@ -13,7 +13,7 @@ use notify_debouncer_full::{new_debouncer, DebouncedEvent, Debouncer, FileIdMap}
 use sqlx::{QueryBuilder, Sqlite};
 use symphonia::core::formats::{probe::Hint, TrackType};
 use symphonia::core::io::MediaSourceStream;
-use tauri::{async_runtime, AppHandle, Manager};
+use tauri::{async_runtime, AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
 
 use crate::database::Database;
@@ -424,6 +424,11 @@ impl FileWatcher {
             .await
             .map_err(DatabaseError::Sqlx)?;
 
+        sqlx::query("UPDATE import_roots SET last_scanned = unixepoch()")
+            .execute(&mut *connection)
+            .await
+            .map_err(DatabaseError::Sqlx)?;
+
         changed_ids.extend(deleted_ids);
         let changed_count = changed_ids.len();
         events::emit_changed(app_handle, &changed_ids)?;
@@ -436,13 +441,14 @@ impl FileWatcher {
             }
         });
 
-        let app_handle = app_handle.clone();
+        let pending_app = app_handle.clone();
         async_runtime::spawn(async move {
-            if let Err(error) = FileWatcher::handle_pending(&app_handle).await {
+            if let Err(error) = FileWatcher::handle_pending(&pending_app).await {
                 drop(error);
             }
         });
 
+        let _ = app_handle.emit("library-scan-completed", ());
         task.complete(format!("Library scan complete · {changed_count} changes"));
         Ok(())
     }
