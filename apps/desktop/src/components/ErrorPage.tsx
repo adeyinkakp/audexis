@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, Disc3, Home, RefreshCw } from "lucide-react";
+import { ArrowLeft, Disc3, Home, RefreshCw } from "lucide-react";
 
 type ErrorPageProps = {
   kind: "not-found" | "error" | "fatal";
@@ -24,7 +24,7 @@ const content = {
     description:
       "The error was saved to the application log. Reload the app to get back to your music.",
   },
-} as const;
+};
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -48,7 +48,7 @@ export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
         }}
       />
 
-      <section className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-border/70 bg-popover/85 p-7 shadow-2xl shadow-black/10 backdrop-blur-xl sm:p-10">
+      <section className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-border/70 bg-popover/85 p-7 shadow-2xl shadow-black/10 backdrop-blur-xl sm:p-10">
         <div className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full border border-border/40" />
         <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-border/50" />
 
@@ -63,9 +63,6 @@ export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
               className="size-14 text-primary sm:size-16"
               strokeWidth={1.25}
             />
-            <span className="absolute bottom-1 right-1 flex size-9 items-center justify-center rounded-full border-4 border-popover bg-destructive text-destructive-foreground sm:size-10">
-              <AlertTriangle size={16} />
-            </span>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -117,7 +114,7 @@ export function ErrorPage({ kind, error, onRetry }: ErrorPageProps) {
             <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
               Show technical details
             </summary>
-            <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-background/70 p-4 text-xs leading-5 text-muted-foreground">
+            <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap wrap-break-word rounded-xl bg-background/70 p-4 text-xs leading-5 text-muted-foreground">
               {errorMessage}
             </pre>
           </details>
