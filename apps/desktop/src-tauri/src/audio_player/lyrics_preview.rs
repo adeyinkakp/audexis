@@ -5,7 +5,6 @@ use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
-    fs::File,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -107,7 +106,7 @@ struct Decoder {
 }
 impl Decoder {
     fn open(path: &str) -> Result<(Self, u64), String> {
-        let file = File::open(path).map_err(|e| e.to_string())?;
+        let file = crate::utils::library_files::open(path).map_err(|e| e.to_string())?;
         let mut hint = Hint::new();
         if let Some(ext) = std::path::Path::new(path)
             .extension()

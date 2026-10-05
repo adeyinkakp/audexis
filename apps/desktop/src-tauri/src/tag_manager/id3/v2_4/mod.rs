@@ -8,7 +8,6 @@ use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagValue, UserTextEntry, UserUrlEntry};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
 use std::io::Read;
 
 #[derive(Debug, Clone)]
@@ -46,7 +45,7 @@ impl TagFormat for V2_4 {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let mut file = File::open(file_path).map_err(|_| {
+        let mut file = crate::utils::library_files::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Unable to open and read file".to_string(),
@@ -182,17 +181,13 @@ impl TagFormat for V2_4 {
         updated: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(file_path)
-            .map_err(|_| {
-                BackendError::WriteFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "Failed to open file for writing".to_string(),
-                    internal_message: "Failed to open file for writing".to_string(),
-                })
-            })?;
+        let mut file = crate::utils::library_files::open_for_update(file_path).map_err(|_| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_str().unwrap_or("").to_string(),
+                public_message: "Failed to open file for writing".to_string(),
+                internal_message: "Failed to open file for writing".to_string(),
+            })
+        })?;
         let mut header = [0u8; 10];
         file.read_exact(&mut header).map_err(|_| {
             BackendError::WriteFailed(TagError {

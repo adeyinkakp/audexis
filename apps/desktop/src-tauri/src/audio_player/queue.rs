@@ -451,9 +451,11 @@ impl Queue {
             })?;
         let file_path = track_to_preload.path.clone();
 
-        let src = std::fs::File::open(&file_path).map_err(|source| AudioPlayerError::FileOpen {
-            path: file_path.clone(),
-            source,
+        let src = crate::utils::library_files::open(&file_path).map_err(|source| {
+            AudioPlayerError::FileOpen {
+                path: file_path.clone(),
+                source,
+            }
         })?;
 
         let mss = MediaSourceStream::new(Box::new(src), Default::default());

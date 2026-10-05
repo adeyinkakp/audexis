@@ -2,7 +2,6 @@ use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagValue};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
@@ -14,7 +13,7 @@ pub struct V1 {}
 
 impl V1 {
     fn read_tail(path: &Path) -> std::io::Result<Option<[u8; TAG_SIZE]>> {
-        let mut f = File::open(path)?;
+        let mut f = crate::utils::library_files::open(path)?;
         let len = f.metadata()?.len();
         if len < TAG_SIZE as u64 {
             return Ok(None);
@@ -82,11 +81,7 @@ impl V1 {
             }
         }
 
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path)
-            .map_err(|_| ())?;
+        let mut f = crate::utils::library_files::open_for_update(path).map_err(|_| ())?;
         if existing.is_some() {
             f.seek(SeekFrom::End(-(TAG_SIZE as i64))).map_err(|_| ())?;
             f.write_all(&tag).map_err(|_| ())?;

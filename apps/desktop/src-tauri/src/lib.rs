@@ -33,6 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             crate::utils::errors::init_error_reporting(app.handle());
+            crate::utils::library_files::init(app.handle());
             let error = initialize(app).err();
             if let Some(error) = &error {
                 eprintln!("Startup failed: {} | {}", error.message, error.details);

@@ -59,7 +59,7 @@ impl TagFormat for FlacFormat {
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut data: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
-        let b = fs::read(file_path);
+        let b = crate::utils::library_files::read(file_path);
         if b.is_err() {
             print!("I guess");
             return Err(BackendError::ReadFailed(TagError {
@@ -141,7 +141,7 @@ impl TagFormat for FlacFormat {
         file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
-        let b = fs::read(file_path);
+        let b = crate::utils::library_files::read(file_path);
         if b.is_err() {
             return Err(BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),

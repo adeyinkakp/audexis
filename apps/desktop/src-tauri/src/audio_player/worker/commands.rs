@@ -144,7 +144,7 @@ where
     state.clear_playback_buffers();
 
     let file_path = current_track.lock().unwrap().path.clone();
-    let src = match std::fs::File::open(&file_path) {
+    let src = match crate::utils::library_files::open(&file_path) {
         Ok(src) => src,
         Err(error) => {
             tauri_plugin_log::log::error!(

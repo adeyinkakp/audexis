@@ -49,7 +49,9 @@ impl FileWatcher {
                         continue;
                     }
 
-                    let Ok(meta) = entry.metadata() else { continue };
+                    let Ok(meta) = crate::utils::library_files::metadata(entry.path()) else {
+                        continue;
+                    };
                     let modified_at = meta
                         .modified()
                         .ok()

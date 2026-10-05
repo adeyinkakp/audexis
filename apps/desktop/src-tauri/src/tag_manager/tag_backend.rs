@@ -332,6 +332,7 @@ impl Drop for BackendError {
         let error = match self {
             Self::ReadFailed(error) | Self::WriteFailed(error) => error,
         };
+        crate::utils::library_files::check_after_error(Path::new(&error.path));
         crate::utils::errors::report_registered_backend_error(
             "BackendError",
             &error.public_message,

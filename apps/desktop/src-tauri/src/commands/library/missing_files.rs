@@ -92,7 +92,8 @@ pub async fn relink_missing_file(
     if !crate::file_watcher::is_audio_file(&path) {
         return Err("Select a supported audio file".into());
     }
-    let metadata = std::fs::metadata(&path).map_err(|error| error.to_string())?;
+    let metadata =
+        crate::utils::library_files::metadata(&path).map_err(|error| error.to_string())?;
     let path_string = path.to_string_lossy().to_string();
     let existing_id = sqlx::query_scalar::<_, i64>("SELECT id FROM files WHERE path = ?1")
         .bind(&path_string)

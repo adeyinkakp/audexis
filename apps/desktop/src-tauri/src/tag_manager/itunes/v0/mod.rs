@@ -696,7 +696,7 @@ impl TagFormat for V0 {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<tag_manager::utils::FrameKey, Vec<TagValue>>, BackendError> {
-        let buffer = fs::read(file_path).map_err(|_| {
+        let buffer = crate::utils::library_files::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 internal_message: "Failed to open file".to_string(),
                 path: file_path.to_str().unwrap_or("").to_string(),
@@ -1043,7 +1043,7 @@ impl TagFormat for V0 {
         let mut all_entries = updated_entries;
         all_entries.extend(old_entries);
 
-        let buffer = fs::read(file_path).map_err(|_| {
+        let buffer = crate::utils::library_files::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Failed to read file".to_string(),
@@ -1095,7 +1095,7 @@ impl TagFormat for V0 {
     }
 
     fn get_freeforms(&self, file_path: &std::path::Path) -> Result<Vec<FreeformTag>, BackendError> {
-        let buffer = std::fs::read(file_path).map_err(|_| {
+        let buffer = crate::utils::library_files::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 internal_message: "Unable to open and read file".to_string(),
                 path: file_path.to_str().unwrap_or("").to_string(),

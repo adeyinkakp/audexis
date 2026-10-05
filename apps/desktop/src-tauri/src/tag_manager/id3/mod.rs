@@ -1,6 +1,5 @@
 use crate::tag_manager::traits;
 use crate::tag_manager::traits::{Formats, TagFormat};
-use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
@@ -32,7 +31,7 @@ impl Id3 {
 }
 
 pub(crate) fn ensure_v23_header(path: &Path) -> std::io::Result<bool> {
-    let mut file = OpenOptions::new().read(true).write(true).open(path)?;
+    let mut file = crate::utils::library_files::open_for_update(path)?;
     let mut signature = [0_u8; 3];
     let read = file.read(&mut signature)?;
     if read == signature.len() && &signature == b"ID3" {

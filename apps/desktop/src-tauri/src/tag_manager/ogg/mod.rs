@@ -39,7 +39,7 @@ impl TagFormat for OggFormat {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let file = File::open(file_path).map_err(|_| {
+        let file = crate::utils::library_files::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Could not open file".to_string(),
@@ -97,7 +97,7 @@ impl TagFormat for OggFormat {
         let new_vorbis_comment_packet = utils::make_vorbis_comment_packet(&generic_payload);
         let new_opus_tags_packet = utils::make_opus_tags_packet(&generic_payload);
 
-        let input = File::open(file_path).map_err(|_| {
+        let input = crate::utils::library_files::open(file_path).map_err(|_| {
             BackendError::WriteFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Could not open file".to_string(),

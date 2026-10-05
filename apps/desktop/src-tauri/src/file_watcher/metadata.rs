@@ -177,10 +177,10 @@ impl FileWatcher {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_secs() as i64)
             .unwrap_or_default();
+
         sqlx::query(
             "UPDATE files
-               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = ?3,
-                   missing_since = NULL
+               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = ?3
                WHERE id = ?4",
         )
         .bind(metadata.tag_format.to_string())
@@ -196,7 +196,7 @@ impl FileWatcher {
 }
 
 pub(super) fn read_duration_ms(path: &Path) -> Option<i64> {
-    let source = std::fs::File::open(path).ok()?;
+    let source = crate::utils::library_files::open(path).ok()?;
     let stream = MediaSourceStream::new(Box::new(source), Default::default());
     let mut hint = Hint::new();
     if let Some(extension) = path.extension().and_then(|value| value.to_str()) {

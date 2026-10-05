@@ -58,14 +58,14 @@ pub(super) async fn rebase_indexed_directory(
             continue;
         };
         let destination = new_path.join(suffix);
-        let Ok(metadata) = std::fs::metadata(&destination) else {
-            sqlx::query("DELETE FROM files WHERE id = ?1")
-                .bind(id)
-                .execute(pool)
-                .await
-                .map_err(DatabaseError::Sqlx)?;
-            changed_ids.push(id);
-            continue;
+        let metadata = match crate::utils::library_files::metadata(&destination) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    changed_ids.extend(mark_indexed_path_missing(pool, Path::new(&source)).await?);
+                }
+                continue;
+            }
         };
         if !metadata.is_file() || !is_audio_file(&destination) {
             continue;

@@ -1,5 +1,4 @@
 use crate::tag_manager::traits::{Formats, TagFamily};
-use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 mod flac;
@@ -58,7 +57,7 @@ impl TagManager {
 }
 
 pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<Formats> {
-    let mut file = match File::open(file_path) {
+    let mut file = match crate::utils::library_files::open(file_path) {
         Ok(file) => file,
         Err(_) => return primary.into_iter().collect(),
     };

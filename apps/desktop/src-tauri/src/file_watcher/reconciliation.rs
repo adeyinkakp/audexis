@@ -72,8 +72,14 @@ impl FileWatcher {
                 changed_ids.extend(mark_indexed_path_missing(&db.pool, &old_path).await?);
                 continue;
             }
-            let Ok(metadata) = std::fs::metadata(&new_path) else {
-                continue;
+            let metadata = match crate::utils::library_files::metadata(&new_path) {
+                Ok(metadata) => metadata,
+                Err(error) => {
+                    if error.kind() == std::io::ErrorKind::NotFound {
+                        changed_ids.extend(mark_indexed_path_missing(&db.pool, &old_path).await?);
+                    }
+                    continue;
+                }
             };
             let modified_at = metadata
                 .modified()
@@ -146,7 +152,7 @@ impl FileWatcher {
                 .into_iter()
                 .filter(|path| seen.insert(path.clone()))
                 .filter_map(|path| {
-                    let metadata = std::fs::metadata(&path).ok()?;
+                    let metadata = crate::utils::library_files::metadata(&path).ok()?;
                     Some((
                         path.to_string_lossy().to_string(),
                         metadata

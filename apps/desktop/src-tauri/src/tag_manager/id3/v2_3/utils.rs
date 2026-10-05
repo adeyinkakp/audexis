@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
@@ -8,7 +7,7 @@ pub(crate) use super::super::v2_common::{
 };
 
 pub fn ensure_header(file_path: &Path) -> std::io::Result<bool> {
-    let mut file = File::open(file_path)?;
+    let mut file = crate::utils::library_files::open(file_path)?;
     let mut header = [0u8; 10];
     file.read_exact(&mut header)?;
     Ok(&header[..3] == b"ID3" && matches!(header[3..5], [3, 0] | [4, 0]))

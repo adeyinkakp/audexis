@@ -41,7 +41,7 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &AppHandle) -> Result<(), D
             rows.into_iter()
                 .filter_map(|(id, path, format)| {
                     let path = PathBuf::from(path);
-                    let stat = std::fs::metadata(&path).ok()?;
+                    let stat = crate::utils::library_files::metadata(&path).ok()?;
                     let duration = super::metadata::read_duration_ms(&path);
                     let format = format.filter(|value| !value.is_empty()).or_else(|| {
                         DefaultBackend::new()
