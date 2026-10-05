@@ -38,6 +38,7 @@ pub enum FrameKey {
     Compilation,
     ComposerSort,
     Director,
+    #[serde(alias = "discnumber")]
     DiscNumber,
     DiscSubtitle,
     EncoderSettings,

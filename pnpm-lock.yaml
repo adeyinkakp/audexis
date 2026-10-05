@@ -80,6 +80,9 @@ importers:
       motion:
         specifier: ^14.0.0
         version: 14.0.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      node-itunes-search:
+        specifier: ^3.0.0
+        version: 3.0.0
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -2297,6 +2300,10 @@ packages:
 
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
+
+  node-itunes-search@3.0.0:
+    resolution: {integrity: sha512-j5Q9HY/fLO9IGTd44aqj3n1IJFNDqTl3r3PPKLNOUT6/nY1mP7Os9xd3t1mfxtETqfCwNhDsXpHrbZQBifR5pQ==}
+    engines: {node: '>=18.0.0'}
 
   node-mock-http@1.0.5:
     resolution: {integrity: sha512-KQyt/wLjG3TAc7DOUhpqWzgd4ERxR80JOlTK5VE5R1S12IaPVN5qkj4klBce9HPG1Njuup4Sb5bljaT34lIyjw==}
@@ -4830,6 +4837,8 @@ snapshots:
       '@types/nlcst': 2.0.3
 
   node-fetch-native@1.6.7: {}
+
+  node-itunes-search@3.0.0: {}
 
   node-mock-http@1.0.5: {}
 

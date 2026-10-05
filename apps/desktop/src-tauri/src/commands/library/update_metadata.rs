@@ -18,7 +18,6 @@ pub struct UpdateMetadataInput {
 }
 
 #[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 struct LibraryChange<'a> {
     file_ids: &'a [i64],
 }

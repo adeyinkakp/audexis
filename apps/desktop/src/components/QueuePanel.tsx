@@ -1,3 +1,4 @@
+import { Artwork } from "./library/CollectionGrid";
 import { SongContextMenu } from "./SongContextMenu";
 import { formatDuration } from "../utils/duration";
 import { invoke } from "@tauri-apps/api/core";
@@ -99,42 +100,48 @@ export default function QueuePanel({
   }, [data, queueInfo]);
 
   return (
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-        <div
-          className="relative"
-          style={{ height: `${virtualizer.getTotalSize()}px` }}
-        >
-          {virtualizer.getVirtualItems().map((item) => {
-            const file = queueItems[item.index];
-            const isCurrent = item.index === queueInfo.current_index;
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+      <div
+        className="relative"
+        style={{ height: `${virtualizer.getTotalSize()}px` }}
+      >
+        {virtualizer.getVirtualItems().map((item) => {
+          const file = queueItems[item.index];
+          const isCurrent = item.index === queueInfo.current_index;
 
-            return (
-              <SongContextMenu fileId={file.id} key={item.index}>
-                <button
-                  type="button"
-                  key={`${file.id}-${file.occurrence}-${item.index}`}
-                  onClick={() => onPlay(item.index)}
-                  className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 ${isCurrent ? "bg-muted text-primary" : ""}`}
-                  style={{
-                    height: `${item.size}px`,
-                    transform: `translateY(${item.start}px)`,
-                  }}
-                >
-                  <div className="h-8 w-8 shrink-0 rounded bg-muted" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs">{file.title}</div>
-                    <div className="truncate text-[10px] text-muted-foreground">
-                      {file.artist}
-                    </div>
+          return (
+            <SongContextMenu fileId={file.id} key={item.index}>
+              <button
+                type="button"
+                key={`${file.id}-${file.occurrence}-${item.index}`}
+                onClick={() => onPlay(item.index)}
+                className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 ${isCurrent ? "bg-muted text-primary" : ""}`}
+                style={{
+                  height: `${item.size}px`,
+                  transform: `translateY(${item.start}px)`,
+                }}
+              >
+                <div className="h-8 w-8 shrink-0 aspect-square overflow-hidden ">
+                  <Artwork
+                    round={false}
+                    key={file.id}
+                    id={file.id > 0 ? file.id : null}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs">{file.title}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">
+                    {file.artist}
                   </div>
-                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-                    {formatDuration(file.durationMs)}
-                  </span>
-                </button>
-              </SongContextMenu>
-            );
-          })}
-        </div>
+                </div>
+                <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                  {formatDuration(file.durationMs)}
+                </span>
+              </button>
+            </SongContextMenu>
+          );
+        })}
       </div>
+    </div>
   );
 }

@@ -85,7 +85,11 @@ function hasMixedArtwork(artwork: ArtworkInfo[], fileIds: number[]) {
   });
 }
 
-export default function ArtworkTab({ files }: { files: FilesResponse | undefined }) {
+export default function ArtworkTab({
+  files,
+}: {
+  files: FilesResponse | undefined;
+}) {
   const queryClient = useQueryClient();
   const fileIds = useMemo(
     () => files?.files.map((file) => file.id) ?? [],
@@ -117,15 +121,15 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
   }, [initialItems, dirty]);
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (nextItems: ArtworkItem[]) =>
       invoke<UpdateMetadataResult>("update_metadata", {
         input: {
           fileIds,
           changes: {
-            attachedPicture: items.length
+            attachedPicture: nextItems.length
               ? {
                   operation: "replace",
-                  values: items.map((item) => ({
+                  values: nextItems.map((item) => ({
                     type: "Picture",
                     value: {
                       mime: item.mime,
@@ -156,9 +160,11 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
         return;
       }
       setDirty(false);
-      toast.success(`Artwork updated for ${result.updatedFileIds.length} file${result.updatedFileIds.length === 1 ? "" : "s"}`);
+      toast.success(
+        `Artwork updated for ${result.updatedFileIds.length} file${result.updatedFileIds.length === 1 ? "" : "s"}`,
+      );
     },
-    onError: (error) => toast.error(`Could not update artwork: ${String(error)}`),
+    onError: () => toast.error(`Could not update artwork`),
   });
 
   const apply = (next: ArtworkItem[], nextIndex = selectedIndex) => {
@@ -196,6 +202,21 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
     apply(next, destination);
   };
 
+  if (query.isError) {
+    return (
+      <div role="alert" className="p-6 text-sm text-destructive">
+        Could not load artwork.{" "}
+        <button
+          type="button"
+          className="underline"
+          onClick={() => void query.refetch()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (query.isLoading) {
     return (
       <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
@@ -213,11 +234,16 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 p-6 md:grid-cols-[minmax(0,1fr)_17rem]">
+      <fieldset
+        disabled={mutation.isPending}
+        className="grid min-h-0 flex-1 grid-cols-1 gap-5 p-6 md:grid-cols-[minmax(0,1fr)_17rem]"
+      >
         <section className="flex min-w-0 flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Current Type</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Current Type
+              </span>
               <select
                 disabled={!selected}
                 value={selected?.picture_type ?? 3}
@@ -227,16 +253,22 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
                 className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none disabled:opacity-50"
               >
                 {pictureTypes.map((type) => (
-                  <option key={type.id} value={type.id}>{type.name}</option>
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Description</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Description
+              </span>
               <input
                 disabled={!selected}
                 value={selected?.description ?? ""}
-                onChange={(event) => updateSelected({ description: event.target.value })}
+                onChange={(event) =>
+                  updateSelected({ description: event.target.value })
+                }
                 placeholder="Optional description"
                 className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none disabled:opacity-50"
               />
@@ -259,16 +291,39 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => move(-1)} disabled={selectedIndex === 0 || !selected} className="h-9 rounded-lg border border-border px-3 text-sm disabled:opacity-40">Up</button>
-            <button type="button" onClick={() => move(1)} disabled={!selected || selectedIndex === items.length - 1} className="h-9 rounded-lg border border-border px-3 text-sm disabled:opacity-40">Down</button>
-            <button type="button" onClick={() => move(-selectedIndex)} disabled={!selected || selectedIndex === 0} className="h-9 rounded-lg px-3 text-sm text-muted-foreground disabled:opacity-40">Make Primary</button>
+            <button
+              type="button"
+              onClick={() => move(-1)}
+              disabled={selectedIndex === 0 || !selected}
+              className="h-9 rounded-lg border border-border px-3 text-sm disabled:opacity-40"
+            >
+              Up
+            </button>
+            <button
+              type="button"
+              onClick={() => move(1)}
+              disabled={!selected || selectedIndex === items.length - 1}
+              className="h-9 rounded-lg border border-border px-3 text-sm disabled:opacity-40"
+            >
+              Down
+            </button>
+            <button
+              type="button"
+              onClick={() => move(-selectedIndex)}
+              disabled={!selected || selectedIndex === 0}
+              className="h-9 rounded-lg px-3 text-sm text-muted-foreground disabled:opacity-40"
+            >
+              Make Primary
+            </button>
           </div>
         </section>
 
         <aside className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/20 p-3">
           <div className="flex items-center justify-between px-1 pb-3">
             <h3 className="text-sm font-semibold text-foreground">Images</h3>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{items.length}</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {items.length}
+            </span>
           </div>
 
           <div className="flex max-h-[43vh] flex-col gap-2 overflow-y-auto">
@@ -282,20 +337,40 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
                   selectedIndex === index && "border-primary/30 bg-primary/8",
                 )}
               >
-                <img src={`data:${item.mime};base64,${item.data_base64}`} alt="" className="h-14 w-14 shrink-0 rounded-lg bg-muted object-cover" />
+                <img
+                  src={`data:${item.mime};base64,${item.data_base64}`}
+                  alt=""
+                  className="h-14 w-14 shrink-0 rounded-lg bg-muted object-cover"
+                />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-foreground">{index === 0 ? "Primary" : `Image ${index + 1}`}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{pictureTypes.find((type) => type.id === item.picture_type)?.name ?? "Other"}</span>
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {index === 0 ? "Primary" : `Image ${index + 1}`}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {pictureTypes.find((type) => type.id === item.picture_type)
+                      ?.name ?? "Other"}
+                  </span>
                 </span>
               </button>
             ))}
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-            <button type="button" onClick={() => void addImage()} className="h-9 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground">Add image</button>
             <button
               type="button"
-              onClick={() => apply(items.filter((_, index) => index !== selectedIndex), selectedIndex - 1)}
+              onClick={() => void addImage()}
+              className="h-9 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground"
+            >
+              Add image
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                apply(
+                  items.filter((_, index) => index !== selectedIndex),
+                  selectedIndex - 1,
+                )
+              }
               disabled={!selected}
               className="h-9 rounded-lg border border-border px-3 text-sm disabled:opacity-40"
             >
@@ -303,18 +378,27 @@ export default function ArtworkTab({ files }: { files: FilesResponse | undefined
             </button>
           </div>
         </aside>
-      </div>
+      </fieldset>
 
       <div className="sticky bottom-0 mt-auto flex items-center justify-end gap-2 border-t border-border bg-background/95 px-6 py-4 backdrop-blur-sm">
         <button
           type="button"
-          onClick={() => { setItems(initialItems); setSelectedIndex(0); setDirty(false); }}
+          onClick={() => {
+            setItems(initialItems);
+            setSelectedIndex(0);
+            setDirty(false);
+          }}
           disabled={!dirty || mutation.isPending}
           className="h-9 rounded-lg px-4 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40"
         >
           Reset
         </button>
-        <button type="button" onClick={() => mutation.mutate()} disabled={!dirty || mutation.isPending} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-40">
+        <button
+          type="button"
+          onClick={() => mutation.mutate(items)}
+          disabled={!dirty || mutation.isPending}
+          className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-40"
+        >
           {mutation.isPending ? "Saving…" : "Save Artwork"}
         </button>
       </div>

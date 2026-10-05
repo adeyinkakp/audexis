@@ -66,7 +66,7 @@ pub async fn read(
         FROM listening_history h JOIN tagged t ON t.id=h.file_id WHERE t.album<>'' GROUP BY t.album COLLATE NOCASE,t.owner COLLATE NOCASE
         UNION ALL
         SELECT 'playlist', p.name, '', MIN(h.file_id), p.id, MAX(h.played_at)
-        FROM listening_history h JOIN playlists p ON p.id=h.playlist_id GROUP BY p.id,p.name
+        FROM listening_history h JOIN files f ON f.id=h.file_id JOIN playlists p ON p.id=h.playlist_id WHERE f.missing_since IS NULL GROUP BY p.id,p.name
     ) SELECT kind,name,artist,file_id,playlist_id,played_at FROM recent ORDER BY played_at DESC,kind,name,file_id LIMIT 30"))
         .fetch_all(&mut *tx).await.map_err(|e|e.to_string())?;
     tx.commit().await.map_err(|e| e.to_string())?;

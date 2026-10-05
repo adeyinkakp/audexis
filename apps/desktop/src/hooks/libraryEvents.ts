@@ -15,7 +15,11 @@ const libraryQueries = new Set([
 function affectedQuery(key: QueryKey, ids: ReadonlySet<number>) {
   if (libraryQueries.has(String(key[0]))) return true;
   if (key[0] === "libraryArtwork") return ids.has(key[1] as number);
-  if (key[0] === "mediaFiles" || key[0] === "artworkDetails" || key[0] === "lyrics") {
+  if (
+    key[0] === "mediaFiles" ||
+    key[0] === "artworkDetails" ||
+    key[0] === "lyrics"
+  ) {
     return Array.isArray(key[1]) && key[1].some((id: number) => ids.has(id));
   }
   return false;
@@ -96,4 +100,11 @@ export function subscribeLibraryChanges(
     pending.clear();
     unlisten?.();
   };
+}
+
+export function libraryChangeIds(payload: {
+  file_ids?: number[];
+  fileIds?: number[];
+}): number[] {
+  return payload.file_ids ?? payload.fileIds ?? [];
 }

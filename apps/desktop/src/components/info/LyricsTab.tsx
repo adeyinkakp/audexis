@@ -98,17 +98,25 @@ function LyricsEditor({
   const invalid = synchronized && parseLyrics(value).error !== null;
   const dirty = draft !== null && (draft !== initial || mixed || multiple);
   const mutation = useMutation({
-    mutationFn: () =>
-      invoke<SaveResult>("update_metadata", {
+    mutationFn: (text: string) => {
+      if (synchronized && text.trim()) {
+        const error = parseLyrics(text).error;
+        if (error) throw new Error(error);
+      }
+      return invoke<SaveResult>("update_metadata", {
         input: {
           fileIds: files.files.map((file) => file.id),
           changes: {
-            [key]: value.trim()
-              ? { operation: "replace", values: [{ type: "Text", value }] }
+            [key]: text.trim()
+              ? {
+                  operation: "replace",
+                  values: [{ type: "Text", value: text }],
+                }
               : { operation: "delete" },
           },
         },
-      }),
+      });
+    },
     onSuccess: async (result) => {
       if (result.updatedFileIds.length)
         await Promise.all([
@@ -191,12 +199,14 @@ function LyricsEditor({
             hasDraft={!!value.trim()}
             disabled={!supported || mutation.isPending}
             onClose={() => setLookupOpen(false)}
-            onApply={(text) => {
+            onApply={async (text) => {
               setDraft(text);
-              setLookupOpen(false);
-              toast.success(
-                "Lyrics added to the editor. Click Save Lyrics to keep them.",
-              );
+              const result = await mutation.mutateAsync(text);
+              if (result.failures.length) {
+                throw new Error(
+                  `${result.updatedFileIds.length} saved, ${result.failures.length} failed. ${result.failures[0].message}`,
+                );
+              }
             }}
           />
         )}
@@ -251,7 +261,7 @@ function LyricsEditor({
         </button>
         <button
           type="button"
-          onClick={() => mutation.mutate()}
+          onClick={() => mutation.mutate(value)}
           disabled={!dirty || !supported || mutation.isPending || invalid}
           className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-40"
         >

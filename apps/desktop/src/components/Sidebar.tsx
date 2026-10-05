@@ -32,10 +32,6 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
           name: "Search",
           path: "/search",
         },
-        {
-          name: "Tag Manager",
-          path: "/tagmanager",
-        },
       ],
     },
     {

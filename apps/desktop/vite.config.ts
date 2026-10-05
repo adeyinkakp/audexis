@@ -8,7 +8,21 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 // https://vite.dev/config/
 // @ts-expect-error
 export default defineConfig(async () => ({
+  optimizeDeps: { exclude: ["node-itunes-search"] },
   plugins: [
+    {
+      name: "itunes-native-fetch",
+      enforce: "pre",
+      transform(code, id) {
+        if (!/node-itunes-search\/dist\/mod\.(?:m)?js$/.test(id)) return;
+        return {
+          code:
+            'import { fetch as itunesFetch } from "@tauri-apps/plugin-http";\nconst fetch = (url) => itunesFetch(url, { signal: AbortSignal.timeout(15000) });\n' +
+            code,
+          map: null,
+        };
+      },
+    },
     tanstackRouter({
       target: "react",
       autoCodeSplitting: true,
