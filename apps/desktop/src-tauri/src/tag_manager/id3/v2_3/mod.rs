@@ -102,7 +102,11 @@ impl TagFormat for V2_3 {
 
             let content = &tag_data[pos + 10..pos + 10 + size];
 
-            if frame_id == "TXXX" || frame_id == "WXXX" {
+            if matches!(frame_id.as_str(), "USLT" | "SYLT") {
+                if let Some(text) = super::lyrics::decode(&frame_id, content) {
+                    tags.entry(frame_id).or_default().push(TagValue::Text(text));
+                }
+            } else if frame_id == "TXXX" || frame_id == "WXXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
@@ -317,6 +321,18 @@ impl TagFormat for V2_3 {
             match v {
                 TagValue::Text(text) => {
                     if !text.is_empty() {
+                        if matches!(k, "USLT" | "SYLT") {
+                            let payload = super::lyrics::encode(k, &text).map_err(|message| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Invalid lyrics".into(),
+                                    internal_message: message,
+                                })
+                            })?;
+                            raw_frames.push((k.to_string(), payload));
+                            continue;
+                        }
+
                         if k == "TXXX" || k == "WXXX" {
                             let (desc, val) = match text.split_once('=') {
                                 Some((d, v)) => (d.to_string(), v.to_string()),

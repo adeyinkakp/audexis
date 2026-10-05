@@ -2,6 +2,8 @@
   "name": "audexis",
   "private": true,
   "scripts": {
+    "dev": "pnpm --filter desktop run tauri dev",
+    "www": "pnpm --filter www run dev",
     "typecheck": "pnpm --filter desktop run typecheck",
     "build": "pnpm --filter desktop run build",
     "format:check": "pnpm --filter desktop run format:check",

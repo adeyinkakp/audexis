@@ -28,6 +28,8 @@ pub fn run() {
         tauri_plugin_log::log::error!("panic: {panic}");
     }));
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
+        .manage(commands::playback::lyrics_preview::LyricsPreviewState::default())
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             crate::utils::errors::init_error_reporting(app.handle());
@@ -64,6 +66,7 @@ pub fn run() {
             commands::library::search_media::search_media,
             commands::library::set_library_roots::set_library_roots,
             commands::library::update_metadata::update_metadata,
+            commands::library::lyrics::get_lyrics,
             commands::logs::get_logs,
             commands::playback::enqueue_song::enqueue_song,
             commands::playback::get_artwork::get_artwork,
@@ -72,6 +75,7 @@ pub fn run() {
             commands::playback::get_playback_modes::get_playback_modes,
             commands::playback::get_queue::get_queue,
             commands::playback::pause_playback::pause_playback,
+            commands::playback::lyrics_preview::lyrics_preview,
             commands::playback::play::play_song,
             commands::playback::previous_song::previous_song,
             commands::playback::resume_playback::resume_playback,

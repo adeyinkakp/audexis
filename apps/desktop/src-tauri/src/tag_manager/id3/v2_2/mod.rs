@@ -71,7 +71,11 @@ impl TagFormat for V2_2 {
                 break;
             }
             let content = &tag_data[pos + 6..pos + 6 + size];
-            if id == "TXX" || id == "WXX" {
+            if matches!(id.as_str(), "ULT" | "SLT") {
+                if let Some(text) = super::lyrics::decode(&id, content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
+            } else if id == "TXX" || id == "WXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
@@ -219,6 +223,9 @@ impl TagFormat for V2_2 {
             raw.insert(id, content.to_vec());
             pos += 6 + size;
         }
+        for key in updated.keys() {
+            raw.remove(super::utils::id3v22_code(*key));
+        }
         let mut single_map: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vals) in updated.clone().into_iter() {
             if vals.is_empty() {
@@ -243,6 +250,18 @@ impl TagFormat for V2_2 {
             match v {
                 TagValue::Text(t) => {
                     if !t.is_empty() {
+                        if matches!(k, "ULT" | "SLT") {
+                            let payload = super::lyrics::encode(k, &t).map_err(|message| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Invalid lyrics".into(),
+                                    internal_message: message,
+                                })
+                            })?;
+                            raw.insert(k.to_string(), payload);
+                            continue;
+                        }
+
                         let encoded = encode_text_payload(&t, false);
                         raw.insert(k.to_string(), encoded);
                     }

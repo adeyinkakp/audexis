@@ -92,7 +92,8 @@ where
             ctx.flush_output.store(true, Ordering::Release);
             state.clear_loaded_track();
         }
-        PlayerCmd::Seek { seconds } => handle_seek(ctx, state, seconds),
+        PlayerCmd::Seek { seconds } => handle_seek(ctx, state, seconds.saturating_mul(1000)),
+        PlayerCmd::SeekMilliseconds { milliseconds } => handle_seek(ctx, state, milliseconds),
         PlayerCmd::UpdateDeviceConfig { target_sample_rate } => {
             state.target_sample_rate = target_sample_rate;
             state.resampler = None;
@@ -277,7 +278,7 @@ where
     ctx.paused.store(false, Ordering::Release);
 }
 
-fn handle_seek<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, seconds: u64)
+fn handle_seek<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, milliseconds: u64)
 where
     P: Producer<Item = f32> + Observer + Send,
 {
@@ -289,8 +290,13 @@ where
             .find(|track| track.id == state.track_id)
             .and_then(|track| {
                 let time_base = track.time_base?;
-                let requested = time_base
-                    .calc_timestamp(Time::try_new(seconds as i64, 0).unwrap_or(Time::MAX))?;
+                let requested = time_base.calc_timestamp(
+                    Time::try_new(
+                        (milliseconds / 1000) as i64,
+                        ((milliseconds % 1000) * 1_000_000) as u32,
+                    )
+                    .unwrap_or(Time::MAX),
+                )?;
                 let target = track.duration.map_or(requested, |duration| {
                     println!("duration : {:?}", duration);
                     let maximum = Timestamp::new(duration.get() as i64);
@@ -315,7 +321,11 @@ where
             current_format.seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
-                    time: Time::try_new(seconds as i64, 0).unwrap_or(Time::MAX),
+                    time: Time::try_new(
+                        (milliseconds / 1000) as i64,
+                        ((milliseconds % 1000) * 1_000_000) as u32,
+                    )
+                    .unwrap_or(Time::MAX),
                     track_id: None,
                 },
             )
@@ -325,14 +335,13 @@ where
             tauri_plugin_log::log::error!("Could not seek playback: {error}");
         } else if let Some(current_decoder) = state.decoder.as_mut() {
             if let Ok(mut counter) = ctx.play_counter.lock() {
-                counter.seek(seconds.saturating_mul(1000));
+                counter.seek(milliseconds);
             }
             current_decoder.reset();
             state.clear_playback_buffers();
             state.resampler = None;
             ctx.flush_output.store(true, Ordering::Release);
-            ctx.position_ms
-                .store(seconds.saturating_mul(1000), Ordering::Release);
+            ctx.position_ms.store(milliseconds, Ordering::Release);
         }
     }
     ctx.paused.store(was_paused, Ordering::Release);

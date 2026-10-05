@@ -578,6 +578,10 @@ pub fn itunes_freeform_spec(key: FrameKey) -> Option<FreeformSpec> {
             mean,
             name: "LYRICIST",
         },
+        SynchronizedLyrics => FreeformSpec {
+            mean,
+            name: "SYNCEDLYRICS",
+        },
         Lyrics => FreeformSpec {
             mean,
             name: "LYRICS",
@@ -816,6 +820,13 @@ pub static FREEFORM_REVERSE_MAP: Lazy<HashMap<(&'static str, &'static str), Fram
                     name: "LYRICS",
                 },
                 FrameKey::Lyrics,
+            ),
+            (
+                FreeformSpec {
+                    mean: "com.apple.iTunes",
+                    name: "SYNCEDLYRICS",
+                },
+                FrameKey::SynchronizedLyrics,
             ),
             (
                 FreeformSpec {

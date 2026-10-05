@@ -21,6 +21,7 @@ pub fn vorbis_code(key: FrameKey) -> &'static str {
         FrameKey::Composer => "COMPOSER",
         FrameKey::EncodedBy => "ENCODER",
         FrameKey::UnsyncedLyrics => "LYRICS",
+        FrameKey::SynchronizedLyrics => "SYNCEDLYRICS",
         FrameKey::Comments => "COMMENT",
         FrameKey::Conductor => "CONDUCTOR",
         FrameKey::BeatsPerMinute => "BPM",
@@ -38,7 +39,7 @@ fn normalize_vorbis_key(raw: &str) -> String {
 pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
-    let mappings: [(&'static str, FrameKey); 18] = [
+    let mappings: [(&'static str, FrameKey); 19] = [
         ("TITLE", FrameKey::Title),
         ("ARTIST", FrameKey::Artist),
         ("ALBUM", FrameKey::Album),
@@ -54,6 +55,7 @@ pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         ("COMPOSER", FrameKey::Composer),
         ("ENCODER", FrameKey::EncodedBy),
         ("LYRICS", FrameKey::UnsyncedLyrics),
+        ("SYNCEDLYRICS", FrameKey::SynchronizedLyrics),
         ("COMMENT", FrameKey::Comments),
         ("CONDUCTOR", FrameKey::Conductor),
         ("BPM", FrameKey::BeatsPerMinute),

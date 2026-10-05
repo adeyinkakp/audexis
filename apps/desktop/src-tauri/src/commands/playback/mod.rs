@@ -16,3 +16,5 @@ pub mod toggle_shuffle;
 pub mod enqueue_song;
 
 pub mod update_media_controls;
+
+pub mod lyrics_preview;

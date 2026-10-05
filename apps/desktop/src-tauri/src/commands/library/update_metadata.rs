@@ -38,7 +38,7 @@ pub struct UpdateMetadataResult {
     failures: Vec<FileUpdateFailure>,
 }
 
-fn error_message(error: &BackendError) -> String {
+pub(super) fn error_message(error: &BackendError) -> String {
     let detail = match error {
         BackendError::ReadFailed(error) | BackendError::WriteFailed(error) => error,
     };
@@ -73,6 +73,19 @@ pub async fn update_metadata(
     }
     for (key, change) in &input.changes {
         if let TagChange::Replace(values) = change {
+            if matches!(key, FrameKey::UnsyncedLyrics | FrameKey::SynchronizedLyrics) {
+                if values.len() != 1 {
+                    return Err("Save one lyrics entry at a time".into());
+                }
+                if let SerializableTagValue::Text(text) = &values[0] {
+                    if text.contains('\0') {
+                        return Err("Lyrics cannot contain NUL characters".into());
+                    }
+                    if *key == FrameKey::SynchronizedLyrics {
+                        crate::tag_manager::id3::lyrics::parse_lrc(text)?;
+                    }
+                }
+            }
             let valid = if *key == FrameKey::AttachedPicture {
                 values
                     .iter()

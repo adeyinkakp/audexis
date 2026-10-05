@@ -6,6 +6,10 @@
   "permissions": [
     "core:default",
     "opener:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://lrclib.net/api/*" }]
+    },
     "core:window:allow-show",
     "core:window:allow-start-dragging",
     "core:window:default",

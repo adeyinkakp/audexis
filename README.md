@@ -16,6 +16,7 @@ library on their own computer. It uses react for the frontend and rust for the b
 - Read embedded metadata and artwork from common audio formats
 - Control playback through native system media controls
 - Keep library data locally in SQLite
+- Synced and unsynced lyrics
 
 Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus,
 OGA, SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the

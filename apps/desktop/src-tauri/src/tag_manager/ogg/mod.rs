@@ -351,3 +351,84 @@ impl TagFormat for OggFormat {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod lyrics_tests {
+    use super::*;
+    use crate::tag_manager::tag_backend::{DefaultBackend, TagBackend};
+    use crate::tag_manager::utils::{Changes, SerializableTagValue, TagChange};
+
+    #[test]
+    fn opus_lyrics_save_and_delete_preserve_audio_packet() {
+        let path =
+            std::env::temp_dir().join(format!("audexis-lyrics-{}.ogg", uuid::Uuid::new_v4()));
+        let mut file = File::create(&path).unwrap();
+        let audio = b"synthetic audio packet";
+        for (seq, packet) in [
+            b"OpusHead\x01\x02\0\0\x80\xbb\0\0\0\0\0".as_slice(),
+            b"OpusTags\0\0\0\0\0\0\0\0",
+            audio,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            write_page(
+                &mut file,
+                &utils::OggPage {
+                    version: 0,
+                    header_type: if seq == 0 {
+                        2
+                    } else if seq == 2 {
+                        4
+                    } else {
+                        0
+                    },
+                    granule_position: if seq == 2 { 960 } else { 0 },
+                    bitstream_serial_number: 1,
+                    page_sequence_number: seq as u32,
+                    checksum: 0,
+                    segment_table: vec![packet.len() as u8],
+                    payload: packet.to_vec(),
+                },
+            )
+            .unwrap();
+        }
+        drop(file);
+        let backend = DefaultBackend::new();
+        for delete in [false, true] {
+            let tags = [
+                (FrameKey::UnsyncedLyrics, "Café; 世界\nline"),
+                (FrameKey::SynchronizedLyrics, "[00:01.500]Café; 世界"),
+            ]
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key,
+                    if delete {
+                        TagChange::Delete
+                    } else {
+                        TagChange::Replace(vec![SerializableTagValue::Text(value.into())])
+                    },
+                )
+            })
+            .collect();
+            let errors = backend.write_changes(&Changes {
+                paths: vec![path.to_string_lossy().into_owned()],
+                tags,
+            });
+            assert!(errors.is_empty(), "{errors:?}");
+            let metadata = backend.read(&path).unwrap();
+            assert_eq!(
+                metadata.tags.contains_key(&FrameKey::UnsyncedLyrics),
+                !delete
+            );
+            assert_eq!(
+                metadata.tags.contains_key(&FrameKey::SynchronizedLyrics),
+                !delete
+            );
+            let bytes = std::fs::read(&path).unwrap();
+            assert!(bytes.windows(audio.len()).any(|window| window == audio));
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+}

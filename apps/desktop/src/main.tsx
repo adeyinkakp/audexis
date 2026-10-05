@@ -2,7 +2,7 @@ import React from "react";
 import { useLibraryEvents } from "./hooks/useLibraryEvents";
 import ReactDOM from "react-dom/client";
 
-import { StoreProvider } from "./hooks/useStore";
+import { StoreProvider } from "./hooks/StoreProvider";
 import { Toaster } from "react-hot-toast";
 import "./styles/main.css";
 import { RouterProvider, createRouter } from "@tanstack/react-router";

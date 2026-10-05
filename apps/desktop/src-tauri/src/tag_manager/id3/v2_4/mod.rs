@@ -92,7 +92,11 @@ impl TagFormat for V2_4 {
                 break;
             }
             let content = &tag_data[pos + 10..pos + 10 + size];
-            if id == "TXXX" || id == "WXXX" {
+            if matches!(id.as_str(), "USLT" | "SYLT") {
+                if let Some(text) = super::lyrics::decode(&id, content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
+            } else if id == "TXXX" || id == "WXXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
@@ -268,7 +272,10 @@ impl TagFormat for V2_4 {
             }
         }
         let raw_updates = id3v24_tags_to_raw(&flattened);
-        let mut updated_keys: Vec<String> = raw_updates.keys().map(|k| k.to_string()).collect();
+        let mut updated_keys: Vec<String> = updated
+            .keys()
+            .map(|k| super::utils::id3v24_code(*k).to_string())
+            .collect();
         if !pictures.is_empty() {
             updated_keys.push("APIC".to_string());
         }
@@ -278,6 +285,18 @@ impl TagFormat for V2_4 {
             match v {
                 TagValue::Text(t) => {
                     if !t.is_empty() {
+                        if matches!(k, "USLT" | "SYLT") {
+                            let payload = super::lyrics::encode(k, &t).map_err(|message| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Invalid lyrics".into(),
+                                    internal_message: message,
+                                })
+                            })?;
+                            raw_frames.push((k.to_string(), payload));
+                            continue;
+                        }
+
                         if k == "TXXX" || k == "WXXX" {
                             let (desc, val) = match t.split_once('=') {
                                 Some((d, v)) => (d.to_string(), v.to_string()),

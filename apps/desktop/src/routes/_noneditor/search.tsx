@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { AdvancedSearch } from "../../components/search/AdvancedSearch";
 import { emptySearchFilters } from "../../hooks/useSearchMedia";
@@ -33,17 +33,8 @@ function SearchPage() {
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder="Search your library"
-            className="h-12 w-full rounded-full border border-border bg-muted/20 pl-12 pr-12 outline-none focus:border-primary"
+            className="h-12 w-full rounded-full border border-border bg-muted/20 pl-12 pr-4 outline-none focus:border-primary"
           />
-          {text && (
-            <button
-              aria-label="Clear search"
-              onClick={() => setText("")}
-              className="absolute right-4 top-4"
-            >
-              <X size={16} />
-            </button>
-          )}
         </div>
         <button
           aria-expanded={advanced}

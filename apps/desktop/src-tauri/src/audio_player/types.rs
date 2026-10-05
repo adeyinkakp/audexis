@@ -15,6 +15,7 @@ pub enum PlayerCmd {
     Pause,
     Stop,
     Seek { seconds: u64 },
+    SeekMilliseconds { milliseconds: u64 },
     Preload,
     UpdateControlsMetadata { metadata: PartialMetadata },
     UpdateDeviceConfig { target_sample_rate: u32 },

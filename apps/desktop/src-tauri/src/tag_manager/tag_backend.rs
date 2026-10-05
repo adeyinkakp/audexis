@@ -109,6 +109,18 @@ fn values_preserved(
     let Some(actual) = actual else {
         return false;
     };
+    if key == FrameKey::SynchronizedLyrics {
+        let parse = |values: &[TagValue]| {
+            values
+                .iter()
+                .map(|value| match value {
+                    TagValue::Text(text) => super::id3::lyrics::parse_lrc(text),
+                    _ => Err("Expected lyrics text".into()),
+                })
+                .collect::<Result<Vec<_>, String>>()
+        };
+        return matches!((parse(expected), parse(actual)), (Ok(a), Ok(b)) if a == b);
+    }
     if key != FrameKey::AttachedPicture {
         return actual == expected;
     }

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 mod flac;
-mod id3;
+pub(crate) mod id3;
 mod itunes;
 mod ogg;
 pub mod tag_backend;

@@ -34,6 +34,7 @@ souvlaki = "0.8.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 symphonia = { version = "0.6.0", features = ["mp3"] }
 tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-http = "2"
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-store = "2"

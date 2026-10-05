@@ -16,6 +16,7 @@ use std::sync::{
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
+use super::progress::FrameProgress;
 use super::queue::Queue;
 use super::types::{AudioPlayerError, PartialMetadata, PlayerCmd};
 use super::worker::{self, WorkerContext};
@@ -151,18 +152,17 @@ impl AudioPlayer {
                 }
                 MediaControlEvent::Seek(direction) => {
                     let current_ms = position_controls.load(Ordering::Acquire);
-                    let current_seconds = current_ms / 1000;
-                    let target_seconds = match direction {
-                        souvlaki::SeekDirection::Forward => current_seconds.saturating_add(10),
-                        souvlaki::SeekDirection::Backward => current_seconds.saturating_sub(10),
+                    let target_ms = match direction {
+                        souvlaki::SeekDirection::Forward => current_ms.saturating_add(10_000),
+                        souvlaki::SeekDirection::Backward => current_ms.saturating_sub(10_000),
                     };
-                    let _ = cmd_tx_controls.send(PlayerCmd::Seek {
-                        seconds: target_seconds,
+                    let _ = cmd_tx_controls.send(PlayerCmd::SeekMilliseconds {
+                        milliseconds: target_ms,
                     });
                 }
                 MediaControlEvent::SetPosition(position) => {
-                    let seconds = position.0.as_secs();
-                    let _ = cmd_tx_controls.send(PlayerCmd::Seek { seconds });
+                    let milliseconds = position.0.as_millis().min(u128::from(u64::MAX)) as u64;
+                    let _ = cmd_tx_controls.send(PlayerCmd::SeekMilliseconds { milliseconds });
                 }
                 MediaControlEvent::Stop => {
                     paused_controls.store(true, Ordering::Release);
@@ -248,6 +248,7 @@ impl AudioPlayer {
         let play_counter = Arc::clone(&self.play_counter);
         let output_sample_rate = target_sample_rate as u64;
         let output_channels = channels as u64;
+        let mut progress = FrameProgress::default();
 
         let stream = device
             .build_output_stream(
@@ -256,6 +257,7 @@ impl AudioPlayer {
                     if let Ok(mut c) = consumer.lock() {
                         if flush_output.swap(false, Ordering::AcqRel) {
                             c.clear();
+                            progress = FrameProgress::default();
                         }
                         if paused.load(Ordering::Acquire) {
                             data.fill(0.0);
@@ -264,11 +266,11 @@ impl AudioPlayer {
                         let read = c.pop_slice(data);
                         if output_channels > 0 && output_sample_rate > 0 {
                             let frames = read as u64 / output_channels;
-                            let advance_ms = frames.saturating_mul(1000) / output_sample_rate;
+                            let (advance_ms, advance_us) =
+                                progress.advance(frames, output_sample_rate);
                             position_ms.fetch_add(advance_ms, Ordering::Relaxed);
                             if let Ok(mut counter) = play_counter.try_lock() {
-                                counter
-                                    .heard(frames.saturating_mul(1_000_000) / output_sample_rate);
+                                counter.heard(advance_us);
                             }
                         }
                         if read < data.len() {
@@ -338,6 +340,13 @@ impl AudioPlayer {
     pub fn seek(&self, seconds: u64) {
         self.flush_output.store(true, Ordering::Release);
         let _ = self.cmd_tx.send(PlayerCmd::Seek { seconds });
+    }
+
+    pub fn seek_milliseconds(&self, milliseconds: u64) {
+        self.flush_output.store(true, Ordering::Release);
+        let _ = self
+            .cmd_tx
+            .send(PlayerCmd::SeekMilliseconds { milliseconds });
     }
 
     pub fn finish_listening(&self) {

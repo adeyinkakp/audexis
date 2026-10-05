@@ -3,7 +3,6 @@ import { formatDuration } from "../utils/duration";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ListMusic } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaFiles } from "../hooks/useMediaFiles";
 
@@ -22,6 +21,7 @@ type QueueItem = {
   fileName: string;
   title: string;
   durationMs: number | null;
+  artist: string;
 };
 
 export default function QueuePanel({
@@ -37,13 +37,6 @@ export default function QueuePanel({
     current_index: 0,
     playlist_id: null,
   });
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--queue-width", "20rem");
-    return () => {
-      document.documentElement.style.removeProperty("--queue-width");
-    };
-  }, []);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -84,6 +77,11 @@ export default function QueuePanel({
         .filter((item) => item.key === "title")
         .map((item) => [item.file_id, item.value]),
     );
+    const artists = new Map(
+      data?.metadata
+        .filter((item) => item.key === "artist")
+        .map((item) => [item.file_id, item.value]),
+    );
     return queueInfo.paths.map((path, index) => {
       const id = queueInfo.file_ids[index];
       const file = files.get(id);
@@ -94,18 +92,14 @@ export default function QueuePanel({
         occurrence: queueInfo.occurrences[index] ?? null,
         fileName,
         title: titles.get(id) || fileName,
+        artist: artists.get(id) || path,
         durationMs: file?.duration_ms ?? null,
       };
     });
   }, [data, queueInfo]);
 
   return (
-    <aside className="fixed right-0 top-0 h-screen -z-40 w-80 overflow-hidden border border-border bg-popover shadow-xl">
-      <div className="flex h-12 items-center gap-2 border-b border-border px-4 font-semibold">
-        <ListMusic size={16} /> Queue{" "}
-        {queueItems.length ? `(${queueItems.length})` : ""}
-      </div>
-      <div ref={scrollRef} className="h-[calc(100%-3rem)] overflow-auto">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         <div
           className="relative"
           style={{ height: `${virtualizer.getTotalSize()}px` }}
@@ -128,12 +122,12 @@ export default function QueuePanel({
                 >
                   <div className="h-8 w-8 shrink-0 rounded bg-muted" />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{file.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {file.path}
+                    <div className="truncate text-xs">{file.title}</div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {file.artist}
                     </div>
                   </div>
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
                     {formatDuration(file.durationMs)}
                   </span>
                 </button>
@@ -142,6 +136,5 @@ export default function QueuePanel({
           })}
         </div>
       </div>
-    </aside>
   );
 }

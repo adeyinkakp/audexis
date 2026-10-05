@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { Modal } from "../components/Modal";
 import DetailsTab from "../components/info/DetailsTab";
+import LyricsTab from "../components/info/LyricsTab";
 import ArtworkTab from "../components/info/ArtworkTab";
 import { useEffect, useState } from "react";
 import { cn } from "../utils";
@@ -19,6 +20,8 @@ export default function TrackInfoModal({
   const tabs = [
     { title: "Details", id: "details" },
     { title: "Artwork", id: "artwork" },
+    { title: "Lyrics", id: "lyrics" },
+    { title: "Synchronized Lyrics", id: "synced" },
   ] as const;
   const [currentTabId, setCurrentTabId] = useState("details");
 
@@ -32,6 +35,7 @@ export default function TrackInfoModal({
       onClose={onClose}
       title="Track Info"
       header={null}
+      sizeMax
       panelClassName="max-w-5xl h-[80vh] rounded-3xl bg-background"
       bodyClassName="p-0"
     >
@@ -45,7 +49,7 @@ export default function TrackInfoModal({
           type="button"
 
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label="Close track info"
           className="rounded-full p-2 text-muted-foreground hover:bg-muted"
         >
           <X size={18} />
@@ -84,6 +88,11 @@ export default function TrackInfoModal({
           {f.data && currentTabId === "artwork" && (
             <ArtworkTab files={f.data} />
           )}
+          {f.data && open && ["lyrics", "synced"].map((tab) => (
+            <div key={`${fileIds.join(",")}-${tab}`} hidden={currentTabId !== tab} className="min-h-full">
+              <LyricsTab files={f.data} synchronized={tab === "synced"} active={currentTabId === tab} />
+            </div>
+          ))}
         </div>
       </div>
     </Modal>

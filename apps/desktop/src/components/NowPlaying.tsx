@@ -1,9 +1,10 @@
 import { SongContextMenu } from "./SongContextMenu";
 import { HeartButton } from "./HeartButton";
 import { invoke } from "@tauri-apps/api/core";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   ListMusic,
+  MessageSquareText,
   Pause,
   Play,
   Repeat,
@@ -13,7 +14,8 @@ import {
 } from "lucide-react";
 import SeekBar, { formatSeekTime } from "./SeekBar";
 import { cn } from "../utils";
-import QueuePanel from "./QueuePanel";
+import type { PlaybackPanelView } from "./PlaybackPanel";
+const PlaybackPanel = lazy(() => import("./PlaybackPanel"));
 import MarqueeText from "./MarqueeText";
 import { useNowPlayingState } from "../hooks/useNowPlayingState";
 import { usePlaybackModes, type RepeatMode } from "../hooks/usePlaybackModes";
@@ -52,7 +54,7 @@ function ControlButton({
 }
 
 export default function NowPlaying() {
-  const [showQueue, setShowQueue] = useState(false);
+  const [panel, setPanel] = useState<PlaybackPanelView | null>(null);
   const [showSeekOverlay, setShowSeekOverlay] = useState(false);
   const {
     currentTrackId,
@@ -171,7 +173,7 @@ export default function NowPlaying() {
             onActivateHover={() => setShowSeekOverlay(true)}
             onSeek={(seconds) => {
               setPosition(seconds);
-              void invoke("seek_playback", { seconds: Math.trunc(seconds) });
+              void invoke("seek_playback", { milliseconds: Math.round(seconds * 1000) });
             }}
           />
         </div>
@@ -205,21 +207,36 @@ export default function NowPlaying() {
             </div>
           </ControlButton>
 
+          <ControlButton title="Lyrics" active={panel === "lyrics"}
+            onClick={() => setPanel((current) => current === "lyrics" ? null : "lyrics")}>
+            <MessageSquareText size={15} />
+          </ControlButton>
+
           <ControlButton
             title="Queue"
-            active={showQueue}
-            onClick={() => setShowQueue((visible) => !visible)}
+            active={panel === "queue"}
+            onClick={() => setPanel((current) => current === "queue" ? null : "queue")}
           >
             <ListMusic size={15} />
           </ControlButton>
         </div>
       </div>
-      {showQueue && (
-        <QueuePanel
+      {panel && (
+        <Suspense fallback={null}>
+        <PlaybackPanel
+          view={panel} onViewChange={setPanel} onClose={() => setPanel(null)}
+          fileId={currentTrackId} title={song?.title} artist={song?.artist} artwork={song?.artwork_url}
+          position={position * 1000}
+          onSeek={(milliseconds) => {
+            void invoke("seek_playback", { milliseconds }).then(() => {
+              setPosition(milliseconds / 1000);
+            });
+          }}
           onPlay={(index) =>
             void invoke("skip_to_index", { index }).then(() => setPaused(false))
           }
         />
+        </Suspense>
       )}
     </div>
   );

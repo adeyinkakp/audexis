@@ -21,9 +21,13 @@ impl V0 {
     fn ensure_ilst_atom(buffer: &[u8]) -> Result<Atom, ()> {
         atoms::find_ilst(buffer).ok_or(())
     }
-    fn encode_ilst(raw_entries: Vec<(String, TagValue)>, old_ilst_atoms: Vec<Atom>) -> Vec<u8> {
+    fn encode_ilst(
+        raw_entries: Vec<(String, TagValue)>,
+        old_ilst_atoms: Vec<Atom>,
+        replaced_keys: Vec<String>,
+    ) -> Vec<u8> {
         let mut ilst_entries: Vec<u8> = Vec::new();
-        let mut encoded_keys: Vec<String> = Vec::new();
+        let mut encoded_keys = replaced_keys;
 
         for (key, value) in &raw_entries {
             if key == "covr" {
@@ -210,7 +214,7 @@ impl V0 {
                         let prefix = "\x00\x00\x00\x00".as_bytes();
                         let vale_buffer = text.as_bytes();
                         let allowed_bytes = 255 - prefix.len();
-                        let trimmed_value = if vale_buffer.len() > allowed_bytes {
+                        let trimmed_value = if key != "©lyr" && vale_buffer.len() > allowed_bytes {
                             &vale_buffer[0..allowed_bytes]
                         } else {
                             vale_buffer
@@ -811,6 +815,18 @@ impl TagFormat for V0 {
                 if data_size > ilst_atom.size {
                     continue;
                 }
+                if atom.atom_type == "©lyr" {
+                    if let Some(bytes) = ilst_atom
+                        .buffer
+                        .get((data_start + 8) as usize..(data_start + data_size) as usize)
+                    {
+                        raw_entries.push((
+                            atom.atom_type.clone(),
+                            TagValue::Text(String::from_utf8_lossy(bytes).into_owned()),
+                        ));
+                    }
+                    continue;
+                }
                 let text = String::from_utf8_lossy(
                     &ilst_atom.buffer[data_start as usize..(data_start + data_size) as usize],
                 )
@@ -844,6 +860,16 @@ impl TagFormat for V0 {
         let mut updated_entries: Vec<(String, TagValue)> = Vec::new();
         let mut updated_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
 
+        for key in updated_tags.keys() {
+            let code = tag_manager::itunes::utils::itunes_code(*key);
+            if code == "----" {
+                if let Some(spec) = tag_manager::itunes::utils::itunes_freeform_spec(*key) {
+                    updated_keys.insert(format!("----:{}:{}", spec.mean, spec.name));
+                }
+            } else {
+                updated_keys.insert(code.to_string());
+            }
+        }
         let mut push_key_once = |key: &String| {
             updated_keys.insert(key.clone());
         };
@@ -1028,7 +1054,11 @@ impl TagFormat for V0 {
 
         let rebuilt_file = if let Ok(ilst_atom) = ilst_atom {
             let ilst_sub_atoms = V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size);
-            let updated_ilst_buffer = V0::encode_ilst(all_entries, ilst_sub_atoms);
+            let updated_ilst_buffer = V0::encode_ilst(
+                all_entries,
+                ilst_sub_atoms,
+                updated_keys.iter().cloned().collect(),
+            );
             V0::rebuild_file(updated_ilst_buffer, &buffer)
                 .ok_or(())
                 .map_err(|_| {
@@ -1039,7 +1069,11 @@ impl TagFormat for V0 {
                     })
                 })?
         } else {
-            let updated_ilst_buffer = V0::encode_ilst(all_entries, Vec::new());
+            let updated_ilst_buffer = V0::encode_ilst(
+                all_entries,
+                Vec::new(),
+                updated_keys.iter().cloned().collect(),
+            );
             V0::rebuild_file_insert_ilst(updated_ilst_buffer, &buffer).ok_or(
                 BackendError::WriteFailed(TagError {
                     path: file_path.to_str().unwrap_or("").to_string(),
