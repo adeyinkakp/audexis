@@ -122,7 +122,7 @@ export default function SynchronizedLyricsEditor({
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
       aria-label="Synchronized lyrics editor"
-      className="relative isolate flex min-h-[440px] flex-col overflow-hidden rounded-2xl bg-[#211b27] text-white shadow-xl shadow-black/10"
+      className="relative isolate flex min-h-110 flex-col overflow-hidden rounded-2xl bg-[#211b27] text-white shadow-xl shadow-black/10"
     >
       <div
         aria-hidden="true"
@@ -133,7 +133,7 @@ export default function SynchronizedLyricsEditor({
           <motion.img
             src={artwork.data}
             alt=""
-            className="absolute -inset-[20%] size-[140%] max-w-none object-cover opacity-55 blur-[70px]"
+            className="absolute inset-[-20%] size-[140%] max-w-none object-cover opacity-55 blur-[70px]"
             animate={
               reduceMotion || !active
                 ? { scale: 1.1 }
@@ -231,7 +231,7 @@ export default function SynchronizedLyricsEditor({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={transition}
-              className="relative h-[34vh] min-h-64 shrink-0 overflow-y-auto overscroll-contain px-6 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(transparent,black_7%,black_90%,transparent)] md:px-10"
+              className="relative h-[34vh] min-h-64 shrink-0 overflow-y-auto overscroll-contain px-6 py-8 scrollbar-none [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(transparent,black_7%,black_90%,transparent)] md:px-10"
             >
               {!rows.length && (
                 <div className="flex flex-col gap-3 pb-4">
@@ -371,7 +371,7 @@ export default function SynchronizedLyricsEditor({
                           }}
                           whileHover={{ opacity: 1, filter: "blur(0px)" }}
                           transition={transition}
-                          className="block min-h-[1.3em] w-full origin-left break-words text-left text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.3] tracking-tight outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-white/50"
+                          className="block min-h-[1.3em] w-full origin-left wrap-break-word text-left text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.3] tracking-tight outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-white/50"
                         >
                           {row.text.trim() ? (
                             row.text

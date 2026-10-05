@@ -107,7 +107,9 @@ fn decode_text(encoding: u8, bytes: &[u8], big_endian: bool) -> String {
             .unwrap_or(bytes);
         String::from_utf16_lossy(
             &bytes
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|p| {
                     if be {
                         u16::from_be_bytes([p[0], p[1]])

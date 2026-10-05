@@ -170,7 +170,7 @@ export default function LyricsLookup({
                     : "Synchronized lyrics preview"}
                 </p>
                 {text.trim() ? (
-                  <pre className="max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 font-sans text-xs leading-6">
+                  <pre className="max-h-44 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg bg-background p-3 font-sans text-xs leading-6">
                     {text}
                   </pre>
                 ) : (

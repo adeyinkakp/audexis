@@ -48,7 +48,7 @@ export default function LyricsPreview({
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
       className={cn(
-        "relative min-h-0 overflow-y-auto overscroll-contain px-6 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(transparent,black_7%,black_90%,transparent)]",
+        "relative min-h-0 overflow-y-auto overscroll-contain px-6 py-8 scrollbar-none [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(transparent,black_7%,black_90%,transparent)]",
         className,
       )}
     >
@@ -81,7 +81,7 @@ export default function LyricsPreview({
                   : { type: "spring", stiffness: 220, damping: 30 }
               }
               className={cn(
-                "block w-full overflow-hidden origin-left break-words text-left font-bold leading-[1.3] tracking-tight outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-current",
+                "block w-full overflow-hidden origin-left wrap-break-word text-left font-bold leading-[1.3] tracking-tight outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-current",
                 compact ? "text-2xl" : "text-[clamp(1.5rem,3vw,2.25rem)]",
               )}
             >
@@ -102,7 +102,7 @@ export default function LyricsPreview({
           );
         })
       ) : plainText ? (
-        <p className="whitespace-pre-wrap break-words text-xl font-semibold leading-relaxed opacity-80">
+        <p className="whitespace-pre-wrap wrap-break-word text-xl font-semibold leading-relaxed opacity-80">
           {plainText}
         </p>
       ) : (
