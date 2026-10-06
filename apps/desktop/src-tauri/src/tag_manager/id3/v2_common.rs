@@ -30,13 +30,23 @@ pub(crate) fn encode_text_payload(text: &str, prefer_utf16: bool) -> Vec<u8> {
 pub(crate) fn decode_text_payload(encoding: u8, bytes: &[u8]) -> String {
     match encoding {
         0x00 => bytes.iter().map(|byte| char::from(*byte)).collect(),
-        0x01 => {
-            let bytes = bytes.strip_prefix(&[0xFF, 0xFE]).unwrap_or(bytes);
+        0x01 | 0x02 => {
+            let big_endian = encoding == 2 || bytes.starts_with(&[0xFE, 0xFF]);
+            let bytes = bytes
+                .strip_prefix(&[0xFF, 0xFE])
+                .or_else(|| bytes.strip_prefix(&[0xFE, 0xFF]))
+                .unwrap_or(bytes);
             let (code_units, _) = bytes.as_chunks::<2>();
             String::from_utf16_lossy(
                 &code_units
                     .iter()
-                    .map(|chunk| u16::from_le_bytes(*chunk))
+                    .map(|chunk| {
+                        if big_endian {
+                            u16::from_be_bytes(*chunk)
+                        } else {
+                            u16::from_le_bytes(*chunk)
+                        }
+                    })
                     .collect::<Vec<_>>(),
             )
         }
@@ -45,8 +55,9 @@ pub(crate) fn decode_text_payload(encoding: u8, bytes: &[u8]) -> String {
 }
 
 pub(crate) fn split_encoded_text(encoding: u8, bytes: &[u8]) -> (&[u8], &[u8]) {
-    if encoding == 0x01 {
-        let start = usize::from(bytes.starts_with(&[0xFF, 0xFE])) * 2;
+    if matches!(encoding, 0x01 | 0x02) {
+        let start =
+            usize::from(bytes.starts_with(&[0xFF, 0xFE]) || bytes.starts_with(&[0xFE, 0xFF])) * 2;
         let end = (start..bytes.len().saturating_sub(1))
             .step_by(2)
             .find(|&index| bytes[index..index + 2] == [0, 0])
@@ -71,12 +82,16 @@ pub(crate) fn encode_img_payload(
 ) -> Vec<u8> {
     let mut payload =
         Vec::with_capacity(3 + mime_type.len() + description.len() + image_data.len());
-    payload.push(0x00);
+    let encoded_description = encode_text_payload(description, false);
+    payload.push(encoded_description[0]);
     payload.extend_from_slice(mime_type.as_bytes());
     payload.push(0x00);
     payload.push(picture_type);
-    payload.extend_from_slice(description.as_bytes());
+    payload.extend_from_slice(&encoded_description[1..]);
     payload.push(0x00);
+    if encoded_description[0] == 1 {
+        payload.push(0x00);
+    }
     payload.extend_from_slice(image_data);
     payload
 }
@@ -96,4 +111,62 @@ pub(crate) fn create_header(version: u8, tag_size: usize) -> [u8; 10] {
     header[3] = version;
     header[6..10].copy_from_slice(&to_synchsafe(tag_size as u32));
     header
+}
+
+pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
+    use std::io::Read;
+    let mut file = crate::utils::library_files::open(path).map_err(|error| error.to_string())?;
+    let mut header = [0; 10];
+    file.read_exact(&mut header)
+        .map_err(|error| error.to_string())?;
+    if header[5] != 0 || header[6..].iter().any(|byte| byte & 0x80 != 0) {
+        return Err("Editing ID3 tags with header flags is not supported safely".into());
+    }
+    let size = header[6..]
+        .iter()
+        .fold(0usize, |size, byte| (size << 7) | usize::from(*byte));
+    if size as u64 + 10 > file.metadata().map_err(|error| error.to_string())?.len() {
+        return Err("Truncated ID3 tag".into());
+    }
+    let mut data = vec![0; size];
+    file.read_exact(&mut data)
+        .map_err(|error| error.to_string())?;
+    let (id_len, header_len) = if header[3] == 2 { (3, 6) } else { (4, 10) };
+    let mut pos = 0;
+    let mut ids = std::collections::HashSet::new();
+    while pos < data.len() {
+        if data[pos..].iter().all(|byte| *byte == 0) {
+            break;
+        }
+        if pos + header_len > data.len() {
+            return Err("Truncated ID3 frame header".into());
+        }
+        let id = &data[pos..pos + id_len];
+        if !id
+            .iter()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+        {
+            return Err("Invalid ID3 frame identifier".into());
+        }
+        if header[3] == 2 && !ids.insert(id.to_vec()) {
+            return Err("Editing duplicate ID3v2.2 frames is not supported safely".into());
+        }
+        if header_len == 10 && data[pos + 8..pos + 10] != [0, 0] {
+            return Err("Editing flagged ID3 frames is not supported safely".into());
+        }
+        let size_bytes = &data[pos + id_len..pos + if header_len == 10 { 8 } else { 6 }];
+        if header[3] == 4 && size_bytes.iter().any(|byte| byte & 0x80 != 0) {
+            return Err("Invalid ID3v2.4 frame size".into());
+        }
+        let shift = if header[3] == 4 { 7 } else { 8 };
+        let size = size_bytes
+            .iter()
+            .fold(0usize, |size, byte| (size << shift) | usize::from(*byte));
+        pos += header_len;
+        if size > data.len() - pos {
+            return Err("Truncated ID3 frame".into());
+        }
+        pos += size;
+    }
+    Ok(())
 }

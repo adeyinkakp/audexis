@@ -85,15 +85,38 @@ impl TagFormat for OggFormat {
         file_path: &std::path::Path,
         tags: std::collections::HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
-        let mut merged: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
-        merged.extend(tags);
-        if let Ok(existing) = self.get_tags(file_path) {
-            for (k, v) in existing {
-                merged.entry(k).or_insert(v);
-            }
-        }
-
-        let generic_payload = vorbis_comments::utils::build_comments(&merged, true);
+        let input = crate::utils::library_files::open(file_path).map_err(|error| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_string_lossy().into_owned(),
+                public_message: "Could not open file".into(),
+                internal_message: error.to_string(),
+            })
+        })?;
+        let packet = utils::extract_comment_packet(input).map_err(|_| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_string_lossy().into_owned(),
+                public_message: "Could not read comments".into(),
+                internal_message: "Failed to extract comment packet".into(),
+            })
+        })?;
+        let original = packet
+            .strip_prefix(b"\x03vorbis")
+            .or_else(|| packet.strip_prefix(b"OpusTags"))
+            .ok_or_else(|| {
+                BackendError::WriteFailed(TagError {
+                    path: file_path.to_string_lossy().into_owned(),
+                    public_message: "Unsupported comments".into(),
+                    internal_message: "Unknown comment packet".into(),
+                })
+            })?;
+        let generic_payload = vorbis_comments::utils::update_comments(original, &tags, true)
+            .map_err(|error| {
+                BackendError::WriteFailed(TagError {
+                    path: file_path.to_string_lossy().into_owned(),
+                    public_message: "Could not update comments".into(),
+                    internal_message: error.to_string(),
+                })
+            })?;
         let new_vorbis_comment_packet = utils::make_vorbis_comment_packet(&generic_payload);
         let new_opus_tags_packet = utils::make_opus_tags_packet(&generic_payload);
 
@@ -285,11 +308,13 @@ impl TagFormat for OggFormat {
                 if !header_ready {
                     continue;
                 }
-                let end_seq = header_end_seq.ok_or(BackendError::WriteFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "Could not read file".to_string(),
-                    internal_message: "Failed to read file".to_string(),
-                }))?;
+                let end_seq = header_end_seq.ok_or_else(|| {
+                    BackendError::WriteFailed(TagError {
+                        path: file_path.to_str().unwrap_or("").to_string(),
+                        public_message: "Could not read file".to_string(),
+                        internal_message: "Missing header end sequence".to_string(),
+                    })
+                })?;
                 if page.page_sequence_number <= end_seq {
                     continue;
                 }
@@ -353,37 +378,68 @@ impl TagFormat for OggFormat {
 }
 
 #[cfg(test)]
-mod lyrics_tests {
+mod metadata_tests {
     use super::*;
     use crate::tag_manager::tag_backend::{DefaultBackend, TagBackend};
     use crate::tag_manager::utils::{Changes, SerializableTagValue, TagChange};
 
     #[test]
-    fn opus_lyrics_save_and_delete_preserve_audio_packet() {
+    fn opus_metadata_save_and_delete_preserve_audio_packet() {
+        metadata_round_trip(true);
+    }
+
+    #[test]
+    fn vorbis_metadata_save_and_delete_preserve_audio_packet() {
+        metadata_round_trip(false);
+    }
+
+    fn metadata_round_trip(opus: bool) {
         let path =
             std::env::temp_dir().join(format!("audexis-lyrics-{}.ogg", uuid::Uuid::new_v4()));
         let mut file = File::create(&path).unwrap();
         let audio = b"synthetic audio packet";
-        for (seq, packet) in [
-            b"OpusHead\x01\x02\0\0\x80\xbb\0\0\0\0\0".as_slice(),
-            b"OpusTags\0\0\0\0\0\0\0\0",
-            audio,
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        let mut packets = if opus {
+            vec![
+                b"OpusHead\x01\x02\0\0\x80\xbb\0\0\0\0\0".to_vec(),
+                b"OpusTags\0\0\0\0\0\0\0\0".to_vec(),
+            ]
+        } else {
+            vec![
+                b"\x01vorbis\0\0\0\0\x02\x80\xbb\0\0".to_vec(),
+                utils::make_vorbis_comment_packet(&vorbis_comments::utils::build_comments(
+                    &HashMap::new(),
+                    true,
+                )),
+                b"\x05vorbis setup".to_vec(),
+            ]
+        };
+        let custom = b"CUSTOM_FIELD=Keep / this; exactly";
+        let vendor = b"Original encoder";
+        let mut comments = (vendor.len() as u32).to_le_bytes().to_vec();
+        comments.extend(vendor);
+        comments.extend(1u32.to_le_bytes());
+        comments.extend((custom.len() as u32).to_le_bytes());
+        comments.extend(custom);
+        packets[1] = if opus {
+            utils::make_opus_tags_packet(&comments)
+        } else {
+            utils::make_vorbis_comment_packet(&comments)
+        };
+        packets.push(audio.to_vec());
+        let last_page = packets.len() - 1;
+        for (seq, packet) in packets.into_iter().enumerate() {
             write_page(
                 &mut file,
                 &utils::OggPage {
                     version: 0,
                     header_type: if seq == 0 {
                         2
-                    } else if seq == 2 {
+                    } else if seq == last_page {
                         4
                     } else {
                         0
                     },
-                    granule_position: if seq == 2 { 960 } else { 0 },
+                    granule_position: if seq == last_page { 960 } else { 0 },
                     bitstream_serial_number: 1,
                     page_sequence_number: seq as u32,
                     checksum: 0,
@@ -397,6 +453,14 @@ mod lyrics_tests {
         let backend = DefaultBackend::new();
         for delete in [false, true] {
             let tags = [
+                (FrameKey::Title, "Café / 世界; title"),
+                (FrameKey::Artist, "AC/DC"),
+                (FrameKey::Genre, "R&B; Soul"),
+                (FrameKey::DiscNumber, "2"),
+                (FrameKey::TotalDiscs, "3"),
+                (FrameKey::TrackNumber, "4"),
+                (FrameKey::TotalTracks, "12"),
+                (FrameKey::Comments, "Keep this comment"),
                 (FrameKey::UnsyncedLyrics, "Café; 世界\nline"),
                 (FrameKey::SynchronizedLyrics, "[00:01.500]Café; 世界"),
             ]
@@ -426,8 +490,29 @@ mod lyrics_tests {
                 metadata.tags.contains_key(&FrameKey::SynchronizedLyrics),
                 !delete
             );
+            for (key, value) in [
+                (FrameKey::Title, "Café / 世界; title"),
+                (FrameKey::Artist, "AC/DC"),
+                (FrameKey::Genre, "R&B; Soul"),
+                (FrameKey::DiscNumber, "2"),
+                (FrameKey::TotalDiscs, "3"),
+                (FrameKey::TrackNumber, "4"),
+                (FrameKey::TotalTracks, "12"),
+                (FrameKey::Comments, "Keep this comment"),
+            ] {
+                if delete {
+                    assert!(!metadata.tags.contains_key(&key));
+                } else {
+                    assert_eq!(
+                        metadata.tags.get(&key),
+                        Some(&vec![TagValue::Text(value.into())])
+                    );
+                }
+            }
             let bytes = std::fs::read(&path).unwrap();
             assert!(bytes.windows(audio.len()).any(|window| window == audio));
+            assert!(bytes.windows(custom.len()).any(|window| window == custom));
+            assert!(bytes.windows(vendor.len()).any(|window| window == vendor));
         }
         std::fs::remove_file(path).unwrap();
     }

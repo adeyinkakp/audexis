@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { logError } from "../utils/logger";
 import { useEffect, useState } from "react";
 
 export type RepeatMode = "off" | "queue" | "track";
@@ -19,15 +20,20 @@ export function usePlaybackModes() {
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
+    let disposed = false;
+    let receivedEvent = false;
 
-    void invoke<PlaybackModes>("get_playback_modes").then(setModes);
     void listen<PlaybackModes>("playback-modes-changed", (event) => {
-      setModes(event.payload);
-    }).then((unlisten) => {
+      receivedEvent = true;
+      if (!disposed) setModes(event.payload);
+    }).then(async (unlisten) => {
+      if (disposed) { unlisten(); return; }
       cleanup = unlisten;
-    });
+      const initial = await invoke<PlaybackModes>("get_playback_modes");
+      if (!disposed && !receivedEvent) setModes(initial);
+    }).catch((error) => logError("Load playback modes", error));
 
-    return () => cleanup?.();
+    return () => { disposed = true; cleanup?.(); };
   }, []);
 
   return {

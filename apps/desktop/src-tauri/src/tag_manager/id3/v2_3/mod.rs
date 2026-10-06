@@ -105,6 +105,10 @@ impl TagFormat for V2_3 {
                 if let Some(text) = super::lyrics::decode(&frame_id, content) {
                     tags.entry(frame_id).or_default().push(TagValue::Text(text));
                 }
+            } else if frame_id == "COMM" {
+                if let Some(text) = super::lyrics::decode("USLT", content) {
+                    tags.entry(frame_id).or_default().push(TagValue::Text(text));
+                }
             } else if frame_id == "TXXX" || frame_id == "WXXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
@@ -129,9 +133,10 @@ impl TagFormat for V2_3 {
 
                     let key = id3v23_key(&frame_id);
 
-                    if (key.is_some() && key.unwrap().is_multi_valued()) && raw_string.contains(';')
+                    if (key.is_some() && key.unwrap().is_multi_valued())
+                        && raw_string.contains('\0')
                     {
-                        for part in raw_string.split(';').map(|s| s.trim()) {
+                        for part in raw_string.split('\0').map(|s| s.trim()) {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 tags.entry(frame_id.clone())
@@ -160,25 +165,10 @@ impl TagFormat for V2_3 {
                     }
                     let picture_type = content[picture_type_index];
                     let description_start = picture_type_index + 1;
-                    let description_end = content[description_start..]
-                        .iter()
-                        .position(|&b| b == 0x00)
-                        .map_or(content.len(), |p| description_start + p);
-                    let description = if description_end > description_start {
-                        Some(
-                            String::from_utf8_lossy(&content[description_start..description_end])
-                                .to_string(),
-                        )
-                    } else {
-                        None
-                    };
-                    let image_data =
-                        if description_end < content.len() && description_end + 1 < content.len() {
-                            &content[description_end + 1..]
-                        } else {
-                            &[]
-                        };
-
+                    let (description_bytes, image_data) =
+                        split_encoded_text(content[0], &content[description_start..]);
+                    let description_text = decode_text_payload(content[0], description_bytes);
+                    let description = (!description_text.is_empty()).then_some(description_text);
                     tags.entry(frame_id).or_default().push(TagValue::Picture {
                         mime: mime_type,
                         data: image_data.to_vec(),
@@ -293,7 +283,7 @@ impl TagFormat for V2_3 {
                         _ => None,
                     })
                     .collect::<Vec<_>>()
-                    .join("\\");
+                    .join("\0");
                 flattened.insert(k, TagValue::Text(joined));
             } else {
                 flattened.insert(k, vec_vals[0].clone());
@@ -316,7 +306,7 @@ impl TagFormat for V2_3 {
             match v {
                 TagValue::Text(text) => {
                     if !text.is_empty() {
-                        if matches!(k, "USLT" | "SYLT") {
+                        if matches!(k, "USLT" | "SYLT" | "COMM") {
                             let payload = super::lyrics::encode(k, &text).map_err(|message| {
                                 BackendError::WriteFailed(TagError {
                                     path: file_path.to_string_lossy().into_owned(),

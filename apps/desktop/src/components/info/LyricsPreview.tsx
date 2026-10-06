@@ -12,6 +12,7 @@ export default function LyricsPreview({
   active = true,
   disabled = false,
   compact = false,
+  immersive = false,
   className,
   plainText = "",
 }: {
@@ -21,6 +22,7 @@ export default function LyricsPreview({
   active?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  immersive?: boolean;
   className?: string;
   plainText?: string;
 }) {
@@ -68,7 +70,7 @@ export default function LyricsPreview({
               onClick={() => onSeek(row.time)}
               animate={{
                 height: visible ? "auto" : 0,
-                marginBottom: visible ? 20 : 0,
+                marginBottom: visible ? (immersive ? 32 : 20) : 0,
                 opacity: !visible ? 0 : index === current ? 1 : 0.32,
                 scale: index === current ? 1 : 0.98,
                 filter:
@@ -82,7 +84,7 @@ export default function LyricsPreview({
               }
               className={cn(
                 "block w-full overflow-hidden origin-left wrap-break-word text-left font-bold leading-[1.3] tracking-tight outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-current",
-                compact ? "text-2xl" : "text-[clamp(1.5rem,3vw,2.25rem)]",
+                immersive ? "text-[clamp(2rem,3.5vw,3.5rem)]" : compact ? "text-2xl" : "text-[clamp(1.5rem,3vw,2.25rem)]",
               )}
             >
               {row.text.trim() ? (
@@ -102,7 +104,7 @@ export default function LyricsPreview({
           );
         })
       ) : plainText ? (
-        <p className="whitespace-pre-wrap wrap-break-word text-xl font-semibold leading-relaxed opacity-80">
+        <p className={cn("whitespace-pre-wrap wrap-break-word font-semibold leading-relaxed opacity-80", immersive ? "text-[clamp(2rem,3.5vw,3.5rem)]" : "text-xl")}>
           {plainText}
         </p>
       ) : (

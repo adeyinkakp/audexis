@@ -50,3 +50,50 @@ pub(super) fn find_ilst(buffer: &[u8]) -> Option<Atom> {
         .into_iter()
         .find(|atom| atom.atom_type == "ilst")
 }
+
+pub(super) fn validate_for_write(buffer: &[u8]) -> Result<(), String> {
+    fn walk(bytes: &[u8], metadata_entries: bool, depth: usize) -> Result<(), String> {
+        if depth > 32 {
+            return Err("MP4 atom nesting is too deep".into());
+        }
+        let mut pos = 0;
+        while pos < bytes.len() {
+            let header = bytes.get(pos..pos + 8).ok_or("Truncated MP4 atom header")?;
+            let size = u32::from_be_bytes(header[..4].try_into().unwrap()) as usize;
+            if size < 8 {
+                return Err("Unsupported MP4 atom size".into());
+            }
+            let atom = bytes.get(pos..pos + size).ok_or("Truncated MP4 atom")?;
+            let kind = &header[4..8];
+            if kind == b"meta" {
+                walk(
+                    atom.get(12..).ok_or("Truncated MP4 meta atom")?,
+                    false,
+                    depth + 1,
+                )?;
+            } else if metadata_entries
+                || matches!(
+                    kind,
+                    b"moov" | b"udta" | b"trak" | b"mdia" | b"minf" | b"stbl" | b"ilst"
+                )
+            {
+                walk(&atom[8..], kind == b"ilst", depth + 1)?;
+            }
+            if matches!(kind, b"stco" | b"co64") {
+                let count = u32::from_be_bytes(
+                    atom.get(12..16)
+                        .ok_or("Truncated chunk table")?
+                        .try_into()
+                        .unwrap(),
+                ) as usize;
+                let width = if kind == b"stco" { 4 } else { 8 };
+                if count > (size.saturating_sub(16)) / width {
+                    return Err("Truncated chunk table entries".into());
+                }
+            }
+            pos += size;
+        }
+        Ok(())
+    }
+    walk(buffer, false, 0)
+}

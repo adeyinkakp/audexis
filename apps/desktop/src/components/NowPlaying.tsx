@@ -1,9 +1,16 @@
+import { emitTo, listen } from "@tauri-apps/api/event";
+import { AnimatePresence } from "motion/react";
+import ExpandedPlayer from "./ExpandedPlayer";
+import toast from "react-hot-toast";
+import { openMiniPlayer } from "../utils/miniPlayer";
 import { SongContextMenu } from "./SongContextMenu";
 import { HeartButton } from "./HeartButton";
 import { invoke } from "@tauri-apps/api/core";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   ListMusic,
+  PictureInPicture2,
+  Maximize2,
   MessageSquareText,
   Pause,
   Play,
@@ -58,6 +65,24 @@ function ControlButton({
 
 export default function NowPlaying() {
   const [equalizerOpen, setEqualizerOpen] = useState(false);
+  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).has("expanded-player"));
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen("open-expanded-player", () => setExpanded(true)).then((cleanup) => {
+      if (disposed) cleanup();
+      else {
+        unlisten = cleanup;
+        if (new URLSearchParams(window.location.search).has("expanded-player")) {
+          void emitTo("mini-player", "main-player-ready").catch(() => undefined);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("expanded-player");
+          window.history.replaceState(window.history.state, "", url);
+        }
+      }
+    }).catch(() => toast.error("Could not connect the expanded player."));
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
   const equalizer = useEqualizer();
   const [panel, setPanel] = useState<PlaybackPanelView | null>(null);
   const [showSeekOverlay, setShowSeekOverlay] = useState(false);
@@ -170,14 +195,15 @@ export default function NowPlaying() {
           </SongContextMenu>
 
           <SeekBar
+            key={currentTrackId}
             compact
             className="w-full"
             position={position}
             duration={duration}
+            paused={paused}
             disabled={!song}
             onActivateHover={() => setShowSeekOverlay(true)}
             onSeek={(seconds) => {
-              setPosition(seconds);
               void invoke("seek_playback", { milliseconds: Math.round(seconds * 1000) });
             }}
           />
@@ -212,6 +238,13 @@ export default function NowPlaying() {
             </div>
           </ControlButton>
 
+          <ControlButton title="Expand player" onClick={() => setExpanded(true)}>
+            <Maximize2 size={15} />
+          </ControlButton>
+          <ControlButton title="Open mini player" onClick={() => void openMiniPlayer().catch(() => toast.error("Could not open the mini player."))}>
+            <PictureInPicture2 size={15} />
+          </ControlButton>
+
           <ControlButton
             title="Equalizer"
             active={equalizer.config?.settings.enabled}
@@ -233,6 +266,9 @@ export default function NowPlaying() {
           </ControlButton>
         </div>
       </div>
+      <AnimatePresence>
+        {expanded && <ExpandedPlayer key="expanded-player" onClose={() => setExpanded(false)} />}
+      </AnimatePresence>
       {equalizerOpen && (
         <Suspense fallback={null}>
           <EqualizerModal open onClose={() => setEqualizerOpen(false)} {...equalizer} />

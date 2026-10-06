@@ -33,7 +33,7 @@ impl V1 {
             .take_while(|b| **b != 0)
             .cloned()
             .collect::<Vec<u8>>();
-        let s = String::from_utf8_lossy(&s).to_string();
+        let s = s.iter().map(|byte| char::from(*byte)).collect::<String>();
         s.trim_end().to_string()
     }
 
@@ -96,7 +96,10 @@ impl V1 {
         for b in dest.iter_mut() {
             *b = 0;
         }
-        let bytes = value.as_bytes();
+        let bytes: Vec<u8> = value
+            .chars()
+            .map(|character| u8::try_from(character as u32).unwrap_or(b'?'))
+            .collect();
         let len = bytes.len().min(dest.len());
         dest[..len].copy_from_slice(&bytes[..len]);
     }
@@ -231,6 +234,17 @@ impl TagFormat for V1 {
             _ => false,
         });
         if !has_any {
+            if existing_buf.is_some() {
+                let result = crate::utils::library_files::open_for_update(file_path)
+                    .and_then(|file| file.set_len(file.metadata()?.len() - TAG_SIZE as u64));
+                result.map_err(|error| {
+                    BackendError::WriteFailed(TagError {
+                        path: file_path.to_string_lossy().into_owned(),
+                        public_message: "Failed to remove ID3v1 tag".into(),
+                        internal_message: error.to_string(),
+                    })
+                })?;
+            }
             return Ok(());
         }
 

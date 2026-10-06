@@ -8,6 +8,7 @@ use std::io::Error;
 
 pub fn vorbis_code(key: FrameKey) -> &'static str {
     match key {
+        FrameKey::AttachedPicture => "METADATA_BLOCK_PICTURE",
         FrameKey::Title => "TITLE",
         FrameKey::Artist => "ARTIST",
         FrameKey::Album => "ALBUM",
@@ -16,6 +17,9 @@ pub fn vorbis_code(key: FrameKey) -> &'static str {
         FrameKey::RecordingDate => "DATE",
         FrameKey::ReleaseDate => "ORIGINALDATE",
         FrameKey::TrackNumber => "TRACKNUMBER",
+        FrameKey::TotalTracks => "TRACKTOTAL",
+        FrameKey::DiscNumber => "DISCNUMBER",
+        FrameKey::TotalDiscs => "DISCTOTAL",
         FrameKey::Genre => "GENRE",
         FrameKey::ContentGroup => "GROUPING",
         FrameKey::Composer => "COMPOSER",
@@ -28,7 +32,7 @@ pub fn vorbis_code(key: FrameKey) -> &'static str {
         FrameKey::Language => "LANGUAGE",
         FrameKey::UserDefinedURL => "URL",
 
-        _ => "COMMENT",
+        _ => "",
     }
 }
 
@@ -409,4 +413,65 @@ fn read_u32_le(buf: &[u8], offset: &mut usize) -> Result<u32, Error> {
     *offset += 4;
 
     Ok(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+}
+
+pub fn update_comments(
+    original: &[u8],
+    changes: &HashMap<FrameKey, Vec<TagValue>>,
+    needs_picture: bool,
+) -> Result<Vec<u8>, Error> {
+    if changes.keys().any(|key| vorbis_code(*key).is_empty()) {
+        return Err(Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Unsupported Vorbis metadata field",
+        ));
+    }
+    fn entries(data: &[u8]) -> Result<(Vec<u8>, Vec<Vec<u8>>), Error> {
+        let mut offset = 0;
+        let vendor_len = read_u32_le(data, &mut offset)? as usize;
+        let vendor = data
+            .get(offset..offset + vendor_len)
+            .ok_or_else(|| {
+                Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Invalid comment vendor length",
+                )
+            })?
+            .to_vec();
+        offset += vendor_len;
+        let count = read_u32_le(data, &mut offset)?;
+        let mut values = Vec::new();
+        for _ in 0..count {
+            let length = read_u32_le(data, &mut offset)? as usize;
+            values.push(
+                data.get(offset..offset + length)
+                    .ok_or_else(|| {
+                        Error::new(std::io::ErrorKind::InvalidData, "Invalid comment length")
+                    })?
+                    .to_vec(),
+            );
+            offset += length;
+        }
+        Ok((vendor, values))
+    }
+    let (vendor, mut comments) = entries(original)?;
+    comments.retain(|comment| {
+        let Some(equals) = comment.iter().position(|byte| *byte == b'=') else {
+            return true;
+        };
+        let key = String::from_utf8_lossy(&comment[..equals]).to_ascii_uppercase();
+        let mapped = raw_to_tags(&HashMap::from([(key.clone(), Vec::new())]));
+        !changes
+            .keys()
+            .any(|changed| mapped.contains_key(changed) || vorbis_code(*changed) == key)
+    });
+    comments.extend(entries(&build_comments(changes, needs_picture))?.1);
+    let mut result = (vendor.len() as u32).to_le_bytes().to_vec();
+    result.extend(vendor);
+    result.extend((comments.len() as u32).to_le_bytes());
+    for comment in comments {
+        result.extend((comment.len() as u32).to_le_bytes());
+        result.extend(comment);
+    }
+    Ok(result)
 }

@@ -169,7 +169,7 @@ impl TagFormat for FlacFormat {
         }
         let mut tags: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
 
-        tags.extend(updated_tags);
+        tags.extend(updated_tags.clone());
 
         old_tags.into_iter().for_each(|(k, v)| {
             tags.entry(k).or_insert(v);
@@ -214,10 +214,19 @@ impl TagFormat for FlacFormat {
                     all_blocks.push(FlacBlock {
                         block_type: FlacBlockType::VorbisComment,
 
-                        data: payload.clone(),
+                        data: utils::update_comments(block_data, &updated_tags, false).map_err(
+                            |error| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Could not update comments".into(),
+                                    internal_message: error.to_string(),
+                                })
+                            },
+                        )?,
                     });
                 }
-                FlacBlockType::Picture => {}
+                FlacBlockType::Picture if updated_tags.contains_key(&FrameKey::AttachedPicture) => {
+                }
                 _ => {
                     all_blocks.push(FlacBlock {
                         block_type,
@@ -254,7 +263,7 @@ impl TagFormat for FlacFormat {
                 },
             );
         }
-        for payload in utils::build_picture_tag(&tags) {
+        for payload in utils::build_picture_tag(&updated_tags) {
             all_blocks.push(FlacBlock {
                 block_type: FlacBlockType::Picture,
 
@@ -268,6 +277,13 @@ impl TagFormat for FlacFormat {
         let mut out: Vec<u8> = Vec::new();
         out.extend(b"fLaC");
         for (i, block) in all_blocks.iter().enumerate() {
+            if block.data.len() > 0xFF_FFFF {
+                return Err(BackendError::WriteFailed(TagError {
+                    path: file_path.to_string_lossy().into_owned(),
+                    public_message: "Metadata block is too large".into(),
+                    internal_message: "FLAC blocks cannot exceed 24-bit lengths".into(),
+                }));
+            }
             let block_length = block.data.len() as u32;
             let is_last = if i == all_blocks.len() - 1 {
                 0x80

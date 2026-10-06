@@ -412,10 +412,8 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
             let mut expanded: Vec<TagValue> = Vec::new();
             for v in values.iter() {
                 match v {
-                    TagValue::Text(s)
-                        if matches!(key, FrameKey::Artist | FrameKey::Genre) && s.contains(';') =>
-                    {
-                        for part in s.split(';').map(|s| s.trim()) {
+                    TagValue::Text(s) if key.is_multi_valued() && s.contains('\0') => {
+                        for part in s.split('\0') {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 expanded.push(TagValue::Text(seg.to_string()));

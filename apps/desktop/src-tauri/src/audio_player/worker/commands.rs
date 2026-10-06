@@ -95,6 +95,7 @@ where
         PlayerCmd::Seek { seconds } => handle_seek(ctx, state, seconds.saturating_mul(1000)),
         PlayerCmd::SeekMilliseconds { milliseconds } => handle_seek(ctx, state, milliseconds),
         PlayerCmd::UpdateDeviceConfig { target_sample_rate } => {
+            state.pending_output = 0..0;
             state.target_sample_rate = target_sample_rate;
             state.resampler = None;
         }

@@ -64,7 +64,7 @@ export default function Titlebar() {
   return (
     <div
       data-tauri-drag-region={true}
-      className="fixed top-0 z-12001 flex h-14 w-full select-none items-center border-b border-border bg-popover/80 backdrop-blur"
+      className="fixed top-0 z-12001 flex h-14 w-full select-none items-center border-b border-border bg-transparent backdrop-blur"
     >
       <nav
         aria-label="Page history"
@@ -129,6 +129,16 @@ export default function Titlebar() {
           >
             <X size={17} />
           </button>
+        </div>
+      )}
+      {!isWindows && (
+        <div className="ml-auto pr-4">
+          <span
+            data-tauri-drag-region
+            className="flex-1 ml-auto text-[10px] font-semibold tracking-[0.18em] text-foreground/50"
+          >
+            AUDEXIS
+          </span>
         </div>
       )}
     </div>

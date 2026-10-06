@@ -1,6 +1,6 @@
 use crate::tag_manager;
 use crate::tag_manager::itunes::utils::{
-    get_atom_flag, itunes_key, raw_to_tags, FREEFORM_REVERSE_MAP,
+    get_atom_flag, parse_number_pair, raw_to_tags, FREEFORM_REVERSE_MAP,
 };
 use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
@@ -146,7 +146,7 @@ impl V0 {
                         atom.buffer[cursor as usize + 2],
                         atom.buffer[cursor as usize + 3],
                     ]) as u64;
-                    if sz < 8 || cursor + sz > end {
+                    if sz < 12 || cursor + sz > end {
                         break;
                     }
                     let t = &atom.buffer[(cursor + 4) as usize..(cursor + 8) as usize];
@@ -206,6 +206,19 @@ impl V0 {
         }
     }
     fn data_to_buffer(key: &str, value: &TagValue) -> Option<Vec<u8>> {
+        if matches!(key, "trkn" | "disk") {
+            let TagValue::Text(text) = value else {
+                return None;
+            };
+            let (number, total) = parse_number_pair(text)?;
+            let mut data = vec![0; 10];
+            data.extend_from_slice(&number.to_be_bytes());
+            data.extend_from_slice(&total.unwrap_or(0).to_be_bytes());
+            if key == "trkn" {
+                data.extend_from_slice(&[0, 0]);
+            }
+            return Some(data);
+        }
         let item = get_atom_flag(key);
         if let Some(item) = item {
             if item.flag[3] == 0x01 {
@@ -213,12 +226,7 @@ impl V0 {
                     TagValue::Text(text) => {
                         let prefix = "\x00\x00\x00\x00".as_bytes();
                         let vale_buffer = text.as_bytes();
-                        let allowed_bytes = 255 - prefix.len();
-                        let trimmed_value = if key != "©lyr" && vale_buffer.len() > allowed_bytes {
-                            &vale_buffer[0..allowed_bytes]
-                        } else {
-                            vale_buffer
-                        };
+                        let trimmed_value = vale_buffer;
                         let mut data_buffer = Vec::new();
                         data_buffer.extend_from_slice(&item.flag);
                         data_buffer.extend_from_slice(prefix);
@@ -234,18 +242,21 @@ impl V0 {
                         let mut data_buffer = Vec::new();
                         data_buffer.extend_from_slice(&item.flag);
 
-                        let int_value: u32 = text.parse().unwrap_or(0);
-
-                        if item.size.is_some() {
-                            let mut value_buffer = vec![0u8; 8];
-                            let int_bytes = int_value.to_be_bytes();
-                            value_buffer[4..].copy_from_slice(&int_bytes);
-                            data_buffer.extend_from_slice(&value_buffer);
+                        let int_value: u64 = text.parse().ok()?;
+                        let width = if key == "tmpo" {
+                            2
                         } else {
-                            let mut value_buffer = vec![0u8; 5];
-                            value_buffer[4] = if int_value == 1 { 1 } else { 0 };
-                            data_buffer.extend_from_slice(&value_buffer);
+                            item.size.map_or(1, |bits| (bits / 8) as usize)
+                        };
+                        if width == 0
+                            || width > 8
+                            || (width < 8 && int_value >= (1u64 << (width * 8)))
+                            || (item.boolean && int_value > 1)
+                        {
+                            return None;
                         }
+                        data_buffer.extend_from_slice(&[0; 4]);
+                        data_buffer.extend_from_slice(&int_value.to_be_bytes()[8 - width..]);
 
                         Some(data_buffer)
                     }
@@ -339,30 +350,27 @@ impl V0 {
         let new_moov_atom = new_top_level_atoms
             .iter()
             .find(|atom| atom.atom_type == "moov")?;
-        let mdat_atom = new_top_level_atoms.iter().find(|a| a.atom_type == "mdat");
-        let should_update_offsets = mdat_atom
-            .map(|mdat| new_moov_atom.position < mdat.position)
-            .unwrap_or(false);
-        if !should_update_offsets {
-            return Some(almost_done_file);
-        }
-
         let shift = ilst_buffer.len() as i64 - ilst_atom.size as i64;
-        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, new_moov_atom) {
-            Some(V0::update_co64_offsets(
-                &almost_done_file,
+        let co64_atoms = V0::find_co64_atom(&almost_done_file, new_moov_atom);
+        let stco_atoms = V0::find_stco_atom(&almost_done_file, new_moov_atom);
+        let mut rebuilt = almost_done_file;
+        if let Some(atoms) = co64_atoms {
+            rebuilt = V0::update_co64_offsets(
+                &rebuilt,
                 shift,
-                &co64_atoms,
-            ))
-        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, new_moov_atom) {
-            Some(V0::update_stco_offsets(
-                &almost_done_file,
-                shift,
-                &stco_atoms,
-            ))
-        } else {
-            Some(almost_done_file)
+                moov_atom.position + moov_atom.size,
+                &atoms,
+            )?;
         }
+        if let Some(atoms) = stco_atoms {
+            rebuilt = V0::update_stco_offsets(
+                &rebuilt,
+                shift,
+                moov_atom.position + moov_atom.size,
+                &atoms,
+            )?;
+        }
+        Some(rebuilt)
     }
 
     fn rebuild_file_insert_ilst(ilst_atom_buffer: Vec<u8>, file_buffer: &[u8]) -> Option<Vec<u8>> {
@@ -489,30 +497,27 @@ impl V0 {
         let new_top_level_atoms =
             V0::parse_atoms(&almost_done_file, 0, almost_done_file.len() as u64);
         let new_moov_atom = new_top_level_atoms.iter().find(|a| a.atom_type == "moov")?;
-        let mdat_atom = new_top_level_atoms.iter().find(|a| a.atom_type == "mdat");
-        let should_update_offsets = mdat_atom
-            .map(|mdat| new_moov_atom.position < mdat.position)
-            .unwrap_or(false);
-        if !should_update_offsets {
-            return Some(almost_done_file);
-        }
-
         let shift = moov_size_delta;
-        if let Some(co64_atoms) = V0::find_co64_atom(&almost_done_file, new_moov_atom) {
-            Some(V0::update_co64_offsets(
-                &almost_done_file,
+        let co64_atoms = V0::find_co64_atom(&almost_done_file, new_moov_atom);
+        let stco_atoms = V0::find_stco_atom(&almost_done_file, new_moov_atom);
+        let mut rebuilt = almost_done_file;
+        if let Some(atoms) = co64_atoms {
+            rebuilt = V0::update_co64_offsets(
+                &rebuilt,
                 shift,
-                &co64_atoms,
-            ))
-        } else if let Some(stco_atoms) = V0::find_stco_atom(&almost_done_file, new_moov_atom) {
-            Some(V0::update_stco_offsets(
-                &almost_done_file,
-                shift,
-                &stco_atoms,
-            ))
-        } else {
-            Some(almost_done_file)
+                moov_atom.position + moov_atom.size,
+                &atoms,
+            )?;
         }
+        if let Some(atoms) = stco_atoms {
+            rebuilt = V0::update_stco_offsets(
+                &rebuilt,
+                shift,
+                moov_atom.position + moov_atom.size,
+                &atoms,
+            )?;
+        }
+        Some(rebuilt)
     }
 
     fn find_co64_atom(buffer: &[u8], moov_atom: &Atom) -> Option<Vec<Atom>> {
@@ -603,7 +608,12 @@ impl V0 {
             Some(stco_atoms)
         }
     }
-    fn update_co64_offsets(file_buffer: &[u8], shift: i64, co64_sub_atoms: &Vec<Atom>) -> Vec<u8> {
+    fn update_co64_offsets(
+        file_buffer: &[u8],
+        shift: i64,
+        cutoff: u64,
+        co64_sub_atoms: &Vec<Atom>,
+    ) -> Option<Vec<u8>> {
         let mut buff = file_buffer.to_owned();
 
         for atom in co64_sub_atoms {
@@ -634,7 +644,11 @@ impl V0 {
                 let old_offset_bytes: [u8; 8] = co64_buffer[pos..pos + 8].try_into().unwrap();
                 let old_offset = u64::from_be_bytes(old_offset_bytes);
 
-                let new_offset = (old_offset as i128 + shift as i128) as u64;
+                let new_offset = if old_offset >= cutoff {
+                    old_offset.checked_add_signed(shift)?
+                } else {
+                    old_offset
+                };
                 let new_bytes = new_offset.to_be_bytes();
                 co64_buffer[pos..pos + 8].copy_from_slice(&new_bytes);
             }
@@ -642,9 +656,14 @@ impl V0 {
             buff.splice(start..end, co64_buffer);
         }
 
-        buff
+        Some(buff)
     }
-    fn update_stco_offsets(file_buffer: &[u8], shift: i64, stco_sub_atoms: &Vec<Atom>) -> Vec<u8> {
+    fn update_stco_offsets(
+        file_buffer: &[u8],
+        shift: i64,
+        cutoff: u64,
+        stco_sub_atoms: &Vec<Atom>,
+    ) -> Option<Vec<u8>> {
         let mut buff = file_buffer.to_owned();
 
         for atom in stco_sub_atoms {
@@ -675,15 +694,19 @@ impl V0 {
                 let old_offset_bytes: [u8; 4] = stco_buffer[pos..pos + 4].try_into().unwrap();
                 let old_offset = u32::from_be_bytes(old_offset_bytes);
 
-                let new_offset = old_offset as i64 + shift;
-                let new_bytes = (new_offset as u32).to_be_bytes();
+                let new_offset = if u64::from(old_offset) >= cutoff {
+                    u32::try_from(i64::from(old_offset).checked_add(shift)?).ok()?
+                } else {
+                    old_offset
+                };
+                let new_bytes = new_offset.to_be_bytes();
                 stco_buffer[pos..pos + 4].copy_from_slice(&new_bytes);
             }
 
             buff.splice(start..end, stco_buffer);
         }
 
-        buff
+        Some(buff)
     }
 }
 
@@ -703,150 +726,63 @@ impl TagFormat for V0 {
                 public_message: "Unable to read file.".to_string(),
             })
         })?;
-        let ilst_atom = V0::ensure_ilst_atom(&buffer);
-        if ilst_atom.is_err() {
-            return Err(BackendError::ReadFailed(TagError {
-                internal_message: "Failed to find 'ilst' atom".to_string(),
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "The file is missing required metadata.".to_string(),
-            }));
-        }
-        let ilst_atom = ilst_atom.unwrap();
-        let ilst_sub_atoms = V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size);
-        let mut raw_entries: Vec<(String, TagValue)> = Vec::new();
-        for atom in &ilst_sub_atoms {
-            let data_start = atom.position + 16;
-            let data_size = atom.size - 16;
-
-            if atom.atom_type == "covr" {
-                let mut mime_type = "image/jpeg";
-                let magic_number = &ilst_atom.buffer[(data_start + 8) as usize
-                    ..(data_start + 24).min(data_start + data_size) as usize];
-                if magic_number.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
-                    mime_type = "image/png";
-                } else if magic_number.starts_with(&[0xFF, 0xD8, 0xFF]) {
-                    mime_type = "image/jpeg";
-                }
-                let pic = tag_manager::utils::PictureData {
-                    mime: mime_type.to_string(),
-                    data: ilst_atom.buffer
-                        [(data_start + 8) as usize..(data_start + data_size) as usize]
-                        .to_vec(),
-                    picture_type: None,
-                    description: None,
+        let Ok(ilst_atom) = V0::ensure_ilst_atom(&buffer) else {
+            return Ok(HashMap::new());
+        };
+        let mut raw_entries = Vec::new();
+        for atom in V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size) {
+            let children = V0::parse_atoms(&atom.buffer, 8, atom.size);
+            let key = if atom.atom_type == "----" {
+                let component = |kind: &str| {
+                    children
+                        .iter()
+                        .find(|child| child.atom_type == kind)
+                        .and_then(|child| child.buffer.get(12..))
+                        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
                 };
-                raw_entries.push((
-                    atom.atom_type.clone(),
-                    TagValue::Picture {
-                        mime: pic.mime.clone(),
-                        data: pic.data.clone(),
-                        picture_type: pic.picture_type,
-                        description: pic.description.clone(),
-                    },
-                ));
-            } else if atom.atom_type == "----" {
-                let mut cursor = atom.position + 8;
-                let end = atom.position + atom.size;
-                let mut mean: Option<String> = None;
-                let mut name: Option<String> = None;
-                let mut value_text: Option<String> = None;
-                while cursor + 8 <= end {
-                    let sz = u32::from_be_bytes([
-                        ilst_atom.buffer[cursor as usize],
-                        ilst_atom.buffer[cursor as usize + 1],
-                        ilst_atom.buffer[cursor as usize + 2],
-                        ilst_atom.buffer[cursor as usize + 3],
-                    ]) as u64;
-                    if sz < 8 || cursor + sz > end {
-                        break;
-                    }
-                    let t = &ilst_atom.buffer[(cursor + 4) as usize..(cursor + 8) as usize];
-                    let t_str = String::from_utf8_lossy(t);
-                    match &*t_str {
-                        "mean" => {
-                            let s = String::from_utf8_lossy(
-                                &ilst_atom.buffer[(cursor + 12) as usize..(cursor + sz) as usize],
-                            )
-                            .to_string();
-                            mean = Some(s);
-                        }
-                        "name" => {
-                            let s = String::from_utf8_lossy(
-                                &ilst_atom.buffer[(cursor + 12) as usize..(cursor + sz) as usize],
-                            )
-                            .to_string();
-                            name = Some(s);
-                        }
-                        "data" => {
-                            let s = String::from_utf8_lossy(
-                                &ilst_atom.buffer[(cursor + 16) as usize..(cursor + sz) as usize],
-                            )
-                            .to_string();
-                            value_text = Some(s);
-                        }
-                        _ => {}
-                    }
-                    cursor += sz;
-                }
-                if let (Some(mean), Some(name), Some(val)) = (mean, name, value_text) {
-                    let key = format!("----:{}:{}", mean, name);
-                    raw_entries.push((key, TagValue::Text(val)));
-                }
+                let (Some(mean), Some(name)) = (component("mean"), component("name")) else {
+                    continue;
+                };
+                format!("----:{mean}:{name}")
             } else {
-                let item = get_atom_flag(&atom.atom_type);
-                if let Some(item) = item {
-                    if item.flag[3] == 0x15 {
-                        let value = if item.size.is_some() {
-                            u32::from_be_bytes([
-                                ilst_atom.buffer[(data_start + 8) as usize],
-                                ilst_atom.buffer[(data_start + 8) as usize + 1],
-                                ilst_atom.buffer[(data_start + 8) as usize + 2],
-                                ilst_atom.buffer[(data_start + 8) as usize + 3],
-                            ])
+                atom.atom_type.clone()
+            };
+            for data in children.iter().filter(|child| child.atom_type == "data") {
+                let Some(payload) = data.buffer.get(16..) else {
+                    continue;
+                };
+                let kind = u32::from_be_bytes(data.buffer[8..12].try_into().unwrap()) & 0x00ff_ffff;
+                let value = match atom.atom_type.as_str() {
+                    "trkn" | "disk" if payload.len() >= 6 => {
+                        let number = u16::from_be_bytes([payload[2], payload[3]]);
+                        let total = u16::from_be_bytes([payload[4], payload[5]]);
+                        TagValue::Text(if total > 0 {
+                            format!("{number}/{total}")
                         } else {
-                            ilst_atom.buffer[(data_start + 8) as usize] as u32
-                        };
-                        raw_entries
-                            .push((atom.atom_type.clone(), TagValue::Text(value.to_string())));
-                        continue;
+                            number.to_string()
+                        })
                     }
-                }
-
-                if data_size > ilst_atom.size {
-                    continue;
-                }
-                if atom.atom_type == "©lyr" {
-                    if let Some(bytes) = ilst_atom
-                        .buffer
-                        .get((data_start + 8) as usize..(data_start + data_size) as usize)
-                    {
-                        raw_entries.push((
-                            atom.atom_type.clone(),
-                            TagValue::Text(String::from_utf8_lossy(bytes).into_owned()),
-                        ));
-                    }
-                    continue;
-                }
-                let text = String::from_utf8_lossy(
-                    &ilst_atom.buffer[data_start as usize..(data_start + data_size) as usize],
-                )
-                .to_string()
-                .chars()
-                .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
-                .collect::<String>();
-                let key = itunes_key(&atom.atom_type);
-
-                if key.is_some() {
-                    for part in text.split(';').map(|s| s.trim()) {
-                        let seg = part.trim();
-                        if !seg.is_empty() {
-                            raw_entries
-                                .push((atom.atom_type.clone(), TagValue::Text(seg.to_string())));
+                    "covr" => TagValue::Picture {
+                        mime: if kind == 14 || payload.starts_with(b"\x89PNG") {
+                            "image/png"
+                        } else {
+                            "image/jpeg"
                         }
+                        .into(),
+                        data: payload.to_vec(),
+                        picture_type: None,
+                        description: None,
+                    },
+                    _ if kind == 1 => TagValue::Text(String::from_utf8_lossy(payload).into_owned()),
+                    _ if kind == 21 && !payload.is_empty() && payload.len() <= 8 => {
+                        let value = payload
+                            .iter()
+                            .fold(0u64, |value, byte| (value << 8) | u64::from(*byte));
+                        TagValue::Text(value.to_string())
                     }
-                } else {
-                    raw_entries.push((atom.atom_type.clone(), TagValue::Text(text)));
-                }
+                    _ => continue,
+                };
+                raw_entries.push((key.clone(), value));
             }
         }
         let vec_map = raw_to_tags(&raw_entries);
@@ -857,6 +793,13 @@ impl TagFormat for V0 {
         file_path: &std::path::Path,
         updated_tags: HashMap<tag_manager::utils::FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
+        let old_vec = self.get_tags(file_path).map_err(|_| {
+            BackendError::ReadFailed(TagError {
+                path: file_path.to_str().unwrap_or("").to_string(),
+                public_message: "Failed to read tags from file".to_string(),
+                internal_message: "Failed to read tags from file".to_string(),
+            })
+        })?;
         let mut updated_entries: Vec<(String, TagValue)> = Vec::new();
         let mut updated_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
 
@@ -918,19 +861,50 @@ impl TagFormat for V0 {
                         push_key_once(&"covr".to_string());
                     }
                 }
-                tag_manager::utils::FrameKey::Artists => {
-                    let joined = vals
-                        .iter()
-                        .filter_map(|v| match v {
-                            TagValue::Text(s) => Some(s.clone()),
-                            _ => None,
+                FrameKey::TrackNumber | FrameKey::DiscNumber => {
+                    if vals.is_empty() {
+                        continue;
+                    }
+                    let parsed = match vals.as_slice() {
+                        [TagValue::Text(text)] => parse_number_pair(text),
+                        _ => None,
+                    };
+                    let (number, total) = parsed.ok_or_else(|| {
+                        BackendError::WriteFailed(TagError {
+                            path: file_path.to_string_lossy().into_owned(),
+                            public_message: "Invalid track or disc number".into(),
+                            internal_message:
+                                "Expected a number or number/total between 0 and 65535".into(),
                         })
-                        .collect::<Vec<_>>()
-                        .join("\\");
-                    if !joined.is_empty() {
-                        let key = "©ART".to_string();
-                        updated_entries.push((key.clone(), TagValue::Text(joined)));
-                        push_key_once(&key);
+                    })?;
+                    let previous_total =
+                        old_vec
+                            .get(k)
+                            .and_then(|values| values.first())
+                            .and_then(|value| {
+                                if let TagValue::Text(text) = value {
+                                    parse_number_pair(text).and_then(|(_, total)| total)
+                                } else {
+                                    None
+                                }
+                            });
+                    let text = match total.or(previous_total) {
+                        Some(total) if total > 0 => format!("{number}/{total}"),
+                        _ => number.to_string(),
+                    };
+                    updated_entries.push((
+                        tag_manager::itunes::utils::itunes_code(*k).into(),
+                        TagValue::Text(text),
+                    ));
+                }
+                key if get_atom_flag(tag_manager::itunes::utils::itunes_code(*key))
+                    .is_some_and(|flag| flag.flag[3] == 1) =>
+                {
+                    for value in vals {
+                        updated_entries.push((
+                            tag_manager::itunes::utils::itunes_code(*k).to_string(),
+                            value.clone(),
+                        ));
                     }
                 }
                 other => {
@@ -938,9 +912,7 @@ impl TagFormat for V0 {
                     if code == "----" {
                         if let Some(spec) = tag_manager::itunes::utils::itunes_freeform_spec(*other)
                         {
-                            if let Some(first) =
-                                vals.iter().find(|v| matches!(v, TagValue::Text(_)))
-                            {
+                            for first in vals.iter().filter(|v| matches!(v, TagValue::Text(_))) {
                                 let key = format!("----:{}:{}", spec.mean, spec.name);
                                 updated_entries.push((key.clone(), first.clone()));
                                 push_key_once(&key);
@@ -968,86 +940,20 @@ impl TagFormat for V0 {
             }
         }
 
-        let old_vec = self.get_tags(file_path).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to read tags from file".to_string(),
-                internal_message: "Failed to read tags from file".to_string(),
-            })
-        })?;
-        let mut old_entries: Vec<(String, TagValue)> = Vec::new();
-        for (k, vals) in old_vec.iter() {
-            match k {
-                FrameKey::UserDefinedText => {
-                    for v in vals {
-                        if let TagValue::UserText(ut) = v {
-                            let key = format!(
-                                "----:{}:{}",
-                                "com.apple.iTunes",
-                                ut.description.replace(" ", "_")
-                            );
-                            if !updated_keys.contains(&key) {
-                                old_entries.push((key, TagValue::Text(ut.value.clone())));
-                            }
-                        }
-                    }
-                }
-                FrameKey::UserDefinedURL => {
-                    for v in vals {
-                        if let TagValue::UserUrl(u) = v {
-                            let key = format!(
-                                "----:{}:{}",
-                                "com.apple.iTunes",
-                                u.description.replace(" ", "_")
-                            );
-                            if !updated_keys.contains(&key) {
-                                old_entries.push((key, TagValue::Text(u.url.clone())));
-                            }
-                        }
-                    }
-                }
-                FrameKey::AttachedPicture => {
-                    let key = "covr".to_string();
-                    if !updated_keys.contains(&key) {
-                        for v in vals {
-                            if let TagValue::Picture { .. } = v {
-                                old_entries.push((key.clone(), v.clone()));
-                            }
-                        }
-                    }
-                }
-                other => {
-                    let code = tag_manager::itunes::utils::itunes_code(*other);
-                    if code == "----" {
-                        if let Some(spec) = tag_manager::itunes::utils::itunes_freeform_spec(*other)
-                        {
-                            let key = format!("----:{}:{}", spec.mean, spec.name);
-                            if !updated_keys.contains(&key) {
-                                if let Some(first) = vals.first() {
-                                    old_entries.push((key, first.clone()));
-                                }
-                            }
-                        }
-                    } else {
-                        let key = code.to_string();
-                        if !updated_keys.contains(&key) {
-                            if let Some(first) = vals.first() {
-                                old_entries.push((key, first.clone()));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut all_entries = updated_entries;
-        all_entries.extend(old_entries);
+        let all_entries = updated_entries;
 
         let buffer = crate::utils::library_files::read(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Failed to read file".to_string(),
                 internal_message: "Failed to read file".to_string(),
+            })
+        })?;
+        atoms::validate_for_write(&buffer).map_err(|message| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_string_lossy().into_owned(),
+                public_message: "Cannot safely edit this MP4 file".into(),
+                internal_message: message,
             })
         })?;
         let ilst_atom = V0::ensure_ilst_atom(&buffer);
@@ -1074,13 +980,13 @@ impl TagFormat for V0 {
                 Vec::new(),
                 updated_keys.iter().cloned().collect(),
             );
-            V0::rebuild_file_insert_ilst(updated_ilst_buffer, &buffer).ok_or(
+            V0::rebuild_file_insert_ilst(updated_ilst_buffer, &buffer).ok_or_else(|| {
                 BackendError::WriteFailed(TagError {
                     path: file_path.to_str().unwrap_or("").to_string(),
                     public_message: "Failed to write tags to file".to_string(),
                     internal_message: "Failed to insert ilst atom".to_string(),
-                }),
-            )?
+                })
+            })?
         };
 
         fs::write(file_path, &rebuilt_file).map_err(|_| {
@@ -1102,13 +1008,9 @@ impl TagFormat for V0 {
                 public_message: "Unable to read file.".to_string(),
             })
         })?;
-        let ilst_atom = V0::ensure_ilst_atom(&buffer).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                internal_message: "Failed to find 'ilst' atom".to_string(),
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "The file is missing required metadata.".to_string(),
-            })
-        })?;
+        let Ok(ilst_atom) = V0::ensure_ilst_atom(&buffer) else {
+            return Ok(Vec::new());
+        };
         let ilst_sub_atoms = V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size);
         let mut out: Vec<FreeformTag> = Vec::new();
         for atom in &ilst_sub_atoms {
@@ -1127,7 +1029,7 @@ impl TagFormat for V0 {
                     ilst_atom.buffer[cursor as usize + 2],
                     ilst_atom.buffer[cursor as usize + 3],
                 ]) as u64;
-                if sz < 8 || cursor + sz > end {
+                if sz < 12 || cursor + sz > end {
                     break;
                 }
                 let t = &ilst_atom.buffer[(cursor + 4) as usize..(cursor + 8) as usize];
@@ -1147,7 +1049,7 @@ impl TagFormat for V0 {
                         .to_string();
                         name = Some(s);
                     }
-                    "data" => {
+                    "data" if sz >= 16 => {
                         let s = String::from_utf8_lossy(
                             &ilst_atom.buffer[(cursor + 16) as usize..(cursor + sz) as usize],
                         )

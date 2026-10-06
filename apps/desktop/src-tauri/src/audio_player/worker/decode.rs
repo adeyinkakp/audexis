@@ -98,11 +98,8 @@ where
     false
 }
 
-pub fn write_resampled_audio<P>(
-    ctx: &mut WorkerContext<P>,
-    state: &mut WorkerState,
-    required_samples: usize,
-) where
+pub fn write_resampled_audio<P>(producer: &mut P, state: &mut WorkerState, required_samples: usize)
+where
     P: Producer<Item = f32> + Observer + Send,
 {
     let chunk_samples: Vec<f32> = state.decode_buffer.drain(0..required_samples).collect();
@@ -121,15 +118,15 @@ pub fn write_resampled_audio<P>(
         .process_into_buffer(&input_adapter, &mut output_adapter, Some(&state.indexing))
         .unwrap();
 
-    let total_written = frames_written * state.channels_uz;
-    let resampled_slice = &state.outdata[0..total_written];
+    state.pending_output = 0..frames_written * state.channels_uz;
+    flush_pending_audio(producer, state);
+}
 
-    let mut written = 0usize;
-    while written < resampled_slice.len() {
-        let pushed = ctx.producer.push_slice(&resampled_slice[written..]);
-        written += pushed;
-        if written < resampled_slice.len() {
-            std::thread::sleep(Duration::from_millis(2));
-        }
-    }
+pub fn flush_pending_audio<P>(producer: &mut P, state: &mut WorkerState) -> bool
+where
+    P: Producer<Item = f32>,
+{
+    let written = producer.push_slice(&state.outdata[state.pending_output.clone()]);
+    state.pending_output.start += written;
+    state.pending_output.is_empty()
 }

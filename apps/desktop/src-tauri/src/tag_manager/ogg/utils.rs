@@ -415,10 +415,10 @@ pub fn is_opus_tags(p: &[u8]) -> bool {
 
 pub fn read_page<R: Read>(r: &mut R) -> io::Result<Option<OggPage>> {
     let mut header = [0u8; 27];
-    match r.read_exact(&mut header) {
-        Ok(()) => {}
-        Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(None),
-        Err(e) => return Err(e),
+    match r.read(&mut header[..1]) {
+        Ok(0) => return Ok(None),
+        Ok(_) => r.read_exact(&mut header[1..])?,
+        Err(error) => return Err(error),
     }
 
     if &header[0..4] != b"OggS" {

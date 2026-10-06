@@ -13,6 +13,7 @@ pub struct WorkerState {
     pub resampler: Option<Async<f32>>,
     pub indata: Vec<f32>,
     pub outdata: Vec<f32>,
+    pub pending_output: std::ops::Range<usize>,
     pub indexing: Indexing,
     pub decode_buffer: Vec<f32>,
     pub packet_samples: Vec<f32>,
@@ -31,6 +32,7 @@ impl WorkerState {
             resampler: None,
             indata: Vec::new(),
             outdata: Vec::new(),
+            pending_output: 0..0,
             indexing: Indexing::new(),
             decode_buffer: Vec::new(),
             packet_samples: Vec::new(),
@@ -38,6 +40,7 @@ impl WorkerState {
     }
 
     pub fn clear_playback_buffers(&mut self) {
+        self.pending_output = 0..0;
         self.decode_buffer.clear();
         self.packet_samples.clear();
     }

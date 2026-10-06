@@ -95,6 +95,10 @@ impl TagFormat for V2_4 {
                 if let Some(text) = super::lyrics::decode(&id, content) {
                     raw.entry(id).or_default().push(TagValue::Text(text));
                 }
+            } else if id == "COMM" {
+                if let Some(text) = super::lyrics::decode("USLT", content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
             } else if id == "TXXX" || id == "WXXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
@@ -145,24 +149,10 @@ impl TagFormat for V2_4 {
                     let picture_type = content[pic_type_index];
 
                     let description_start = pic_type_index + 1;
-                    let description_end = content[description_start..]
-                        .iter()
-                        .position(|&b| b == 0x00)
-                        .map_or(content.len(), |p| description_start + p);
-                    let description = if description_end > description_start {
-                        Some(
-                            String::from_utf8_lossy(&content[description_start..description_end])
-                                .to_string(),
-                        )
-                    } else {
-                        None
-                    };
-                    let image_data =
-                        if description_end < content.len() && description_end + 1 < content.len() {
-                            &content[description_end + 1..]
-                        } else {
-                            &[]
-                        };
+                    let (description_bytes, image_data) =
+                        split_encoded_text(content[0], &content[description_start..]);
+                    let description_text = decode_text_payload(content[0], description_bytes);
+                    let description = (!description_text.is_empty()).then_some(description_text);
                     raw.entry(id).or_default().push(TagValue::Picture {
                         mime: mime_type,
                         data: image_data.to_vec(),
@@ -280,7 +270,7 @@ impl TagFormat for V2_4 {
             match v {
                 TagValue::Text(t) => {
                     if !t.is_empty() {
-                        if matches!(k, "USLT" | "SYLT") {
+                        if matches!(k, "USLT" | "SYLT" | "COMM") {
                             let payload = super::lyrics::encode(k, &t).map_err(|message| {
                                 BackendError::WriteFailed(TagError {
                                     path: file_path.to_string_lossy().into_owned(),

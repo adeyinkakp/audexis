@@ -15,6 +15,10 @@ import { ErrorPage } from "./components/ErrorPage";
 import { StartupValidate } from "./components/StartupValidate";
 import { installErrorLogging, logError } from "./utils/logger";
 
+import MiniPlayer from "./components/MiniPlayer";
+
+const isMiniPlayer = new URLSearchParams(window.location.search).has("mini-player");
+
 installErrorLogging();
 
 export const queryClient = new QueryClient({
@@ -80,10 +84,17 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
       <StartupValidate>
         <QueryClientProvider client={queryClient}>
-          <StoreProvider>
-            <LibraryEvents />
-            <RouterProvider router={router} />
-          </StoreProvider>
+          {isMiniPlayer ? (
+            <>
+              <LibraryEvents />
+              <MiniPlayer />
+            </>
+          ) : (
+            <StoreProvider>
+              <LibraryEvents />
+              <RouterProvider router={router} />
+            </StoreProvider>
+          )}
         </QueryClientProvider>
       </StartupValidate>
     </ErrorBoundary>

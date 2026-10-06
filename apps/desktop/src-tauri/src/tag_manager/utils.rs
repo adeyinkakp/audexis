@@ -795,37 +795,11 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
 
 /// Replaces the target file with the temporary file.
 pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), BackendError> {
-    #[cfg(not(windows))]
-    {
-        let ez = fs::remove_file(target);
-        if ez.is_err() {
-            return Err(BackendError::WriteFailed(TagError {
-                path: target.to_str().unwrap_or("").to_string(),
-                public_message: "Could not replace file".to_string(),
-                internal_message: "Failed to replace file".to_string(),
-            }));
-        }
-        let rename_result = fs::rename(tmp, target);
-        if rename_result.is_err() {
-            return Err(BackendError::WriteFailed(TagError {
-                path: target.to_str().unwrap_or("").to_string(),
-                public_message: "Could not replace file".to_string(),
-                internal_message: "Failed to replace file".to_string(),
-            }));
-        }
-        Ok(())
-    }
-    #[cfg(windows)]
-    {
-        let _ = fs::remove_file(target);
-        let rename_result = fs::rename(tmp, target);
-        if rename_result.is_err() {
-            return Err(BackendError::WriteFailed(TagError {
-                path: target.to_str().unwrap_or("").to_string(),
-                public_message: "Could not replace file".to_string(),
-                internal_message: "Failed to replace file".to_string(),
-            }));
-        }
-        Ok(())
-    }
+    fs::rename(tmp, target).map_err(|error| {
+        BackendError::WriteFailed(TagError {
+            path: target.to_string_lossy().into_owned(),
+            public_message: "Could not replace file".into(),
+            internal_message: error.to_string(),
+        })
+    })
 }

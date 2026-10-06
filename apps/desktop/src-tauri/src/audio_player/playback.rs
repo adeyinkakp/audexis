@@ -289,7 +289,6 @@ impl AudioPlayer {
                         }
                         if read < data.len() {
                             data[read..].fill(0.0);
-                            std::thread::sleep(Duration::from_millis(10));
                         }
                     } else {
                         data.fill(0.0);

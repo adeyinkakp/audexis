@@ -74,6 +74,10 @@ impl TagFormat for V2_2 {
                 if let Some(text) = super::lyrics::decode(&id, content) {
                     raw.entry(id).or_default().push(TagValue::Text(text));
                 }
+            } else if id == "COM" {
+                if let Some(text) = super::lyrics::decode("USLT", content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
             } else if id == "TXX" || id == "WXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
@@ -96,8 +100,8 @@ impl TagFormat for V2_2 {
                     let encoding = content[0];
                     let text = decode_text_payload(encoding, &content[1..]);
                     let key = id3v22_key(&id);
-                    if (key.is_some() && key.unwrap().is_multi_valued()) && text.contains(';') {
-                        for part in text.split(';') {
+                    if (key.is_some() && key.unwrap().is_multi_valued()) && text.contains('\0') {
+                        for part in text.split('\0') {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 raw.entry(id.clone())
@@ -121,22 +125,10 @@ impl TagFormat for V2_2 {
                 if idx >= content.len() {
                     break;
                 }
-                let desc_end = content[idx..]
-                    .iter()
-                    .position(|&b| b == 0x00)
-                    .map(|o| idx + o)
-                    .unwrap_or(idx);
-                let image_data_start = if desc_end < content.len() {
-                    desc_end + 1
-                } else {
-                    desc_end
-                };
-                let description = if desc_end > idx {
-                    Some(String::from_utf8_lossy(&content[idx..desc_end]).to_string())
-                } else {
-                    None
-                };
-                let image_data = &content[image_data_start..];
+                let (description_bytes, image_data) =
+                    split_encoded_text(content[0], &content[idx..]);
+                let description_text = decode_text_payload(content[0], description_bytes);
+                let description = (!description_text.is_empty()).then_some(description_text);
                 let mime = match std::str::from_utf8(image_format) {
                     Ok(f) => match f {
                         "PNG" => "image/png",
@@ -234,7 +226,7 @@ impl TagFormat for V2_2 {
                         _ => None,
                     })
                     .collect::<Vec<_>>()
-                    .join("\\");
+                    .join("\0");
                 single_map.insert(k, TagValue::Text(joined));
             } else {
                 single_map.insert(k, vals[0].clone());
@@ -245,7 +237,7 @@ impl TagFormat for V2_2 {
             match v {
                 TagValue::Text(t) => {
                     if !t.is_empty() {
-                        if matches!(k, "ULT" | "SLT") {
+                        if matches!(k, "ULT" | "SLT" | "COM") {
                             let payload = super::lyrics::encode(k, &t).map_err(|message| {
                                 BackendError::WriteFailed(TagError {
                                     path: file_path.to_string_lossy().into_owned(),
@@ -267,16 +259,21 @@ impl TagFormat for V2_2 {
                     picture_type,
                     description,
                 } => {
-                    let enc: u8 = 0x00;
+                    let encoded_description =
+                        encode_text_payload(description.as_deref().unwrap_or(""), false);
+                    let enc = encoded_description[0];
                     let format_code = if mime == "image/png" { b"PNG" } else { b"JPG" };
                     let pt = picture_type.unwrap_or(3);
-                    let desc_bytes = description.as_deref().unwrap_or("").as_bytes();
+                    let desc_bytes = &encoded_description[1..];
                     let mut payload = Vec::new();
                     payload.push(enc);
                     payload.extend_from_slice(format_code);
                     payload.push(pt);
                     payload.extend_from_slice(desc_bytes);
                     payload.push(0x00);
+                    if enc == 1 {
+                        payload.push(0x00);
+                    }
                     payload.extend_from_slice(&data);
                     raw.insert("PIC".to_string(), payload);
                 }

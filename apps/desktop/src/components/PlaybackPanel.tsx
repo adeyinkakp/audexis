@@ -1,3 +1,4 @@
+import ArtworkBackdrop from "./ArtworkBackdrop";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
 import { ListMusic, MessageSquareText, X } from "lucide-react";
@@ -20,7 +21,9 @@ export default function PlaybackPanel({
   artwork,
   position,
   onSeek,
+  embedded = false,
 }: {
+  embedded?: boolean;
   view: PlaybackPanelView;
   onViewChange: (view: PlaybackPanelView) => void;
   onClose: () => void;
@@ -33,17 +36,27 @@ export default function PlaybackPanel({
   onSeek: (milliseconds: number) => void;
 }) {
   useEffect(() => {
+    if (embedded) return;
     document.documentElement.style.setProperty("--queue-width", "20rem");
     return () => {
       document.documentElement.style.removeProperty("--queue-width");
     };
-  }, []);
+  }, [embedded]);
   return (
     <aside
       aria-label="Playback sidebar"
-      className="fixed bottom-0 right-0 top-14 -z-40 flex w-80 flex-col overflow-hidden border-l border-border bg-popover shadow-xl"
+      className={
+        embedded
+          ? "flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden bg-transparent"
+          : "fixed bottom-0 right-0 top-14 -z-40 flex w-80 flex-col overflow-hidden border-l border-border bg-popover shadow-xl"
+      }
     >
-      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
+      <div
+        className={cn(
+          "flex h-12 shrink-0 items-center gap-1 px-3",
+          !embedded && "border-b border-border",
+        )}
+      >
         {(
           [
             ["queue", "Queue", ListMusic],
@@ -66,7 +79,7 @@ export default function PlaybackPanel({
         ))}
         <button
           type="button"
-          aria-label="Close playback sidebar"
+          aria-label={`Close ${view === "lyrics" ? "lyrics" : "queue"}`}
           onClick={onClose}
           className="ml-auto rounded-lg p-2 text-muted-foreground hover:bg-muted"
         >
@@ -77,6 +90,7 @@ export default function PlaybackPanel({
         <QueuePanel onPlay={onPlay} />
       ) : (
         <SidebarLyrics
+          embedded={embedded}
           key={fileId}
           fileId={fileId}
           title={title}
@@ -97,7 +111,9 @@ function SidebarLyrics({
   artwork,
   position,
   onSeek,
+  embedded = false,
 }: {
+  embedded?: boolean;
   fileId: number;
   title?: string;
   artist?: string;
@@ -127,35 +143,28 @@ function SidebarLyrics({
   return (
     <section
       aria-label="Current song lyrics"
-      className="relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-[#211b27] text-white"
+      className={cn(
+        "relative isolate flex min-h-0 flex-1 flex-col overflow-hidden",
+        embedded ? "text-foreground" : "bg-background text-foreground",
+      )}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,#754853,transparent),radial-gradient(ellipse_at_bottom_right,#4c3c61,transparent)]"
-      >
-        {artwork && (
-          <img
-            src={artwork}
-            alt=""
-            className="size-full scale-125 object-cover opacity-40 blur-3xl"
-          />
-        )}
-        <div className="absolute inset-0 bg-black/25" />
-      </div>
-      <div className="shrink-0 px-6 pb-2 pt-6">
-        <h2 className="truncate text-sm font-semibold">
-          {title || "Current song"}
-        </h2>
-        <p className="mt-1 truncate text-xs text-white/50">
-          {artist || "Unknown artist"}
-        </p>
-      </div>
+      {!embedded && <ArtworkBackdrop artwork={artwork} />}
+      {!embedded && (
+        <div className="shrink-0 px-6 pb-2 pt-6">
+          <h2 className="truncate text-sm font-semibold">
+            {title || "Current song"}
+          </h2>
+          <p className="mt-1 truncate text-xs opacity-50">
+            {artist || "Unknown artist"}
+          </p>
+        </div>
+      )}
       {query.isPending ? (
-        <p role="status" className="p-6 text-sm text-white/60">
+        <p role="status" className="p-6 text-sm opacity-60">
           Loading lyrics…
         </p>
       ) : query.isError ? (
-        <div role="alert" className="p-6 text-sm text-white/60">
+        <div role="alert" className="p-6 text-sm opacity-60">
           Could not load lyrics.{" "}
           <button
             type="button"
@@ -171,17 +180,20 @@ function SidebarLyrics({
           plainText={lyric?.plain[0]}
           position={position}
           onSeek={onSeek}
-          compact
+          compact={!embedded}
+          immersive={embedded}
           className="flex-1"
         />
       )}
-      <button
-        type="button"
-        onClick={() => openTrackInfo([fileId])}
-        className="mx-6 mb-5 mt-auto shrink-0 rounded-full bg-white/10 px-4 py-2 text-xs font-medium text-white/70 hover:bg-white/20"
-      >
-        Edit lyrics in Track Info
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          onClick={() => openTrackInfo([fileId])}
+          className="mx-6 mb-5 mt-auto shrink-0 rounded-full bg-foreground/10 px-4 py-2 text-xs font-medium text-foreground/70 hover:bg-foreground/20"
+        >
+          Edit lyrics in Track Info
+        </button>
+      )}
     </section>
   );
 }

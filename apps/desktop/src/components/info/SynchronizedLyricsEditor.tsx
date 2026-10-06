@@ -30,7 +30,7 @@ import {
 
 type EditorRow = LyricRow & { id: string };
 const smallButton =
-  "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-white disabled:opacity-25";
+  "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-foreground/60 transition-colors hover:bg-foreground/15 hover:text-foreground focus-visible:outline-2 focus-visible:outline-foreground disabled:opacity-25";
 
 export default function SynchronizedLyricsEditor({
   value,
@@ -122,13 +122,13 @@ export default function SynchronizedLyricsEditor({
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
       aria-label="Synchronized lyrics editor"
-      className="relative isolate flex min-h-110 flex-col overflow-hidden rounded-2xl bg-[#211b27] text-white shadow-xl shadow-black/10"
+      className="relative isolate flex min-h-110 flex-col overflow-hidden rounded-2xl bg-background text-foreground shadow-xl shadow-black/10"
     >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,#8c525b_0%,transparent_65%),radial-gradient(ellipse_at_100%_90%,#59456d_0%,transparent_70%)]" />
+        <div className="absolute inset-0 bg-linear-to-br from-muted to-primary/20" />
         {artwork.data && (
           <motion.img
             src={artwork.data}
@@ -142,7 +142,7 @@ export default function SynchronizedLyricsEditor({
             transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
           />
         )}
-        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-background/25" />
       </div>
 
       <header className="flex flex-wrap items-center justify-between gap-3 px-6 pb-2 pt-5">
@@ -163,14 +163,14 @@ export default function SynchronizedLyricsEditor({
               aria-pressed={mode === id}
               onClick={() => setMode(id)}
               className={cn(
-                "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-white",
-                mode === id ? "text-white" : "text-white/50 hover:text-white",
+                "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-foreground",
+                mode === id ? "text-foreground" : "text-foreground/50 hover:text-foreground",
               )}
             >
               {mode === id && (
                 <motion.span
                   layoutId={`lyrics-mode-${fileId}`}
-                  className="absolute inset-0 rounded-full bg-white/15 shadow-sm"
+                  className="absolute inset-0 rounded-full bg-foreground/15 shadow-sm"
                   transition={transition}
                 />
               )}
@@ -208,7 +208,7 @@ export default function SynchronizedLyricsEditor({
               disabled={disabled}
               onChange={(event) => onChange(event.target.value)}
               placeholder="[00:12.500]First line\n[00:17.250]Next line"
-              className="min-h-64 w-full resize-y rounded-xl border border-white/10 bg-black/15 p-4 font-mono text-sm leading-7 text-white/85 outline-none placeholder:text-white/30 focus:border-white/40 disabled:opacity-50"
+              className="min-h-64 w-full resize-y rounded-xl border border-foreground/10 bg-black/15 p-4 font-mono text-sm leading-7 text-foreground/85 outline-none placeholder:text-foreground/30 focus:border-foreground/40 disabled:opacity-50"
             />
           </motion.div>
         ) : mode === "preview" && !parsed.error ? (
@@ -235,7 +235,7 @@ export default function SynchronizedLyricsEditor({
             >
               {!rows.length && (
                 <div className="flex flex-col gap-3 pb-4">
-                  <p className="max-w-xs text-sm leading-relaxed text-white/50">
+                  <p className="max-w-xs text-sm leading-relaxed text-foreground/50">
                     Play your track and add a line as it begins. Already have
                     timed lyrics? Paste them in Raw LRC tab
                   </p>
@@ -275,7 +275,7 @@ export default function SynchronizedLyricsEditor({
                               disabled={disabled}
                               onChange={(time) => update(row.id, { time })}
                             />
-                            <span className="mx-1 h-3 w-px bg-white/15" />
+                            <span className="mx-1 h-3 w-px bg-foreground/15" />
                             <button
                               type="button"
                               className={smallButton}
@@ -346,7 +346,7 @@ export default function SynchronizedLyricsEditor({
                             }
                           }}
                           placeholder="Type a lyric…"
-                          className="block w-full resize-none bg-transparent text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.3] tracking-tight text-white outline-none placeholder:text-white/30"
+                          className="block w-full resize-none bg-transparent text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.3] tracking-tight text-foreground outline-none placeholder:text-foreground/30"
                         />
                       ) : (
                         <motion.button
@@ -401,7 +401,7 @@ export default function SynchronizedLyricsEditor({
                   disabled={disabled}
                   onClick={add}
                   whileTap={reduceMotion ? {} : { scale: 0.96 }}
-                  className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/20 disabled:opacity-40"
+                  className="mt-1 inline-flex items-center gap-2 rounded-full bg-foreground/10 px-4 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/20 disabled:opacity-40"
                 >
                   <Plus size={16} /> Add line at current time
                 </motion.button>
@@ -411,9 +411,9 @@ export default function SynchronizedLyricsEditor({
         )}
       </AnimatePresence>
 
-      <footer className="mx-6 border-t border-white/10 pb-5 pt-4">
+      <footer className="mx-6 border-t border-foreground/10 pb-5 pt-4">
         <div className="flex items-center gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/10 shadow-lg">
+          <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-foreground/10 shadow-lg">
             {artwork.data ? (
               <img
                 src={artwork.data}
@@ -421,12 +421,12 @@ export default function SynchronizedLyricsEditor({
                 className="size-full object-cover"
               />
             ) : (
-              <Music2 size={22} className="text-white/50" />
+              <Music2 size={22} className="text-foreground/50" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{title}</p>
-            <p className="mt-0.5 truncate text-xs text-white/50">
+            <p className="mt-0.5 truncate text-xs text-foreground/50">
               {artist || "Unknown artist"}
             </p>
           </div>
@@ -438,7 +438,7 @@ export default function SynchronizedLyricsEditor({
               playing ? "Pause lyrics preview" : "Play lyrics preview"
             }
             whileTap={reduceMotion ? {} : { scale: 0.88 }}
-            className="flex size-11 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:opacity-30"
+            className="flex size-11 items-center justify-center rounded-full text-foreground transition-colors hover:bg-foreground/10 disabled:opacity-30"
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
@@ -467,16 +467,16 @@ export default function SynchronizedLyricsEditor({
           disabled={!preview.ready || !duration || disabled}
           onChange={(event) => void seek(Number(event.target.value))}
           style={{
-            background: `linear-gradient(to right, rgba(255,255,255,.75) ${duration ? (position / duration) * 100 : 0}%, rgba(255,255,255,.18) ${duration ? (position / duration) * 100 : 0}%)`,
+            background: `linear-gradient(to right, color-mix(in srgb, var(--foreground) 75%, transparent) ${duration ? (position / duration) * 100 : 0}%, color-mix(in srgb, var(--foreground) 18%, transparent) ${duration ? (position / duration) * 100 : 0}%)`,
           }}
-          className="mt-4 block h-1 w-full cursor-pointer appearance-none rounded-full disabled:opacity-30 [&::-webkit-slider-thumb]:size-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:size-2 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+          className="mt-4 block h-1 w-full cursor-pointer appearance-none rounded-full disabled:opacity-30 [&::-webkit-slider-thumb]:size-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground [&::-moz-range-thumb]:size-2 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
         />
-        <div className="mt-2 flex justify-between font-mono text-[10px] tabular-nums text-white/40">
+        <div className="mt-2 flex justify-between font-mono text-[10px] tabular-nums text-foreground/40">
           <span>{formatTimestamp(position)}</span>
           <span>−{formatTimestamp(Math.max(0, duration - position))}</span>
         </div>
         {!preview.ready && !audioError && (
-          <p role="status" className="mt-2 text-xs text-white/50">
+          <p role="status" className="mt-2 text-xs text-foreground/50">
             Loading preview…
           </p>
         )}
@@ -528,7 +528,7 @@ function TimestampInput({
         if (event.key === "Enter") event.currentTarget.blur();
       }}
       className={cn(
-        "w-22 rounded bg-transparent py-1 font-mono text-[11px] tabular-nums text-white/70 outline-none focus:bg-white/10 focus:text-white",
+        "w-22 rounded bg-transparent py-1 font-mono text-[11px] tabular-nums text-foreground/70 outline-none focus:bg-foreground/10 focus:text-foreground",
         invalid && "text-rose-300",
       )}
     />

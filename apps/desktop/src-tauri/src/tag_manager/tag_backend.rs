@@ -38,22 +38,16 @@ impl DefaultBackend {
         self.manager.get_release_class(fmt)
     }
 
-    fn ensure_mp3_header(&self, path: &Path) -> Result<(), BackendError> {
-        let is_mp3 = path
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"));
-        if !is_mp3 {
-            return Ok(());
+    fn has_no_id3_header(path: &Path, format: &Formats) -> bool {
+        use std::io::Read;
+        if *format != Formats::Id3v23 {
+            return false;
         }
-        super::id3::ensure_v23_header(path).map_err(|error| {
-            BackendError::WriteFailed(TagError {
-                path: path.to_string_lossy().to_string(),
-                public_message: "Could not create an ID3 header".to_string(),
-                internal_message: error.to_string(),
-            })
-        })?;
-        Ok(())
+        let mut signature = [0; 3];
+        crate::utils::library_files::open(path)
+            .and_then(|mut file| file.read_exact(&mut signature))
+            .is_ok()
+            && &signature != b"ID3"
     }
 
     pub fn detect_all_formats(&self, path: &Path, primary: &Formats) -> Vec<Formats> {
@@ -71,11 +65,20 @@ impl DefaultBackend {
             .file_name()
             .and_then(|name| name.to_str())
             .ok_or_else(|| "File has no usable name".to_string())?;
-        let temporary_name = format!(".{file_name}.audexis-tmp-{}", std::process::id());
+        if matches!(format, Formats::Id3v22 | Formats::Id3v23 | Formats::Id3v24)
+            && !Self::has_no_id3_header(path, format)
+        {
+            super::id3::v2_common::validate_for_write(path)?;
+        }
+        let temporary_name = format!(".{file_name}.audexis-tmp-{}", uuid::Uuid::new_v4());
         let temporary_path = path.with_file_name(temporary_name);
 
         fs::copy(path, &temporary_path).map_err(|error| error.to_string())?;
         let result = (|| {
+            if Self::has_no_id3_header(path, format) {
+                super::id3::ensure_v23_header(&temporary_path)
+                    .map_err(|error| error.to_string())?;
+            }
             release
                 .write_tags(&temporary_path, updated.clone())
                 .map_err(|error| format!("Codec write failed: {error:?}"))?;
@@ -109,6 +112,22 @@ fn values_preserved(
     let Some(actual) = actual else {
         return false;
     };
+    if *format == Formats::Itunes && matches!(key, FrameKey::TrackNumber | FrameKey::DiscNumber) {
+        let ([TagValue::Text(expected)], [TagValue::Text(actual)]) = (expected, actual.as_slice())
+        else {
+            return false;
+        };
+        return match (
+            super::itunes::utils::parse_number_pair(expected),
+            super::itunes::utils::parse_number_pair(actual),
+        ) {
+            (Some((number, total)), Some((written_number, written_total))) => {
+                number == written_number
+                    && total.is_none_or(|total| total == written_total.unwrap_or(0))
+            }
+            _ => false,
+        };
+    }
     if key == FrameKey::SynchronizedLyrics {
         let parse = |values: &[TagValue]| {
             values
@@ -209,7 +228,6 @@ impl TagBackend for DefaultBackend {
     /// * `Ok(File)` - If the tags were successfully read, returns a `File` struct containing the tag information.
     /// * `Err(BackendError)` - If there was an error reading the tags, returns a `BackendError` with details about the failure.
     fn read(&self, path: &Path) -> Result<MetadataFile, BackendError> {
-        self.ensure_mp3_header(path)?;
         let fmt = self.resolve_format(path);
 
         let release = self.resolve_release(&fmt).ok_or_else(|| {
@@ -219,8 +237,11 @@ impl TagBackend for DefaultBackend {
                 internal_message: "Could not resolve tag format for reading".to_string(),
             })
         })?;
-        let tag_map = release.get_tags(path)?;
-        let freeforms = release.get_freeforms(path)?;
+        let (tag_map, freeforms) = if Self::has_no_id3_header(path, &fmt) {
+            (HashMap::new(), Vec::new())
+        } else {
+            (release.get_tags(path)?, release.get_freeforms(path)?)
+        };
         let tag_formats = self.detect_all_formats(path, &fmt);
         Ok(MetadataFile {
             path: path.to_path_buf(),
@@ -244,10 +265,6 @@ impl TagBackend for DefaultBackend {
         let mut results: Vec<BackendError> = Vec::new();
         for path_str in &changes.paths {
             let path = PathBuf::from(path_str);
-            if let Err(error) = self.ensure_mp3_header(&path) {
-                results.push(error);
-                continue;
-            }
             let fmt = self.resolve_format(&path);
             let Some(release) = self.resolve_release(&fmt) else {
                 results.push(BackendError::WriteFailed(TagError {
@@ -283,7 +300,7 @@ impl TagBackend for DefaultBackend {
                     continue;
                 }
             };
-            let existing_tags = match release.get_tags(&path) {
+            let existing_tags = match self.read(&path).map(|metadata| metadata.tags) {
                 Ok(m) => m,
                 Err(error) => {
                     results.push(BackendError::WriteFailed(TagError {

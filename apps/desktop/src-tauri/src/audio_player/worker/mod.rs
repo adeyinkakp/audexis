@@ -7,7 +7,7 @@ use rubato::Resampler;
 use souvlaki::MediaControls;
 use std::sync::atomic::AtomicI64;
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex,
 };
 use std::time::Duration;
@@ -46,12 +46,20 @@ where
             commands::handle_track_completion(&mut ctx, &mut state);
         }
 
-        while let Ok(cmd) = ctx.cmd_rx.recv_timeout(Duration::from_millis(10)) {
+        while let Ok(cmd) = ctx.cmd_rx.try_recv() {
             commands::handle_command(&mut ctx, &mut state, cmd);
         }
 
-        if state.format.is_none() || state.decoder.is_none() {
-            std::thread::sleep(Duration::from_millis(10));
+        let idle =
+            state.format.is_none() || state.decoder.is_none() || ctx.paused.load(Ordering::Acquire);
+        let blocked = !idle && !decode::flush_pending_audio(&mut ctx.producer, &mut state);
+        if idle || blocked {
+            let timeout = Duration::from_millis(if idle { 10 } else { 2 });
+            match ctx.cmd_rx.recv_timeout(timeout) {
+                Ok(cmd) => commands::handle_command(&mut ctx, &mut state, cmd),
+                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => break,
+                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+            }
             continue;
         }
 
@@ -69,7 +77,7 @@ where
         }
 
         if state.decode_buffer.len() >= required_samples {
-            decode::write_resampled_audio(&mut ctx, &mut state, required_samples);
+            decode::write_resampled_audio(&mut ctx.producer, &mut state, required_samples);
         }
     }
 }

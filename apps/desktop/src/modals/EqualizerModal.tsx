@@ -1,4 +1,4 @@
-import { Power, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Power, RotateCcw } from "lucide-react";
 import { Modal } from "../components/Modal";
 import {
   activeCurve,
@@ -189,10 +189,10 @@ export default function EqualizerModal({
                 )}
               </div>
               <div className="overflow-x-auto pb-2">
-                <div className="relative grid min-w-[440px] grid-cols-10 gap-1">
+                <div className="relative grid min-w-110 grid-cols-10 gap-1">
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-2 top-[92px] border-t border-dashed border-border"
+                    className="pointer-events-none absolute inset-x-2 top-23 border-t border-dashed border-border"
                   />
                   {config.frequencies.map((frequency, index) => (
                     <label
