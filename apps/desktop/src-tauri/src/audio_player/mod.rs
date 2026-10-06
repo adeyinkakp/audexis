@@ -16,3 +16,5 @@ mod play_count;
 mod listening_time;
 
 pub(crate) mod lyrics_preview;
+
+pub mod equalizer;

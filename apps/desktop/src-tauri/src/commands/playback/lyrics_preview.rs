@@ -32,7 +32,14 @@ pub async fn lyrics_preview(
         let mut current = state.0.lock().map_err(|_| "Preview unavailable")?;
         if let Some(path) = path {
             *current = None;
-            let (preview, status) = Preview::open(session_id, path)?;
+            let equalizer = app
+                .state::<AppState>()
+                .audio_player
+                .lock()
+                .map_err(|_| "Audio player unavailable")?
+                .equalizer
+                .clone();
+            let (preview, status) = Preview::open(session_id, path, equalizer)?;
             *current = Some(preview);
             return Ok(status);
         }

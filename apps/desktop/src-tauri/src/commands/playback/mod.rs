@@ -18,3 +18,5 @@ pub mod enqueue_song;
 pub mod update_media_controls;
 
 pub mod lyrics_preview;
+
+pub mod equalizer;

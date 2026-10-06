@@ -9,14 +9,17 @@ import {
   Play,
   Repeat,
   Shuffle,
+  SlidersHorizontal,
   SkipBack,
   SkipForward,
 } from "lucide-react";
 import SeekBar, { formatSeekTime } from "./SeekBar";
 import { cn } from "../utils";
 import type { PlaybackPanelView } from "./PlaybackPanel";
+const EqualizerModal = lazy(() => import("../modals/EqualizerModal"));
 const PlaybackPanel = lazy(() => import("./PlaybackPanel"));
 import MarqueeText from "./MarqueeText";
+import { useEqualizer } from "../hooks/useEqualizer";
 import { useNowPlayingState } from "../hooks/useNowPlayingState";
 import { usePlaybackModes, type RepeatMode } from "../hooks/usePlaybackModes";
 
@@ -54,6 +57,8 @@ function ControlButton({
 }
 
 export default function NowPlaying() {
+  const [equalizerOpen, setEqualizerOpen] = useState(false);
+  const equalizer = useEqualizer();
   const [panel, setPanel] = useState<PlaybackPanelView | null>(null);
   const [showSeekOverlay, setShowSeekOverlay] = useState(false);
   const {
@@ -207,6 +212,13 @@ export default function NowPlaying() {
             </div>
           </ControlButton>
 
+          <ControlButton
+            title="Equalizer"
+            active={equalizer.config?.settings.enabled}
+            onClick={() => setEqualizerOpen(true)}
+          >
+            <SlidersHorizontal size={15} />
+          </ControlButton>
           <ControlButton title="Lyrics" active={panel === "lyrics"}
             onClick={() => setPanel((current) => current === "lyrics" ? null : "lyrics")}>
             <MessageSquareText size={15} />
@@ -221,6 +233,11 @@ export default function NowPlaying() {
           </ControlButton>
         </div>
       </div>
+      {equalizerOpen && (
+        <Suspense fallback={null}>
+          <EqualizerModal open onClose={() => setEqualizerOpen(false)} {...equalizer} />
+        </Suspense>
+      )}
       {panel && (
         <Suspense fallback={null}>
         <PlaybackPanel

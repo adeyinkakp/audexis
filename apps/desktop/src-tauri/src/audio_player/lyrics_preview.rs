@@ -63,11 +63,15 @@ pub struct Preview {
     sender: Sender<Request>,
 }
 impl Preview {
-    pub fn open(session_id: String, path: String) -> Result<(Self, Status), String> {
+    pub fn open(
+        session_id: String,
+        path: String,
+        equalizer: Arc<Mutex<super::equalizer::Settings>>,
+    ) -> Result<(Self, Status), String> {
         let (sender, receiver) = crossbeam_channel::unbounded();
         let (ready_tx, ready_rx) = crossbeam_channel::bounded(1);
         std::thread::spawn(move || {
-            if let Err(error) = run(path, receiver, &ready_tx) {
+            if let Err(error) = run(path, receiver, &ready_tx, equalizer) {
                 let _ = ready_tx.send(Err(error));
             }
         });
@@ -213,6 +217,7 @@ fn run(
     path: String,
     commands: Receiver<Request>,
     ready: &Sender<Result<Status, String>>,
+    equalizer_settings: Arc<Mutex<super::equalizer::Settings>>,
 ) -> Result<(), String> {
     let (mut decoder, duration) = Decoder::open(&path)?;
     let device = cpal::default_host()
@@ -230,6 +235,11 @@ fn run(
     }));
     let callback_output = output.clone();
     let error_output = output.clone();
+    let initial_eq = *equalizer_settings
+        .lock()
+        .map_err(|_| "Equalizer unavailable")?;
+    let mut equalizer = super::equalizer::Equalizer::new(rate, channels, initial_eq);
+    let mut last_start_ms = 0;
     let stream = device
         .build_output_stream(
             config,
@@ -243,6 +253,14 @@ fn run(
                     for sample in &mut data[..frames * channels] {
                         *sample = state.samples.pop_front().unwrap_or(0.0);
                     }
+                    if state.start_ms != last_start_ms || state.frames == 0 {
+                        equalizer.reset();
+                        last_start_ms = state.start_ms;
+                    }
+                    if let Ok(settings) = equalizer_settings.try_lock() {
+                        equalizer.update(*settings);
+                    }
+                    equalizer.process(&mut data[..frames * channels]);
                     state.frames += frames as u64;
                     if state.eof && state.samples.is_empty() {
                         state.playing = false;

@@ -75,6 +75,8 @@ pub fn run() {
             commands::playback::get_artwork::import_artwork,
             commands::playback::get_playback_modes::get_playback_modes,
             commands::playback::get_queue::get_queue,
+            commands::playback::equalizer::get_equalizer,
+            commands::playback::equalizer::set_equalizer,
             commands::playback::pause_playback::pause_playback,
             commands::playback::lyrics_preview::lyrics_preview,
             commands::playback::play::play_song,

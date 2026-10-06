@@ -34,6 +34,7 @@ struct MediaNavigationContext {
 }
 
 pub struct AudioPlayer {
+    pub equalizer: Arc<Mutex<super::equalizer::Settings>>,
     pub queue: Arc<Mutex<Queue>>,
     play_counter: Arc<Mutex<super::play_count::PlayCounter>>,
     stream: Option<Stream>,
@@ -192,6 +193,9 @@ impl AudioPlayer {
             .unwrap();
 
         let player = Arc::new(Mutex::new(Self {
+            equalizer: Arc::new(Mutex::new(crate::commands::playback::equalizer::load(
+                app_handle,
+            ))),
             stream: None,
             play_counter,
             queue,
@@ -249,6 +253,10 @@ impl AudioPlayer {
         let output_sample_rate = target_sample_rate as u64;
         let output_channels = channels as u64;
         let mut progress = FrameProgress::default();
+        let equalizer_settings = Arc::clone(&self.equalizer);
+        let initial_eq = *equalizer_settings.lock().unwrap();
+        let mut equalizer =
+            super::equalizer::Equalizer::new(target_sample_rate, channels as usize, initial_eq);
 
         let stream = device
             .build_output_stream(
@@ -258,12 +266,18 @@ impl AudioPlayer {
                         if flush_output.swap(false, Ordering::AcqRel) {
                             c.clear();
                             progress = FrameProgress::default();
+                            equalizer.reset();
                         }
                         if paused.load(Ordering::Acquire) {
                             data.fill(0.0);
                             return;
                         }
                         let read = c.pop_slice(data);
+                        if let Ok(settings) = equalizer_settings.try_lock() {
+                            equalizer.update(*settings);
+                        }
+
+                        equalizer.process(&mut data[..read]);
                         if output_channels > 0 && output_sample_rate > 0 {
                             let frames = read as u64 / output_channels;
                             let (advance_ms, advance_us) =
