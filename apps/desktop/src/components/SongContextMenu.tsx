@@ -41,6 +41,10 @@ export function useSongMenuItems(
       },
     },
     {
+      text: "Edit Metadata Fields…",
+      action: () => openTrackInfo([fileId], "details"),
+    },
+    {
       text: "Heart",
       checked: favorites.data?.includes(fileId) ?? false,
       disabled: !favorites.data,

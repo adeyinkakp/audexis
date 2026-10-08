@@ -752,6 +752,14 @@ impl TagFormat for V0 {
                     continue;
                 };
                 let kind = u32::from_be_bytes(data.buffer[8..12].try_into().unwrap()) & 0x00ff_ffff;
+                let custom_freeform = key
+                    .strip_prefix("----:")
+                    .and_then(|rest| rest.split_once(':'))
+                    .is_some_and(|parts| !FREEFORM_REVERSE_MAP.contains_key(&parts));
+
+                if custom_freeform && kind != 1 {
+                    continue;
+                }
                 let value = match atom.atom_type.as_str() {
                     "trkn" | "disk" if payload.len() >= 6 => {
                         let number = u16::from_be_bytes([payload[2], payload[3]]);
@@ -813,6 +821,17 @@ impl TagFormat for V0 {
                 updated_keys.insert(code.to_string());
             }
         }
+        if updated_tags.contains_key(&tag_manager::utils::FrameKey::UserDefinedText) {
+            for value in old_vec
+                .get(&tag_manager::utils::FrameKey::UserDefinedText)
+                .into_iter()
+                .flatten()
+            {
+                if let TagValue::UserText(entry) = value {
+                    updated_keys.insert(tag_manager::itunes::utils::custom_key(&entry.description));
+                }
+            }
+        }
         let mut push_key_once = |key: &String| {
             updated_keys.insert(key.clone());
         };
@@ -822,11 +841,7 @@ impl TagFormat for V0 {
                 tag_manager::utils::FrameKey::UserDefinedText => {
                     for v in vals {
                         if let TagValue::UserText(ut) = v {
-                            let key = format!(
-                                "----:{}:{}",
-                                "com.apple.iTunes",
-                                ut.description.replace(" ", "_")
-                            );
+                            let key = tag_manager::itunes::utils::custom_key(&ut.description);
                             updated_entries.push((key.clone(), TagValue::Text(ut.value.clone())));
                             push_key_once(&key);
                         } else if let TagValue::Text(s) = v {

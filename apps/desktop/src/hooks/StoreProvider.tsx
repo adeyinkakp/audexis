@@ -1,13 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import { OnboardingModal } from "../modals/OnboardingModal";
 import { SettingsModal } from "../modals/SettingsModal";
@@ -15,7 +9,12 @@ import { LogsModal } from "../modals/LogsModal";
 import { logError } from "../utils/logger";
 const TrackInfoModal = lazy(() => import("../modals/TrackInfoModal"));
 
-import { StoreContext, defaults, type Preferences } from "./StoreContext";
+import {
+  StoreContext,
+  defaults,
+  type Preferences,
+  type SettingsTab,
+} from "./StoreContext";
 
 const store = new LazyStore("./settings.json");
 type BackendErrorEvent = {
@@ -30,9 +29,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"appearance" | "library">("appearance");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [trackInfoOpen, setTrackInfoOpen] = useState(false);
+  const [trackInfoTab, setTrackInfoTab] = useState<"details" | "custom">(
+    "details",
+  );
   const [trackInfoIds, setTrackInfoIds] = useState<number[]>([]);
+  const [initialCustomField, setInitialCustomField] = useState<{
+    key: string;
+    kind: "text" | "url";
+  }>();
   const [logsOpen, setLogsOpen] = useState(false);
   const currentTheme =
     preferences.theme === "system"
@@ -144,6 +150,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         !needsOnboarding
       ) {
         event.preventDefault();
+        setSettingsTab("appearance");
         setSettingsOpen(true);
       }
     };
@@ -162,7 +169,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await store.save();
     setNeedsOnboarding(false);
   };
-  function openTrackInfo(fileIds: number[]) {
+  function openTrackInfo(
+    fileIds: number[],
+    initialTab: "details" | "custom" = "details",
+  ) {
+    setTrackInfoTab(initialTab);
     setTrackInfoIds(fileIds);
     setTrackInfoOpen(true);
   }
@@ -173,9 +184,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         currentTheme,
         preferences,
         savePreferences,
-        openSettings: () => { setSettingsTab("appearance"); setSettingsOpen(true); },
-        openLibrarySettings: () => { setSettingsTab("library"); setSettingsOpen(true); },
+        openSettings: (tab = "appearance") => {
+          setInitialCustomField(undefined);
+          setSettingsTab(tab);
+          setSettingsOpen(true);
+        },
+        openLibrarySettings: () => {
+          setSettingsTab("library");
+          setSettingsOpen(true);
+        },
         openTrackInfo,
+        openCustomFieldSettings: (initial) => {
+          setInitialCustomField(initial);
+          setSettingsTab("customFields");
+          setSettingsOpen(true);
+        },
         openLogs: () => setLogsOpen(true),
       }}
     >
@@ -184,9 +207,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         {needsOnboarding && (
           <OnboardingModal open onClose={completeOnboarding} />
         )}
+        {trackInfoOpen && (
+          <Suspense fallback={null}>
+            <TrackInfoModal
+              open
+              fileIds={trackInfoIds}
+              initialTab={trackInfoTab}
+              covered={settingsOpen || logsOpen}
+              onClose={() => {
+                setTrackInfoOpen(false);
+                setTrackInfoIds([]);
+              }}
+            />
+          </Suspense>
+        )}
+
         {settingsOpen && (
           <SettingsModal
             initialTab={settingsTab}
+            onTabChange={setSettingsTab}
+            initialCustomField={initialCustomField}
             open
             onClose={() => setSettingsOpen(false)}
             onOpenLogs={() => {
@@ -195,19 +235,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             }}
           />
         )}
-        {trackInfoOpen && (
-          <Suspense fallback={null}>
-          <TrackInfoModal
-            open
-            fileIds={trackInfoIds}
-            onClose={() => {
-              setTrackInfoOpen(false);
-              setTrackInfoIds([]);
-            }}
-          />
-          </Suspense>
-        )}
-
         {logsOpen && <LogsModal open onClose={() => setLogsOpen(false)} />}
       </div>
     </StoreContext.Provider>

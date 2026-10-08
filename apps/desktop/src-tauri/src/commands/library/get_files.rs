@@ -40,8 +40,7 @@ pub async fn get_media_page(
     let metadata = sqlx::query_as::<_, DatabaseMediaMetadata>(
         "SELECT file_id, key, value, ord
          FROM metadata_texts
-         WHERE key IN ('title', 'album', 'artist', 'genre')
-           AND file_id IN (
+         WHERE file_id IN (
                SELECT id FROM files
                WHERE id > ?1 AND missing_since IS NULL
                ORDER BY id

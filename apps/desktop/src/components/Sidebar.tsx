@@ -163,7 +163,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
         <div className="border-t border-border/60 p-3">
           <button
             type="button"
-            onClick={openSettings}
+            onClick={() => openSettings("appearance")}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           >
             <Settings2 size={16} />

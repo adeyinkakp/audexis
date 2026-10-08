@@ -28,6 +28,13 @@ import {
 import { useFileWatcher } from "../../hooks/useFileWatcher";
 import { useNowPlayingState } from "../../hooks/useNowPlayingState";
 import { useStore } from "../../hooks/useStore";
+import { useCustomFieldDefinitions } from "../../hooks/useCustomFieldDefinitions";
+import { customColumnValue } from "../../utils/customFields";
+import { useMetadataFieldCatalog } from "../../hooks/useMetadataFieldCatalog";
+import {
+  discoveredCustomFields,
+  regularValue,
+} from "../../utils/metadataFields";
 import { useSongColumns } from "../../hooks/useSongColumns";
 import { ContextMenuArea } from "../../components/ContextMenu";
 import { SongColumnHeader } from "../../components/songs/SongColumnHeader";
@@ -36,6 +43,7 @@ import {
   displaySongValue,
   type SongRow,
   type SongColumnId,
+  type SongColumn,
 } from "../../components/songs/columns";
 
 export const Route = createFileRoute("/_noneditor/songs")({
@@ -44,9 +52,6 @@ export const Route = createFileRoute("/_noneditor/songs")({
   }),
   component: SongsPage,
 });
-const alphabeticalColumns = [...songColumns].sort((a, b) =>
-  a.label.localeCompare(b.label),
-);
 
 function SongsPage() {
   const { q = "" } = Route.useSearch();
@@ -61,8 +66,45 @@ function SongsPage() {
   } = useFileWatcher(q);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentTrackId, song } = useNowPlayingState();
-  const layout = useSongColumns();
-  const { preferences } = useStore();
+  const savedFields = useCustomFieldDefinitions();
+  const fieldCatalog = useMetadataFieldCatalog();
+  const customFields = useMemo(
+    () =>
+      discoveredCustomFields(
+        fieldCatalog.data?.customKeys ?? [],
+        savedFields.definitions,
+      ),
+    [fieldCatalog.data, savedFields.definitions],
+  );
+  const regularFields = useMemo(
+    () =>
+      (fieldCatalog.data?.fields ?? []).filter(
+        (field) =>
+          !songColumns.some((column) => column.id === field.storageKey),
+      ),
+    [fieldCatalog.data],
+  );
+  const availableColumns = useMemo<SongColumn[]>(
+    () => [
+      ...songColumns,
+      ...regularFields.map((field) => ({
+        id: `frame-${field.key}` as const,
+        label: field.label,
+        width: 180,
+      })),
+      ...customFields.map((field) => ({
+        id: `custom-field-${field.id}` as const,
+        label: field.title,
+        width: 180,
+      })),
+    ],
+    [customFields, regularFields],
+  );
+  const alphabeticalColumns = [...availableColumns].sort((a, b) =>
+    a.label.localeCompare(b.label),
+  );
+  const layout = useSongColumns(availableColumns);
+  const { preferences, openCustomFieldSettings } = useStore();
   const rowHeight =
     preferences.density === "compact"
       ? 34
@@ -88,18 +130,31 @@ function SongsPage() {
         artist: valueFor("artist"),
         album: valueFor("album"),
         genre: valueFor("genre"),
+        ...Object.fromEntries(
+          regularFields.map((field) => [
+            `frame-${field.key}`,
+            regularValue(field.storageKey, metadata),
+          ]),
+        ),
+        ...Object.fromEntries(
+          customFields.map((field) => [
+            `custom-field-${field.id}`,
+            customColumnValue(field, metadata, file.format),
+          ]),
+        ),
       };
     });
-  }, [data]);
+  }, [data, customFields, regularFields]);
   const columns = useMemo(
     () =>
       layout.order.map((id) => ({
-        accessorKey: id,
-        header: songColumns.find((column) => column.id === id)!.label,
+        id,
+        accessorFn: (row: SongRow) => row[id],
+        header: availableColumns.find((column) => column.id === id)!.label,
         cell: ({ getValue }: { getValue: () => unknown }) =>
           displaySongValue(id, getValue()),
       })),
-    [layout.order],
+    [layout.order, availableColumns],
   );
   const table = useTable({
     data: rows,
@@ -136,17 +191,36 @@ function SongsPage() {
   const widths = layout.order.map(
     (id) =>
       layout.widths[id] ??
-      songColumns.find((column) => column.id === id)!.width,
+      availableColumns.find((column) => column.id === id)!.width,
   );
   const gridTemplateColumns = widths.map((width) => `${width}px`).join(" ");
   const tableWidth = widths.reduce((total, width) => total + width, 0);
-  const menuItems = () =>
-    alphabeticalColumns.map((column) => ({
-      text: column.label,
-      checked: layout.order.includes(column.id),
-      disabled: !layout.ready,
-      action: () => layout.toggle(column.id),
-    }));
+  const menuItems = () => {
+    const items = (prefix: string | null) =>
+      alphabeticalColumns
+        .filter((column) =>
+          prefix
+            ? column.id.startsWith(prefix)
+            : !column.id.startsWith("frame-") &&
+              !column.id.startsWith("custom-field-"),
+        )
+        .map((column) => ({
+          text: column.label,
+          checked: layout.order.includes(column.id),
+          disabled: !layout.ready,
+          action: () => layout.toggle(column.id),
+        }));
+    return [
+      ...items(null),
+      { text: "Metadata Fields", submenu: items("frame-") },
+      { text: "Custom Text / URL Fields", submenu: items("custom-field-") },
+      { item: "separator" },
+      {
+        text: "Manage Custom Fields…",
+        action: () => openCustomFieldSettings(),
+      },
+    ];
+  };
 
   return (
     <main

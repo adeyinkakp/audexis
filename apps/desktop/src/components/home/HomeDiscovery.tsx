@@ -92,7 +92,7 @@ export function HomeDiscovery({
           Add a music folder to discover your music here.
         </p>
         <button
-          onClick={openSettings}
+          onClick={() => openSettings("library")}
           className="mt-5 rounded-full bg-primary px-5 py-2.5 text-primary-foreground"
         >
           Add music

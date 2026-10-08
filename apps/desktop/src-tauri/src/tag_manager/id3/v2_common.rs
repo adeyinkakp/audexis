@@ -148,7 +148,7 @@ pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
         {
             return Err("Invalid ID3 frame identifier".into());
         }
-        if header[3] == 2 && !ids.insert(id.to_vec()) {
+        if header[3] == 2 && !ids.insert(id.to_vec()) && id != b"TXX" && id != b"WXX" {
             return Err("Editing duplicate ID3v2.2 frames is not supported safely".into());
         }
         if header_len == 10 && data[pos + 8..pos + 10] != [0, 0] {
@@ -169,4 +169,36 @@ pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
         pos += size;
     }
     Ok(())
+}
+
+pub(crate) fn custom_frames(
+    tags: &std::collections::HashMap<
+        crate::tag_manager::utils::FrameKey,
+        Vec<crate::tag_manager::utils::TagValue>,
+    >,
+    v22: bool,
+) -> Vec<(String, Vec<u8>)> {
+    use crate::tag_manager::utils::{FrameKey, TagValue};
+    let mut frames = Vec::new();
+    for (key, code) in [
+        (FrameKey::UserDefinedText, if v22 { "TXX" } else { "TXXX" }),
+        (FrameKey::UserDefinedURL, if v22 { "WXX" } else { "WXXX" }),
+    ] {
+        for value in tags.get(&key).into_iter().flatten() {
+            let (description, value, url) = match value {
+                TagValue::UserText(entry) => (&entry.description, &entry.value, false),
+                TagValue::UserUrl(entry) => (&entry.description, &entry.url, true),
+                _ => continue,
+            };
+            let mut payload = encode_text_payload(description, true);
+            payload.extend_from_slice(&[0, 0]);
+            if url {
+                payload.extend(value.chars().map(|character| character as u8));
+            } else {
+                payload.extend_from_slice(&encode_text_payload(value, true)[1..]);
+            }
+            frames.push((code.to_string(), payload));
+        }
+    }
+    frames
 }

@@ -157,18 +157,38 @@ impl FileWatcher {
                         .map_err(DatabaseError::Sqlx)?;
                     }
                     _ => {
+                        let (storage_key, storage_value) = match value {
+                            TagValue::UserText(entry) => (
+                                format!("custom:text:{}", entry.description),
+                                entry.value.clone(),
+                            ),
+                            TagValue::UserUrl(entry) => (
+                                format!("custom:url:{}", entry.description),
+                                entry.url.clone(),
+                            ),
+                            TagValue::Comment { text, .. } => (key.to_string(), text.clone()),
+                            _ => (key.to_string(), value.to_string()),
+                        };
                         sqlx::query(
                             "INSERT INTO metadata_texts (file_id, key, value, ord)
                              VALUES (?1, ?2, ?3, ?4)",
                         )
                         .bind(file_id)
-                        .bind(key.to_string())
-                        .bind(value.to_string())
+                        .bind(storage_key)
+                        .bind(storage_value)
                         .bind(ord as i64)
                         .execute(&mut *tx)
                         .await
                         .map_err(DatabaseError::Sqlx)?;
                     }
+                }
+                if matches!(
+                    value,
+                    TagValue::Picture { .. } | TagValue::UserText(_) | TagValue::UserUrl(_)
+                ) {
+                    sqlx::query("INSERT INTO metadata_texts (file_id, key, value, ord) VALUES (?1, ?2, ?3, ?4)")
+                        .bind(file_id).bind(key.to_string()).bind(value.to_string()).bind(ord as i64)
+                        .execute(&mut *tx).await.map_err(DatabaseError::Sqlx)?;
                 }
             }
         }

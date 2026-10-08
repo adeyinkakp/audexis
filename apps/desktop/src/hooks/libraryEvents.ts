@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 const libraryQueries = new Set([
   "fileWatcherMap",
+  "metadataFieldCatalog",
   "searchMedia",
   "libraryCollections",
   "homeDiscovery",
@@ -14,7 +15,8 @@ const libraryQueries = new Set([
 
 function affectedQuery(key: QueryKey, ids: ReadonlySet<number>) {
   if (libraryQueries.has(String(key[0]))) return true;
-  if (key[0] === "libraryArtwork") return ids.has(key[1] as number);
+  if (key[0] === "libraryArtwork" || key[0] === "customFields")
+    return ids.has(key[1] as number);
   if (
     key[0] === "mediaFiles" ||
     key[0] === "artworkDetails" ||

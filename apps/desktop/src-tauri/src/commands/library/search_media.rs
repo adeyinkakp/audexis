@@ -216,7 +216,9 @@ async fn search_media_with_pool(
     files.truncate(50);
     let mut metadata = Vec::new();
     if !files.is_empty() {
-        let mut tags = QueryBuilder::<Sqlite>::new("SELECT file_id, key, value, ord FROM metadata_texts WHERE key IN ('title', 'artist', 'album', 'albumArtist', 'genre') AND file_id IN (");
+        let mut tags = QueryBuilder::<Sqlite>::new(
+            "SELECT file_id, key, value, ord FROM metadata_texts WHERE file_id IN (",
+        );
         let mut separated = tags.separated(",");
         for file in &files {
             separated.push_bind(file.id);

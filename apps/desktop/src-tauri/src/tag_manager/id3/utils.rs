@@ -284,6 +284,8 @@ pub static ID3V23_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v23_code(key), key);
     }
+    map.insert("TXXX", FrameKey::UserDefinedText);
+    map.insert("WXXX", FrameKey::UserDefinedURL);
     map
 });
 
@@ -343,6 +345,8 @@ pub static ID3V22_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v22_code(key), key);
     }
+    map.insert("TXX", FrameKey::UserDefinedText);
+    map.insert("WXX", FrameKey::UserDefinedURL);
     map
 });
 
@@ -402,6 +406,8 @@ pub static ID3V24_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v24_code(key), key);
     }
+    map.insert("TXXX", FrameKey::UserDefinedText);
+    map.insert("WXXX", FrameKey::UserDefinedURL);
     map
 });
 

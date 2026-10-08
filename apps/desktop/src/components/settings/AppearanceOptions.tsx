@@ -110,7 +110,8 @@ export function AppearanceOptions({
         <span>
           <span className="block text-sm font-semibold">Reduce motion</span>
           <span className="mt-1 block text-xs text-muted-foreground">
-            Keep long song titles still in the Now Playing bar.
+            Minimizes or eliminates non-essential animations, screen movements,
+            and transition effects
           </span>
         </span>
         <input

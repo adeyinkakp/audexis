@@ -115,7 +115,10 @@ export default function AppMenuBar() {
           ],
         },
         ...(!isMac
-          ? [separator, { text: "Settings…", action: openSettings }]
+          ? [
+              separator,
+              { text: "Settings…", action: () => openSettings("appearance") },
+            ]
           : []),
       ],
     },

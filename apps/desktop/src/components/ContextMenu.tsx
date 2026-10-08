@@ -22,7 +22,7 @@ export type MenuItem = {
 };
 
 const panelClass =
-  "z-[10000] max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-48 max-w-xs overflow-auto rounded-md border border-border bg-popover p-1 text-xs text-foreground shadow-lg";
+  "z-9999999 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-48 max-w-xs overflow-auto rounded-md border border-border bg-popover p-1 text-xs text-foreground shadow-lg";
 const itemClass =
   "relative flex cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-muted data-[state=open]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-40";
 
@@ -142,7 +142,7 @@ export function MenuEntries({
                 <DropdownMenu.SubContent
                   className={cn(
                     panelClass,
-                    elevated && "z-13001",
+                    elevated && "z-13003",
                     compact && "min-w-40 text-[13px] leading-4",
                   )}
                   sideOffset={2}

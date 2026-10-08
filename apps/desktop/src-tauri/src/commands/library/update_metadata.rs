@@ -85,10 +85,27 @@ pub async fn update_metadata(
                     }
                 }
             }
+            if crate::tag_manager::field_catalog::is_text(*key) {
+                for value in values {
+                    if let SerializableTagValue::Text(text) = value {
+                        if text.contains('\0') {
+                            return Err("Metadata values cannot contain NUL characters".into());
+                        }
+                        if matches!(key.get_kind(), crate::tag_manager::utils::FrameKeyKind::URL)
+                            && !text.is_ascii()
+                        {
+                            return Err("Needs to be asciii".into());
+                        }
+                    }
+                }
+            }
             let valid = if *key == FrameKey::AttachedPicture {
                 values
                     .iter()
                     .all(|value| matches!(value, SerializableTagValue::Picture { .. }))
+            } else if matches!(key, FrameKey::UserDefinedText | FrameKey::UserDefinedURL) {
+                crate::tag_manager::custom_fields::validate(*key, values)?;
+                true
             } else {
                 values
                     .iter()

@@ -1047,14 +1047,18 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
                     result.entry(fk).or_default().push(v.clone());
                     continue;
                 }
-                if mean == "com.apple.iTunes" {
+                {
                     use FrameKey::UserDefinedText;
                     if let TagValue::Text(s) = v {
                         result
                             .entry(UserDefinedText)
                             .or_default()
                             .push(TagValue::UserText(tag_manager::utils::UserTextEntry {
-                                description: name.to_string(),
+                                description: if mean == "com.apple.iTunes" {
+                                    name.to_string()
+                                } else {
+                                    k.clone()
+                                },
                                 value: s.clone(),
                             }));
                     }
@@ -1073,4 +1077,12 @@ pub(crate) fn parse_number_pair(text: &str) -> Option<(u16, Option<u16>)> {
         None => (text, None),
     };
     Some((number.trim().parse::<u16>().ok()?, total))
+}
+
+pub(crate) fn custom_key(name: &str) -> String {
+    if name.starts_with("----:") {
+        name.to_string()
+    } else {
+        format!("----:com.apple.iTunes:{name}")
+    }
 }

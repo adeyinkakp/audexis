@@ -11,3 +11,5 @@ pub mod set_library_roots;
 pub mod update_metadata;
 
 pub mod lyrics;
+
+pub mod custom_fields;

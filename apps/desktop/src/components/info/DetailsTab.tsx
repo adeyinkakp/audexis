@@ -9,10 +9,17 @@ import {
   type StoredArtwork,
 } from "../../utils/saveMetadata";
 import type { DownloadedArtwork } from "../../utils/itunesClient";
+import { useDetailsFields } from "../../hooks/useDetailsFields";
+import { useMetadataFieldCatalog } from "../../hooks/useMetadataFieldCatalog";
+import {
+  sharedMetadataValues as getSharedValue,
+  textValuesChange,
+} from "../../utils/metadataFields";
+import { useStore } from "../../hooks/useStore";
 import ItunesLookup from "./ItunesLookup";
 import { metadataFromItunes } from "../../utils/itunesMetadata";
 
-const metadataFields = [
+const defaultMetadataFields = [
   { key: "title", label: "Title" },
   { key: "artist", label: "Artist" },
   { key: "album", label: "Album" },
@@ -25,8 +32,14 @@ const metadataFields = [
   { key: "comments", label: "Comments" },
 ] as const;
 
-type MetadataKey = (typeof metadataFields)[number]["key"];
-type Draft = Record<MetadataKey, string>;
+type MetadataKey = string;
+type DetailField = {
+  key: string;
+  storageKey: string;
+  label: string;
+  multiValue: boolean;
+};
+type Draft = Record<MetadataKey, string[]>;
 type TagChange =
   | { operation: "replace"; values: { type: "Text"; value: string }[] }
   | { operation: "delete" };
@@ -43,26 +56,12 @@ const multiValueKeys = new Set<MetadataKey>([
   "comments",
 ]);
 
-function getSharedValue(files: FilesResponse, key: string) {
-  const values = files.files.map((file) =>
-    files.metadata
-      .filter((item) => item.file_id === file.id && item.key === key)
-      .sort((a, b) => a.ord - b.ord)
-      .map((item) => item.value.trim())
-      .filter(Boolean)
-      .join("; "),
-  );
-
-  const first = values[0] ?? "";
-  return {
-    value: values.every((value) => value === first) ? first : "",
-    mixed: values.some((value) => value !== first),
-  };
-}
-
-function makeDraft(files: FilesResponse): Draft {
+function makeDraft(files: FilesResponse, metadataFields: DetailField[]): Draft {
   return Object.fromEntries(
-    metadataFields.map(({ key }) => [key, getSharedValue(files, key).value]),
+    metadataFields.map(({ key, storageKey }) => [
+      key,
+      getSharedValue(files, storageKey).value,
+    ]),
   ) as Draft;
 }
 
@@ -83,15 +82,36 @@ export default function DetailsTab({
 
 function DetailsForm({ files }: { files: FilesResponse }) {
   const queryClient = useQueryClient();
-  const initialDraft = useMemo(() => makeDraft(files), [files]);
+  const { openSettings } = useStore();
+  const selected = useDetailsFields();
+  const catalog = useMetadataFieldCatalog();
+  const metadataFields = useMemo<DetailField[]>(() => {
+    const fields =
+      catalog.data?.fields ??
+      defaultMetadataFields.map((field) => ({
+        ...field,
+        key: field.key === "discnumber" ? "discNumber" : field.key,
+        storageKey: field.key,
+        multiValue: multiValueKeys.has(field.key),
+        editable: true,
+      }));
+    return selected.fields.flatMap((key) => {
+      const field = fields.find((field) => field.key === key && field.editable);
+      return field ? [field] : [];
+    });
+  }, [catalog.data, selected.fields]);
+  const initialDraft = useMemo(
+    () => makeDraft(files, metadataFields),
+    [files, metadataFields],
+  );
   const mixedKeys = useMemo(
     () =>
       new Set(
         metadataFields
-          .filter(({ key }) => getSharedValue(files, key).mixed)
+          .filter(({ storageKey }) => getSharedValue(files, storageKey).mixed)
           .map(({ key }) => key),
       ),
-    [files],
+    [files, metadataFields],
   );
   const [importing, setImporting] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
@@ -108,7 +128,7 @@ function DetailsForm({ files }: { files: FilesResponse }) {
       changes,
       image,
     }: {
-      changes: Partial<Record<MetadataKey, TagChange>>;
+      changes: Record<MetadataKey, TagChange>;
       image?: DownloadedArtwork;
     }) =>
       saveMetadataWithCover(
@@ -123,6 +143,8 @@ function DetailsForm({ files }: { files: FilesResponse }) {
       if (result.updatedFileIds.length) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["mediaFiles"] }),
+          queryClient.invalidateQueries({ queryKey: ["customFields"] }),
+          queryClient.invalidateQueries({ queryKey: ["metadataFieldCatalog"] }),
           ...(image
             ? [
                 queryClient.invalidateQueries({ queryKey: ["artworkDetails"] }),
@@ -147,8 +169,8 @@ function DetailsForm({ files }: { files: FilesResponse }) {
           const change = changes[key]!;
           next[key] =
             change.operation === "delete"
-              ? ""
-              : change.values.map((item) => item.value).join("; ");
+              ? []
+              : change.values.map((item) => item.value);
         }
         return next;
       });
@@ -164,11 +186,16 @@ function DetailsForm({ files }: { files: FilesResponse }) {
       toast.error(`Could not update metadata: ${String(error)}`),
   });
 
-  const updateField = (key: MetadataKey, value: string) => {
+  const updateField = (key: MetadataKey, value: string[]) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setDirtyKeys((current) => {
       const next = new Set(current);
-      if (!mixedKeys.has(key) && value === initialDraft[key]) next.delete(key);
+      if (
+        !mixedKeys.has(key) &&
+        JSON.stringify(value.filter((item) => item !== "")) ===
+          JSON.stringify(initialDraft[key] ?? [])
+      )
+        next.delete(key);
       else next.add(key);
       return next;
     });
@@ -180,18 +207,9 @@ function DetailsForm({ files }: { files: FilesResponse }) {
   };
 
   const save = () => {
-    const changes: Partial<Record<MetadataKey, TagChange>> = {};
+    const changes: Record<MetadataKey, TagChange> = {};
     for (const key of dirtyKeys) {
-      const value = draft[key].trim();
-      if (!value) {
-        changes[key] = { operation: "delete" };
-        continue;
-      }
-      const values = (multiValueKeys.has(key) ? value.split(";") : [value])
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .map((part) => ({ type: "Text" as const, value: part }));
-      changes[key] = { operation: "replace", values };
+      changes[key] = textValuesChange(draft[key] ?? []);
     }
     mutation.mutate({ changes });
   };
@@ -199,16 +217,27 @@ function DetailsForm({ files }: { files: FilesResponse }) {
   return (
     <div className="flex min-h-full flex-col">
       <div className="px-6 pt-5">
+        <button
+          type="button"
+          onClick={() => openSettings("metadata")}
+          className="mb-3 rounded-lg border border-border px-3 py-2 text-sm"
+        >
+          Choose Details fields…
+        </button>
         {lookupOpen ? (
           <ItunesLookup
-            title={draft.title}
-            artist={draft.artist}
+            title={
+              (draft.title ?? getSharedValue(files, "title").value)[0] ?? ""
+            }
+            artist={
+              (draft.artist ?? getSharedValue(files, "artist").value)[0] ?? ""
+            }
             disabled={mutation.isPending || importing}
             onClose={() => setLookupOpen(false)}
             onBusyChange={setImporting}
             onMetadata={async (match, image) => {
               const imported = metadataFromItunes(match);
-              const changes: Partial<Record<MetadataKey, TagChange>> = {};
+              const changes: Record<MetadataKey, TagChange> = {};
               for (const [key, value] of Object.entries(imported)) {
                 changes[key as MetadataKey] = {
                   operation: "replace",
@@ -232,22 +261,66 @@ function DetailsForm({ files }: { files: FilesResponse }) {
         )}
       </div>
       <div className="grid grid-cols-1 gap-x-5 gap-y-4 p-6 md:grid-cols-2">
-        {metadataFields.map(({ key, label }) => {
-          const field = getSharedValue(files, key);
+        {metadataFields.map(({ key, storageKey, label, multiValue }) => {
+          const field = getSharedValue(files, storageKey);
+          const values = draft[key] ?? initialDraft[key] ?? [];
+          const inputs = values.length ? values : [""];
           return (
-            <label key={key} className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
+            <fieldset
+              key={key}
+              disabled={mutation.isPending || importing}
+              className="flex min-w-0 flex-col gap-1.5"
+            >
+              <legend className="mb-1.5 text-xs font-medium text-muted-foreground">
                 {label}
-              </span>
-              <input
-                disabled={mutation.isPending || importing}
-                aria-label={label}
-                value={draft[key]}
-                placeholder={field.mixed ? "Mixed" : "Not set"}
-                onChange={(event) => updateField(key, event.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
-              />
-            </label>
+              </legend>
+              {inputs.map((value, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    aria-label={
+                      index === 0 ? label : `${label} value ${index + 1}`
+                    }
+                    value={value}
+                    placeholder={field.mixed ? "Mixed" : "Not set"}
+                    onChange={(event) => {
+                      const next = [...inputs];
+                      next[index] = event.target.value;
+                      updateField(key, next);
+                    }}
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+                  />
+                  {(multiValue || inputs.length > 1) && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${label} value ${index + 1}`}
+                      onClick={() =>
+                        updateField(
+                          key,
+                          inputs.filter((_, i) => i !== index),
+                        )
+                      }
+                      className="rounded-lg border border-border px-2 py-2 text-xs"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              {multiValue && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      [key]: [...inputs, ""],
+                    }))
+                  }
+                  className="self-start rounded-lg border border-border px-3 py-1.5 text-xs"
+                >
+                  Add value
+                </button>
+              )}
+            </fieldset>
           );
         })}
 

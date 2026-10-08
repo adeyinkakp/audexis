@@ -37,7 +37,9 @@ pub async fn get_media_files(
         .fetch_all(&mut *tx)
         .await
         .map_err(|error| error.to_string())?;
-    let mut metadata = QueryBuilder::<Sqlite>::new("SELECT file_id, key, value, ord FROM metadata_texts WHERE key IN ('title', 'album', 'artist', 'albumArtist', 'genre', 'year', 'trackNumber', 'discnumber', 'composer', 'comments') AND file_id IN (");
+    let mut metadata = QueryBuilder::<Sqlite>::new(
+        "SELECT file_id, key, value, ord FROM metadata_texts WHERE file_id IN (",
+    );
     metadata.push_bind(ids[0]);
     for id in &ids[1..] {
         metadata.push(",").push_bind(id);

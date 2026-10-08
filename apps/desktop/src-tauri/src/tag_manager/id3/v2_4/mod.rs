@@ -105,7 +105,8 @@ impl TagFormat for V2_4 {
                     let rest = &content[1..];
                     let (desc_bytes, value_bytes) = split_encoded_text(encoding, rest);
                     let description = decode_text_payload(encoding, desc_bytes);
-                    let value = decode_text_payload(encoding, value_bytes);
+                    let value =
+                        decode_text_payload(if id == "WXXX" { 0 } else { encoding }, value_bytes);
                     let entry = if id == "TXXX" {
                         TagValue::UserText(UserTextEntry { description, value })
                     } else {
@@ -116,7 +117,11 @@ impl TagFormat for V2_4 {
                     };
                     raw.entry(id).or_default().push(entry);
                 }
-            } else if id.starts_with('T') || id.starts_with('W') {
+            } else if id.starts_with('W') {
+                raw.entry(id)
+                    .or_default()
+                    .push(TagValue::Text(decode_text_payload(0, content)));
+            } else if id.starts_with('T') {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let text = decode_text_payload(encoding, &content[1..]);
@@ -239,7 +244,8 @@ impl TagFormat for V2_4 {
 
         let mut flattened: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vals) in non_picture.into_iter() {
-            if vals.is_empty() {
+            if vals.is_empty() || matches!(k, FrameKey::UserDefinedText | FrameKey::UserDefinedURL)
+            {
                 continue;
             }
             if matches!(vals[0], TagValue::Text(_)) && vals.len() > 1 {
@@ -294,7 +300,11 @@ impl TagFormat for V2_4 {
                             payload.extend_from_slice(val.as_bytes());
                             raw_frames.push((k.to_string(), payload));
                         } else {
-                            let encoded = encode_text_payload(&t, false);
+                            let encoded = if k.starts_with('W') {
+                                t.as_bytes().to_vec()
+                            } else {
+                                encode_text_payload(&t, false)
+                            };
                             raw_frames.push((k.to_string(), encoded));
                         }
                     }
@@ -378,6 +388,7 @@ impl TagFormat for V2_4 {
                 }
             }
         }
+        raw_frames.extend(super::v2_common::custom_frames(&updated, false));
         let frames_vec = raw_frames
             .iter()
             .map(|(id, content)| build_frame_v24(id, content))

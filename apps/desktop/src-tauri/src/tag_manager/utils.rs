@@ -110,6 +110,7 @@ pub enum FrameKey {
     Length,
     Conductor,
     AttachedPicture,
+    #[serde(rename = "userDefinedUrl", alias = "userDefinedURL")]
     UserDefinedURL,
     Comments,
     Private,

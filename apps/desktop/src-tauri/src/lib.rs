@@ -68,6 +68,8 @@ pub fn run() {
             commands::library::set_library_roots::set_library_roots,
             commands::library::update_metadata::update_metadata,
             commands::library::lyrics::get_lyrics,
+            commands::library::custom_fields::get_custom_fields,
+            commands::library::custom_fields::get_metadata_field_catalog,
             commands::logs::get_logs,
             commands::playback::enqueue_song::enqueue_song,
             commands::playback::get_artwork::get_artwork,
@@ -163,7 +165,7 @@ fn initialize(app: &mut tauri::App) -> Result<(), startup::StartupError> {
     .map_err(|error| {
         StartupError::new("Audexis could not initialize system media controls.", error)
     })?;
-    let db_path = app_path.join("audexis_testing1234.db");
+    let db_path = app_path.join("audexis_testomg124r3.db");
     let db = async_runtime::block_on(Database::init(&db_path)).map_err(|error| {
         StartupError::new("Audexis could not open its library database.", error)
     })?;

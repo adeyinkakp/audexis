@@ -141,3 +141,8 @@ pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<
     }
     formats
 }
+
+pub mod custom_fields;
+
+pub mod field_catalog;
+pub mod portable_fields;

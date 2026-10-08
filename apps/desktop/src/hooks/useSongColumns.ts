@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "./useStore";
 import {
   defaultColumnOrder,
@@ -6,6 +6,7 @@ import {
   MIN_COLUMN_WIDTH,
   songColumns,
   type SongColumnId,
+  type SongColumn,
 } from "../components/songs/columns";
 import toast from "react-hot-toast";
 
@@ -19,18 +20,32 @@ const defaults = (): Preferences => ({
   order: [...defaultColumnOrder],
   widths: {},
 });
-function normalize(value: unknown): Preferences {
+export function normalizeSongColumnPreferences(value: unknown): Preferences {
   if (!value || typeof value !== "object") return defaults();
   const raw = value as Partial<Preferences>;
   const valid = new Set<string>(songColumns.map((column) => column.id));
   const order = Array.isArray(raw.order)
-    ? [...new Set(raw.order.filter((id) => valid.has(id)))]
+    ? [
+        ...new Set(
+          raw.order.filter(
+            (id) =>
+              valid.has(id) ||
+              (typeof id === "string" &&
+                (id.startsWith("custom-field-") || id.startsWith("frame-"))),
+          ),
+        ),
+      ]
     : [...defaultColumnOrder];
   const widths: Preferences["widths"] = {};
-  for (const column of songColumns) {
-    const width = raw.widths?.[column.id];
+  for (const id of Object.keys(raw.widths ?? {}) as SongColumnId[]) {
+    if (
+      !valid.has(id) &&
+      !(id.startsWith("custom-field-") || id.startsWith("frame-"))
+    )
+      continue;
+    const width = raw.widths?.[id];
     if (typeof width === "number" && Number.isFinite(width))
-      widths[column.id] = Math.max(
+      widths[id] = Math.max(
         MIN_COLUMN_WIDTH,
         Math.min(MAX_COLUMN_WIDTH, width),
       );
@@ -38,7 +53,7 @@ function normalize(value: unknown): Preferences {
   return { order, widths };
 }
 
-export function useSongColumns() {
+export function useSongColumns(columns: readonly SongColumn[] = songColumns) {
   const { store } = useStore();
   const [preferences, setPreferences] = useState(defaults);
   const [ready, setReady] = useState(false);
@@ -49,7 +64,7 @@ export function useSongColumns() {
       .then(() => store.get<unknown>(KEY))
       .then((saved) => {
         if (disposed) return;
-        current.current = normalize(saved);
+        current.current = normalizeSongColumnPreferences(saved);
         setPreferences(current.current);
         setReady(true);
       })
@@ -81,8 +96,16 @@ export function useSongColumns() {
     setPreferences(next);
     if (save) persist();
   };
+  const order = useMemo(
+    () =>
+      preferences.order.filter((id) =>
+        columns.some((column) => column.id === id),
+      ),
+    [preferences.order, columns],
+  );
   return {
     ...preferences,
+    order,
     ready,
     persist,
     toggle: (id: SongColumnId) =>

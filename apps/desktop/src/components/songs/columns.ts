@@ -6,6 +6,8 @@ export type SongRow = DatabaseMediaFile & {
   artist: string;
   album: string;
   genre: string;
+  [key: `custom-field-${string}`]: string;
+  [key: `frame-${string}`]: string;
 };
 export const songColumns = [
   { id: "title", label: "Title", width: 240 },
@@ -19,7 +21,11 @@ export const songColumns = [
   { id: "size", label: "Size", width: 110 },
   { id: "modified_at", label: "Date modified", width: 180 },
 ] as const;
-export type SongColumnId = (typeof songColumns)[number]["id"];
+export type SongColumnId =
+  | (typeof songColumns)[number]["id"]
+  | `custom-field-${string}`
+  | `frame-${string}`;
+export type SongColumn = { id: SongColumnId; label: string; width: number };
 export const defaultColumnOrder: SongColumnId[] = [
   "duration_ms",
   "format",

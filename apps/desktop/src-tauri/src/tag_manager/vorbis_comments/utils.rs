@@ -30,6 +30,8 @@ pub fn vorbis_code(key: FrameKey) -> &'static str {
         FrameKey::Conductor => "CONDUCTOR",
         FrameKey::BeatsPerMinute => "BPM",
         FrameKey::Language => "LANGUAGE",
+        FrameKey::Label => "LABEL",
+        FrameKey::Isrc => "ISRC",
         FrameKey::UserDefinedURL => "URL",
 
         _ => "",
@@ -68,6 +70,7 @@ pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     for (k, v) in mappings {
         map.insert(k, v);
     }
+    map.insert("LANGUAGE", FrameKey::Language);
     map
 });
 
@@ -91,6 +94,16 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
             });
 
         let Some(frame_key) = key_opt else {
+            let entries = result.entry(FrameKey::UserDefinedText).or_default();
+            entries.extend(values.iter().filter_map(|value| match value {
+                TagValue::Text(value) => Some(TagValue::UserText(
+                    crate::tag_manager::utils::UserTextEntry {
+                        description: norm.clone(),
+                        value: value.clone(),
+                    },
+                )),
+                _ => None,
+            }));
             continue;
         };
 
@@ -267,7 +280,12 @@ pub fn build_comments(tags: &HashMap<FrameKey, Vec<TagValue>>, needs_picture: bo
     for (key, values) in tags.iter() {
         let vorbis_key = vorbis_code(*key);
         for value in values.iter() {
-            if let TagValue::Text(text) = value {
+            if let TagValue::UserText(entry) = value {
+                let comment = format!("{}={}", entry.description, entry.value).into_bytes();
+                let mut bytes = (comment.len() as u32).to_le_bytes().to_vec();
+                bytes.extend(comment);
+                comment_list.push(bytes);
+            } else if let TagValue::Text(text) = value {
                 let comment_str = format!("{}={}", vorbis_key, text);
                 let comment_bytes = comment_str.as_bytes();
                 let comment_length = comment_bytes.len() as u32;
@@ -420,7 +438,10 @@ pub fn update_comments(
     changes: &HashMap<FrameKey, Vec<TagValue>>,
     needs_picture: bool,
 ) -> Result<Vec<u8>, Error> {
-    if changes.keys().any(|key| vorbis_code(*key).is_empty()) {
+    if changes
+        .keys()
+        .any(|key| *key != FrameKey::UserDefinedText && vorbis_code(*key).is_empty())
+    {
         return Err(Error::new(
             std::io::ErrorKind::InvalidInput,
             "Unsupported Vorbis metadata field",

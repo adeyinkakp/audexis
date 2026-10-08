@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   FileWarning,
   Folder,
@@ -11,22 +10,30 @@ import { Modal } from "../components/Modal";
 import { AppearanceOptions } from "../components/settings/AppearanceOptions";
 import { LibraryFolders } from "../components/settings/LibraryFolders";
 import { useSettingsDraft } from "../hooks/useSettingsDraft";
+import { MetadataFields } from "../components/settings/MetadataFields";
+import type { SettingsTab } from "../hooks/StoreContext";
+import {
+  CustomFieldSettings,
+  type NewFieldDefinition,
+} from "./CustomFieldDefinitionsModal";
 import { cn } from "../utils";
 export function SettingsModal({
   open,
   onClose,
   onOpenLogs,
   initialTab = "appearance",
+  initialCustomField,
+  onTabChange,
 }: {
-  initialTab?: "appearance" | "library";
+  initialTab?: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
+  initialCustomField?: NewFieldDefinition;
   open: boolean;
   onClose: () => void;
   onOpenLogs: () => void;
 }) {
-  const [tab, setTab] = useState<"appearance" | "library" | "logs">(
-    initialTab,
-  );
-  useEffect(() => setTab(initialTab), [initialTab]);
+  const tab = initialTab;
+  const setTab = onTabChange;
   const draft = useSettingsDraft();
   const close = () => {
     if (!draft.busy) onClose();
@@ -66,6 +73,8 @@ export function SettingsModal({
             [
               { id: "appearance", label: "Appearance", Icon: Palette },
               { id: "library", label: "Library", Icon: Folder },
+              { id: "metadata", label: "Metadata", Icon: Settings2 },
+              { id: "customFields", label: "Custom Fields", Icon: Settings2 },
               { id: "logs", label: "Logs", Icon: FileWarning },
             ] as const
           ).map(({ id, label, Icon }) => (
@@ -92,20 +101,40 @@ export function SettingsModal({
               ? "Make yourself at home"
               : tab === "library"
                 ? "Your music"
-                : "Logs n shi"}
+                : tab === "metadata"
+                  ? "Details fields"
+                  : tab === "customFields"
+                    ? "Saved custom fields"
+                    : "Logs n shi"}
           </h2>
           <p className="mb-6 mt-2 text-sm text-muted-foreground">
             {tab === "appearance"
               ? "Change how Audexis looks."
               : tab === "library"
                 ? "Manage the folders Audexis watches for music."
-                : "Review backend errors and logs."}
+                : tab === "metadata"
+                  ? "Choose which metadata fields you edit."
+                  : tab === "customFields"
+                    ? "Manage saved field names and column titles."
+                    : "Review backend errors and logs."}
           </p>
           <fieldset
-            disabled={tab !== "logs" && (draft.busy || !draft.loaded)}
+            disabled={
+              tab !== "customFields" &&
+              tab !== "logs" &&
+              tab !== "metadata" &&
+              (draft.busy || !draft.loaded)
+            }
             className="min-w-0 disabled:opacity-60"
           >
-            {tab === "appearance" ? (
+            {tab === "customFields" ? (
+              <CustomFieldSettings
+                initial={initialCustomField}
+                onClose={close}
+              />
+            ) : tab === "metadata" ? (
+              <MetadataFields />
+            ) : tab === "appearance" ? (
               <AppearanceOptions
                 value={draft.appearance}
                 onChange={draft.setAppearance}
@@ -173,50 +202,61 @@ export function SettingsModal({
               </div>
             )}
           </fieldset>
-          {tab !== "logs" && !draft.loaded && !draft.error && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Loading preferences…
-            </p>
-          )}
-          {tab !== "logs" && draft.error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
-            >
-              {draft.error}
-            </p>
-          )}
+          {tab !== "customFields" &&
+            tab !== "logs" &&
+            tab !== "metadata" &&
+            !draft.loaded &&
+            !draft.error && (
+              <p className="mt-4 text-xs text-muted-foreground">
+                Loading preferences…
+              </p>
+            )}
+          {tab !== "customFields" &&
+            tab !== "logs" &&
+            tab !== "metadata" &&
+            draft.error && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                {draft.error}
+              </p>
+            )}
         </section>
       </div>
-      <div className="flex items-center justify-between gap-4 border-t border-border px-7 py-5">
-        <p className="text-xs text-muted-foreground">
-          {tab === "logs"
-            ? "Logs are saved automatically."
-            : draft.busy
-              ? "Updating your preferences…"
-              : "Changes apply when you save."}
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={draft.busy}
-            onClick={close}
-            className="rounded-full px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-          >
-            {tab === "logs" ? "Close" : "Cancel"}
-          </button>
-          {tab !== "logs" && (
+      {tab !== "customFields" && (
+        <div className="flex items-center justify-between gap-4 border-t border-border px-7 py-5">
+          <p className="text-xs text-muted-foreground">
+            {tab === "metadata"
+              ? "Field selections are saved automatically."
+              : tab === "logs"
+                ? "Logs are saved automatically."
+                : draft.busy
+                  ? "Updating your preferences…"
+                  : "Changes apply when you save."}
+          </p>
+          <div className="flex gap-3">
             <button
               type="button"
-              disabled={draft.busy || !draft.loaded}
-              onClick={() => void draft.save(onClose)}
-              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              disabled={draft.busy}
+              onClick={close}
+              className="rounded-full px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              {draft.busy ? "Saving…" : "Save changes"}
+              {tab === "logs" || tab === "metadata" ? "Close" : "Cancel"}
             </button>
-          )}
+            {tab !== "logs" && tab !== "metadata" && (
+              <button
+                type="button"
+                disabled={draft.busy || !draft.loaded}
+                onClick={() => void draft.save(onClose)}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {draft.busy ? "Saving…" : "Save changes"}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </Modal>
   );
 }

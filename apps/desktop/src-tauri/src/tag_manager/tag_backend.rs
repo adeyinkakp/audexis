@@ -79,6 +79,10 @@ impl DefaultBackend {
                 super::id3::ensure_v23_header(&temporary_path)
                     .map_err(|error| error.to_string())?;
             }
+            let existing = release
+                .get_tags(&temporary_path)
+                .map_err(|error| format!("Could not read existing fields: {error:?}"))?;
+            let updated = super::portable_fields::prepare_changes(format, &updated, &existing)?;
             release
                 .write_tags(&temporary_path, updated.clone())
                 .map_err(|error| format!("Codec write failed: {error:?}"))?;
@@ -127,6 +131,29 @@ fn values_preserved(
             }
             _ => false,
         };
+    }
+    if key == FrameKey::UserDefinedText
+        && matches!(format, Formats::Flac | Formats::Ogg | Formats::Itunes)
+    {
+        let normalized = |values: &[TagValue]| {
+            let mut entries = values
+                .iter()
+                .map(|value| match value {
+                    TagValue::UserText(entry) => (
+                        if matches!(format, Formats::Flac | Formats::Ogg) {
+                            entry.description.to_ascii_uppercase()
+                        } else {
+                            super::itunes::utils::custom_key(&entry.description)
+                        },
+                        entry.value.clone(),
+                    ),
+                    _ => (String::new(), value.to_string()),
+                })
+                .collect::<Vec<_>>();
+            entries.sort();
+            entries
+        };
+        return normalized(expected) == normalized(actual);
     }
     if key == FrameKey::SynchronizedLyrics {
         let parse = |values: &[TagValue]| {
@@ -237,11 +264,12 @@ impl TagBackend for DefaultBackend {
                 internal_message: "Could not resolve tag format for reading".to_string(),
             })
         })?;
-        let (tag_map, freeforms) = if Self::has_no_id3_header(path, &fmt) {
+        let (mut tag_map, freeforms) = if Self::has_no_id3_header(path, &fmt) {
             (HashMap::new(), Vec::new())
         } else {
             (release.get_tags(path)?, release.get_freeforms(path)?)
         };
+        super::portable_fields::expose_regular_fields(&fmt, &mut tag_map);
         let tag_formats = self.detect_all_formats(path, &fmt);
         Ok(MetadataFile {
             path: path.to_path_buf(),
@@ -266,6 +294,30 @@ impl TagBackend for DefaultBackend {
         for path_str in &changes.paths {
             let path = PathBuf::from(path_str);
             let fmt = self.resolve_format(&path);
+            if changes
+                .tags
+                .keys()
+                .any(|key| matches!(key, FrameKey::UserDefinedText | FrameKey::UserDefinedURL))
+            {
+                let validation = if !super::custom_fields::supported(&fmt) {
+                    Err("This metadata format does not support custom fields".to_string())
+                } else {
+                    changes.tags.iter().try_for_each(|(key, change)| {
+                        if let TagChange::Replace(values) = change {
+                            super::custom_fields::validate_for_format(&fmt, *key, values)?;
+                        }
+                        Ok(())
+                    })
+                };
+                if let Err(message) = validation {
+                    results.push(BackendError::WriteFailed(TagError {
+                        path: path_str.clone(),
+                        public_message: "Invalid custom fields".into(),
+                        internal_message: message,
+                    }));
+                    continue;
+                }
+            }
             let Some(release) = self.resolve_release(&fmt) else {
                 results.push(BackendError::WriteFailed(TagError {
                     path: path_str.clone(),
