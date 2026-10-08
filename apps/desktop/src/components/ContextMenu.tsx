@@ -10,6 +10,7 @@ import {
 } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight } from "lucide-react";
+import { cn } from "../utils";
 
 export type MenuOptions = Array<MenuItem | { item: string }>;
 export type MenuItem = {
@@ -102,7 +103,19 @@ export function ContextMenuArea({
   );
 }
 
-function MenuEntries({ items }: { items: MenuOptions }) {
+export function MenuEntries({
+  items,
+  elevated = false,
+  compact = false,
+}: {
+  items: MenuOptions;
+  elevated?: boolean;
+  compact?: boolean;
+}) {
+  const entryClass = cn(
+    itemClass,
+    compact && "gap-1.5 py-[3px] text-[13px] leading-4",
+  );
   return (
     <>
       {items.map((item, index) => {
@@ -110,7 +123,7 @@ function MenuEntries({ items }: { items: MenuOptions }) {
           return (
             <DropdownMenu.Separator
               key={index}
-              className="my-1 border-t border-border"
+              className={cn("my-1 border-t border-border", compact && "my-0.5")}
             />
           );
         if (item.submenu) {
@@ -120,14 +133,18 @@ function MenuEntries({ items }: { items: MenuOptions }) {
             <DropdownMenu.Sub key={index}>
               <DropdownMenu.SubTrigger
                 disabled={item.disabled || children.length === 0}
-                className={itemClass}
+                className={entryClass}
               >
                 <span className="min-w-0 flex-1 truncate">{item.text}</span>
                 <ChevronRight size={13} aria-hidden="true" />
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
-                  className={panelClass}
+                  className={cn(
+                    panelClass,
+                    elevated && "z-13001",
+                    compact && "min-w-40 text-[13px] leading-4",
+                  )}
                   sideOffset={2}
                   collisionPadding={4}
                   onContextMenu={(event) => {
@@ -135,7 +152,11 @@ function MenuEntries({ items }: { items: MenuOptions }) {
                     event.stopPropagation();
                   }}
                 >
-                  <MenuEntries items={children} />
+                  <MenuEntries
+                    items={children}
+                    elevated={elevated}
+                    compact={compact}
+                  />
                 </DropdownMenu.SubContent>
               </DropdownMenu.Portal>
             </DropdownMenu.Sub>
@@ -155,7 +176,7 @@ function MenuEntries({ items }: { items: MenuOptions }) {
               checked={item.checked}
               disabled={item.disabled}
               onSelect={select}
-              className={itemClass}
+              className={entryClass}
             >
               <span className="w-3">
                 <DropdownMenu.ItemIndicator>
@@ -170,7 +191,7 @@ function MenuEntries({ items }: { items: MenuOptions }) {
             key={index}
             disabled={item.disabled}
             onSelect={select}
-            className={itemClass}
+            className={entryClass}
           >
             {item.text}
           </DropdownMenu.Item>

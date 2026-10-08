@@ -2,6 +2,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { AnimatePresence } from "motion/react";
 import ExpandedPlayer from "./ExpandedPlayer";
 import toast from "react-hot-toast";
+import { listenMenuAction, publishPlayerMenuState } from "../utils/appMenu";
 import { openMiniPlayer } from "../utils/miniPlayer";
 import { SongContextMenu } from "./SongContextMenu";
 import { HeartButton } from "./HeartButton";
@@ -9,14 +10,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
   ListMusic,
-  PictureInPicture2,
   Maximize2,
   MessageSquareText,
   Pause,
   Play,
   Repeat,
   Shuffle,
-  SlidersHorizontal,
   SkipBack,
   SkipForward,
 } from "lucide-react";
@@ -65,23 +64,34 @@ function ControlButton({
 
 export default function NowPlaying() {
   const [equalizerOpen, setEqualizerOpen] = useState(false);
-  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).has("expanded-player"));
+  const [expanded, setExpanded] = useState(() =>
+    new URLSearchParams(window.location.search).has("expanded-player"),
+  );
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void listen("open-expanded-player", () => setExpanded(true)).then((cleanup) => {
-      if (disposed) cleanup();
-      else {
-        unlisten = cleanup;
-        if (new URLSearchParams(window.location.search).has("expanded-player")) {
-          void emitTo("mini-player", "main-player-ready").catch(() => undefined);
-          const url = new URL(window.location.href);
-          url.searchParams.delete("expanded-player");
-          window.history.replaceState(window.history.state, "", url);
+    void listen("open-expanded-player", () => setExpanded(true))
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else {
+          unlisten = cleanup;
+          if (
+            new URLSearchParams(window.location.search).has("expanded-player")
+          ) {
+            void emitTo("mini-player", "main-player-ready").catch(
+              () => undefined,
+            );
+            const url = new URL(window.location.href);
+            url.searchParams.delete("expanded-player");
+            window.history.replaceState(window.history.state, "", url);
+          }
         }
-      }
-    }).catch(() => toast.error("Could not connect the expanded player."));
-    return () => { disposed = true; unlisten?.(); };
+      })
+      .catch(() => toast.error("Could not connect the expanded player."));
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, []);
   const equalizer = useEqualizer();
   const [panel, setPanel] = useState<PlaybackPanelView | null>(null);
@@ -120,6 +130,65 @@ export default function NowPlaying() {
     setModes({ ...modes, shuffled: !modes.shuffled });
     await invoke("toggle_shuffle");
   };
+
+  useEffect(() => {
+    publishPlayerMenuState({
+      fileId: currentTrackId,
+      paused,
+      shuffled: modes.shuffled,
+      repeat: modes.repeat_mode,
+      panel,
+    });
+  }, [currentTrackId, paused, modes.shuffled, modes.repeat_mode, panel]);
+
+  useEffect(() =>
+    listenMenuAction((action) => {
+      const run = (operation: Promise<unknown>) => {
+        void operation.catch(() =>
+          toast.error("Could not complete the playback action."),
+        );
+      };
+      switch (action) {
+        case "equalizer":
+          setEqualizerOpen(true);
+          break;
+        case "mini-player":
+          run(openMiniPlayer());
+          break;
+        case "expanded":
+          setExpanded(true);
+          break;
+        case "queue":
+          setPanel((current) => (current === "queue" ? null : "queue"));
+          break;
+        case "lyrics":
+          setPanel((current) => (current === "lyrics" ? null : "lyrics"));
+          break;
+        case "play":
+          if (currentTrackId > 0 && paused) run(control("resume_playback"));
+          break;
+        case "pause":
+          if (currentTrackId > 0 && !paused) run(control("pause_playback"));
+          break;
+        case "previous":
+          if (song) run(control("previous_song"));
+          break;
+        case "next":
+          if (song) run(control("skip_song"));
+          break;
+        case "shuffle":
+          run(toggleShuffle());
+          break;
+        case "repeat-off":
+        case "repeat-queue":
+        case "repeat-track": {
+          const repeatMode = action.slice(7) as RepeatMode;
+          run(invoke("set_repeat_mode", { repeatMode }));
+          break;
+        }
+      }
+    }),
+  );
 
   return (
     <div className="fixed bottom-4 left-[calc(var(--sidebar-width,15rem)+1rem)] right-[calc(var(--queue-width,0px)+1.75rem)] z-9999 flex justify-center">
@@ -204,7 +273,9 @@ export default function NowPlaying() {
             disabled={!song}
             onActivateHover={() => setShowSeekOverlay(true)}
             onSeek={(seconds) => {
-              void invoke("seek_playback", { milliseconds: Math.round(seconds * 1000) });
+              void invoke("seek_playback", {
+                milliseconds: Math.round(seconds * 1000),
+              });
             }}
           />
         </div>
@@ -238,57 +309,72 @@ export default function NowPlaying() {
             </div>
           </ControlButton>
 
-          <ControlButton title="Expand player" onClick={() => setExpanded(true)}>
+          <ControlButton
+            title="Expand player"
+            onClick={() => setExpanded(true)}
+          >
             <Maximize2 size={15} />
           </ControlButton>
-          <ControlButton title="Open mini player" onClick={() => void openMiniPlayer().catch(() => toast.error("Could not open the mini player."))}>
-            <PictureInPicture2 size={15} />
-          </ControlButton>
-
           <ControlButton
-            title="Equalizer"
-            active={equalizer.config?.settings.enabled}
-            onClick={() => setEqualizerOpen(true)}
+            title="Lyrics"
+            active={panel === "lyrics"}
+            onClick={() =>
+              setPanel((current) => (current === "lyrics" ? null : "lyrics"))
+            }
           >
-            <SlidersHorizontal size={15} />
-          </ControlButton>
-          <ControlButton title="Lyrics" active={panel === "lyrics"}
-            onClick={() => setPanel((current) => current === "lyrics" ? null : "lyrics")}>
             <MessageSquareText size={15} />
           </ControlButton>
 
           <ControlButton
             title="Queue"
             active={panel === "queue"}
-            onClick={() => setPanel((current) => current === "queue" ? null : "queue")}
+            onClick={() =>
+              setPanel((current) => (current === "queue" ? null : "queue"))
+            }
           >
             <ListMusic size={15} />
           </ControlButton>
         </div>
       </div>
       <AnimatePresence>
-        {expanded && <ExpandedPlayer key="expanded-player" onClose={() => setExpanded(false)} />}
+        {expanded && (
+          <ExpandedPlayer
+            key="expanded-player"
+            onClose={() => setExpanded(false)}
+          />
+        )}
       </AnimatePresence>
       {equalizerOpen && (
         <Suspense fallback={null}>
-          <EqualizerModal open onClose={() => setEqualizerOpen(false)} {...equalizer} />
+          <EqualizerModal
+            open
+            onClose={() => setEqualizerOpen(false)}
+            {...equalizer}
+          />
         </Suspense>
       )}
       {panel && (
         <Suspense fallback={null}>
-        <PlaybackPanel
-          view={panel} onViewChange={setPanel} onClose={() => setPanel(null)}
-          fileId={currentTrackId} title={song?.title} artist={song?.artist} artwork={song?.artwork_url}
-          position={position * 1000}
-          onSeek={(milliseconds) => {
-            void invoke("seek_playback", { milliseconds }).then(() => {
-              setPosition(milliseconds / 1000);
-            });
-          }}
-          onPlay={(index) =>
-            void invoke("skip_to_index", { index }).then(() => setPaused(false))
-          }
-        />
+          <PlaybackPanel
+            view={panel}
+            onViewChange={setPanel}
+            onClose={() => setPanel(null)}
+            fileId={currentTrackId}
+            title={song?.title}
+            artist={song?.artist}
+            artwork={song?.artwork_url}
+            position={position * 1000}
+            onSeek={(milliseconds) => {
+              void invoke("seek_playback", { milliseconds }).then(() => {
+                setPosition(milliseconds / 1000);
+              });
+            }}
+            onPlay={(index) =>
+              void invoke("skip_to_index", { index }).then(() =>
+                setPaused(false),
+              )
+            }
+          />
         </Suspense>
       )}
     </div>

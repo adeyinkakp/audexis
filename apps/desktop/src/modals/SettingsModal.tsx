@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileWarning,
   Folder,
@@ -16,14 +16,17 @@ export function SettingsModal({
   open,
   onClose,
   onOpenLogs,
+  initialTab = "appearance",
 }: {
+  initialTab?: "appearance" | "library";
   open: boolean;
   onClose: () => void;
   onOpenLogs: () => void;
 }) {
   const [tab, setTab] = useState<"appearance" | "library" | "logs">(
-    "appearance",
+    initialTab,
   );
+  useEffect(() => setTab(initialTab), [initialTab]);
   const draft = useSettingsDraft();
   const close = () => {
     if (!draft.busy) onClose();

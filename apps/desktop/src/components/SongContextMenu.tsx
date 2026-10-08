@@ -7,25 +7,16 @@ import { usePlaylists, useAddPlaylistTrack } from "../hooks/usePlaylists";
 import { useFavorites } from "../hooks/useFavorites";
 import { fetchMediaFiles } from "../hooks/useMediaFiles";
 import { useStore } from "../hooks/useStore";
-export function SongContextMenu({
-  fileId,
-  playlistId,
-  onRemoveFromPlaylist,
-  children,
-  asChild = true,
-}: {
-  fileId: number;
-  playlistId?: number;
-  onRemoveFromPlaylist?: () => void | Promise<void>;
-  children: ReactNode;
-  asChild?: boolean;
-}) {
+export function useSongMenuItems(
+  fileId: number,
+  playlistId?: number,
+  onRemoveFromPlaylist?: () => void | Promise<void>,
+) {
   const playlists = usePlaylists();
   const add = useAddPlaylistTrack();
   const favorites = useFavorites();
   const navigate = useNavigate();
   const { openTrackInfo } = useStore();
-  if (fileId <= 0) return <>{children}</>;
   const run = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -33,7 +24,7 @@ export function SongContextMenu({
       toast.error(String(error));
     }
   };
-  const items = (): MenuOptions => [
+  return (): MenuOptions => [
     {
       text: "Play Next",
       action: () => run(() => invoke("enqueue_song", { fileId, next: true })),
@@ -114,6 +105,23 @@ export function SongContextMenu({
         ]
       : []),
   ];
+}
+
+export function SongContextMenu({
+  fileId,
+  playlistId,
+  onRemoveFromPlaylist,
+  children,
+  asChild = true,
+}: {
+  fileId: number;
+  playlistId?: number;
+  onRemoveFromPlaylist?: () => void | Promise<void>;
+  children: ReactNode;
+  asChild?: boolean;
+}) {
+  const items = useSongMenuItems(fileId, playlistId, onRemoveFromPlaylist);
+  if (fileId <= 0) return <>{children}</>;
   return (
     <ContextMenuArea asChild={asChild} items={items}>
       {children}

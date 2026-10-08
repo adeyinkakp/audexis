@@ -14,6 +14,7 @@ type StoreContextValue = {
   preferences: Preferences;
   savePreferences: (values: Preferences) => Promise<void>;
   openSettings: () => void;
+  openLibrarySettings: () => void;
   openTrackInfo: (fileIds: number[]) => void;
   openLogs: () => void;
 };

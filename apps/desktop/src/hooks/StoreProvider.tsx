@@ -30,6 +30,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"appearance" | "library">("appearance");
   const [trackInfoOpen, setTrackInfoOpen] = useState(false);
   const [trackInfoIds, setTrackInfoIds] = useState<number[]>([]);
   const [logsOpen, setLogsOpen] = useState(false);
@@ -172,7 +173,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         currentTheme,
         preferences,
         savePreferences,
-        openSettings: () => setSettingsOpen(true),
+        openSettings: () => { setSettingsTab("appearance"); setSettingsOpen(true); },
+        openLibrarySettings: () => { setSettingsTab("library"); setSettingsOpen(true); },
         openTrackInfo,
         openLogs: () => setLogsOpen(true),
       }}
@@ -184,6 +186,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         )}
         {settingsOpen && (
           <SettingsModal
+            initialTab={settingsTab}
             open
             onClose={() => setSettingsOpen(false)}
             onOpenLogs={() => {

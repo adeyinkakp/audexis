@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "../utils";
+import AppMenuBar from "./AppMenuBar";
 
 const isWindows = navigator.userAgent.includes("Windows");
 
@@ -94,6 +95,8 @@ export default function Titlebar() {
           <ChevronRight size={19} />
         </button>
       </nav>
+
+      <AppMenuBar />
 
       <div data-tauri-drag-region={true} className="absolute inset-0" />
 
