@@ -1,0 +1,67 @@
+---
+import "../assets/main.css";
+import Navbar from "../components/Navbar.astro";
+interface Props {
+    title?: string;
+    description?: string;
+    image?: string;
+    imageAlt?: string;
+}
+const {
+    title = "Audexis — Home.",
+    description = "A local-first desktop music player for the collection you've made your own. Browse your albums, build playlists, tag metadata, and rediscover your favorites with Audexis.",
+    image = "/screenshots/home.png",
+    imageAlt = "Audexis music library",
+} = Astro.props;
+const canonical = new URL(
+    Astro.url.pathname.replace(/\/$/, "") || "/",
+    Astro.site,
+);
+const socialImage = new URL(image, Astro.site);
+---
+
+<!doctype html>
+<html
+    lang="en"
+    data-theme="dark"
+    class="m-0 h-full w-full scroll-pt-8 scroll-smooth motion-reduce:scroll-auto"
+>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" type="image/png" href="/audexis-logo.png" />
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:site_name" content="Audexis" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={socialImage} />
+        <meta property="og:image:alt" content={imageAlt} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={socialImage} />
+        <meta name="twitter:image:alt" content={imageAlt} />
+        <meta name="generator" content={Astro.generator} />
+        <title>{title}</title>
+    </head>
+    <body class="m-0 min-h-screen bg-background font-mono text-foreground antialiased selection:bg-primary selection:text-primary-foreground">
+        <Navbar />
+        <slot />
+        <footer class="mx-auto flex max-w-7xl flex-col gap-8 border-t border-border px-5 py-8 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+            <a class="font-mono font-semibold" href="/">
+                Audexis
+            </a>
+            <div class="flex flex-wrap gap-6 text-muted-foreground *:hover:text-primary">
+                <a href="/download">Download</a>
+                <a href="/docs">Docs</a>
+                <a href="https://github.com/adeyinkakp/audexis">GitHub ↗</a>
+                <a href="https://github.com/adeyinkakp/audexis/blob/main/LICENSE">
+                    MIT License
+                </a>
+            </div>
+        </footer>
+    </body>
+</html>

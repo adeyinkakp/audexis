@@ -13,12 +13,12 @@ function RouteComponent() {
 
   return (
     <div
-      className="min-h-full w-full mt-14"
+      className="fixed inset-x-0 bottom-0 top-14 w-full overflow-auto"
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <Sidebar width={sidebarWidth} onWidthChange={setSidebarWidth} />
       <div
-        className="min-h-full min-w-0 transition-[padding] duration-150"
+        className="h-full min-w-0 transition-[padding] duration-150"
         style={{
           paddingLeft: sidebarWidth,
           paddingRight: "var(--queue-width, 0px)",

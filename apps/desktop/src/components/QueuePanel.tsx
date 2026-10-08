@@ -115,7 +115,7 @@ export default function QueuePanel({
                 type="button"
                 key={`${file.id}-${file.occurrence}-${item.index}`}
                 onClick={() => onPlay(item.index)}
-                className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 ${isCurrent ? "bg-muted text-primary" : ""}`}
+                className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 rounded-lg bg-blend-screen ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
                 style={{
                   height: `${item.size}px`,
                   transform: `translateY(${item.start}px)`,

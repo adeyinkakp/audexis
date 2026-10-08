@@ -1,0 +1,45 @@
+---
+import { Image } from "astro:assets";
+---
+
+<header class="border-b border-border/30 sticky">
+    <nav class="mx-auto flex mh-12 w-full max-w-7xl flex-wrap items-center justify-between gap-3 sm:gap-x-6 sm:gap-y-4 px-5 py-4 sm:px-8 lg:px-12">
+        <a
+            href="/"
+            aria-label="Audexis home"
+            class="flex items-center gap-1 sm:gap-3 font-mono text-foreground no-underline"
+        >
+            <Image
+                src="/audexis-logo.png"
+                alt=""
+                width="36"
+                height="36"
+                class="size-7 sm:size-9"
+            />
+            <span class="text-base sm:text-xl font-semibold tracking-tight">
+                Audexis
+            </span>
+        </a>
+
+        <div class="flex items-center gap-3 text-xs sm:text-sm sm:gap-7">
+            <a
+                class="text-muted-foreground no-underline transition-colors hover:text-foreground motion-reduce:transition-none"
+                href={`/docs`}
+            >
+                Docs
+            </a>
+            <a
+                class="text-muted-foreground no-underline transition-colors hover:text-foreground motion-reduce:transition-none"
+                href={"https://github.com/adeyinkakp/audexis"}
+            >
+                GitHub
+            </a>
+            <a
+                class="no-underline rounded-lg bg-primary px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-primary-foreground transition-colors motion-reduce:transition-none hover:bg-accent hover:text-accent-foreground"
+                href="/download"
+            >
+                Download
+            </a>
+        </div>
+    </nav>
+</header>

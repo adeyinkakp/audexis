@@ -1,0 +1,42 @@
+---
+import type { MarkdownLayoutProps } from "astro";
+import Layout from "./Layout.astro";
+import DocSidebar from "../components/DocSidebar.astro";
+import TOC from "../components/TOC.astro";
+import EditOnGithub from "../components/EditOnGithub.astro";
+type Props = MarkdownLayoutProps<{
+  title: string;
+  description: string;
+  image?: string;
+  imageAlt?: string;
+}>;
+const { frontmatter, headings } = Astro.props;
+const sections = headings.filter(heading => heading.depth === 2 || heading.depth === 3);
+---
+<Layout {...frontmatter}>
+  <div class="docs-layout">
+    <aside class="docs-sidebar docs-sticky">
+      <p class="docs-label">Documentation</p>
+      <DocSidebar />
+    </aside>
+    <div class="docs-mobile-nav">
+      <details>
+        <summary>Browse documentation</summary>
+        <DocSidebar />
+      </details>
+    </div>
+    <main id="main" class="docs-main" tabindex="-1">
+      <p class="docs-label">Audexis documentation</p>
+      {sections.length > 0 && <details class="docs-mobile-toc">
+        <summary>On this page</summary>
+        <TOC headings={sections} />
+      </details>}
+      <article class="docs-content"><slot /></article>
+      <EditOnGithub />
+    </main>
+    {sections.length > 0 && <aside class="docs-page-toc docs-sticky">
+      <p class="docs-label">On this page</p>
+      <TOC headings={sections} />
+    </aside>}
+  </div>
+</Layout>

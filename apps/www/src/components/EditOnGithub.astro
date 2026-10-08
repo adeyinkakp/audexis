@@ -1,0 +1,10 @@
+---
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+const sourcePath = pathname === "/docs" ? "/docs/index" : pathname;
+const href = `https://github.com/kp-fyn/audexis/edit/main/apps/www/src/pages${sourcePath}.md`;
+---
+<div class="docs-edit">
+  <a href={href} target="_blank" rel="noopener noreferrer">
+    Edit this page on GitHub <span aria-hidden="true">↗</span>
+  </a>
+</div>

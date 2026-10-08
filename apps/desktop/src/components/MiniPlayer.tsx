@@ -136,7 +136,7 @@ export default function MiniPlayer({
           AUDEXIS
         </span>
         {expanded && (
-          <>
+          <div className="bg-muted/60 py-1 flex px-2 rounded-xl">
             <button
               ref={lyricsToggle}
               className={button}
@@ -171,7 +171,7 @@ export default function MiniPlayer({
                 className={panel === "queue" ? "text-primary" : undefined}
               />
             </button>
-          </>
+          </div>
         )}
         {!expanded && (
           <button

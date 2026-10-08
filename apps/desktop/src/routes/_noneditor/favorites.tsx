@@ -12,7 +12,7 @@ function FavoritesPage() {
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main className="h-[calc(100dvh)] overflow-auto px-7 py-7">
+    <main className="h-full overflow-auto px-7 py-7">
       <LibrarySearchInput
         value={q}
         label="Search Favorites"

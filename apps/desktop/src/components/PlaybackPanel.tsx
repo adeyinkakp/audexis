@@ -51,41 +51,44 @@ export default function PlaybackPanel({
           : "fixed bottom-0 right-0 top-14 -z-40 flex w-80 flex-col overflow-hidden border-l border-border bg-popover shadow-xl"
       }
     >
-      <div
-        className={cn(
-          "flex h-12 shrink-0 items-center gap-1 px-3",
-          !embedded && "border-b border-border",
-        )}
-      >
-        {(
-          [
-            ["queue", "Queue", ListMusic],
-            ["lyrics", "Lyrics", MessageSquareText],
-          ] as const
-        ).map(([id, label, Icon]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={view === id}
-            onClick={() => onViewChange(id)}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted",
-              view === id && "bg-muted text-primary",
-            )}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
-        <button
-          type="button"
-          aria-label={`Close ${view === "lyrics" ? "lyrics" : "queue"}`}
-          onClick={onClose}
-          className="ml-auto rounded-lg p-2 text-muted-foreground hover:bg-muted"
+      {!embedded && (
+        <div
+          className={cn(
+            "flex h-12 shrink-0 items-center gap-1 px-3",
+            !embedded && "border-b border-border",
+          )}
         >
-          <X size={16} />
-        </button>
-      </div>
+          {(
+            [
+              ["queue", "Queue", ListMusic],
+              ["lyrics", "Lyrics", MessageSquareText],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={view === id}
+              onClick={() => onViewChange(id)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted",
+                view === id && "bg-muted text-primary",
+              )}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label={`Close ${view === "lyrics" ? "lyrics" : "queue"}`}
+            onClick={onClose}
+            className="ml-auto rounded-lg p-2 text-muted-foreground hover:bg-muted"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {view === "queue" ? (
         <QueuePanel onPlay={onPlay} />
       ) : (

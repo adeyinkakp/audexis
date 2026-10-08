@@ -1,7 +1,8 @@
 # Audexis
 
 Audexis is a local-first desktop music player for people who want to keep their
-library on their own computer. It uses react for the frontend and rust for the backend.
+library on their own computer. It uses react for the frontend and rust for the
+backend.
 
 ## Features
 
@@ -17,10 +18,11 @@ library on their own computer. It uses react for the frontend and rust for the b
 - Control playback through native system media controls
 - Keep library data locally in SQLite
 - Synced and unsynced lyrics
+- 10 band equalizer
 
-Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus,
-OGA, SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the
-codec and metadata contained in a file.
+Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA,
+SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the codec
+and metadata contained in a file.
 
 ## Project status
 
@@ -79,17 +81,16 @@ audexis/
 - [React](https://react.dev/) and TypeScript
 - [TanStack Router](https://tanstack.com/router) and TanStack Query
 - [Rust](https://www.rust-lang.org/)
-- [SQLite](https://www.sqlite.org/) through [SQLx](https://github.com/transact-rs/sqlx)
-- [Symphonia](https://github.com/pdeljanov/Symphonia)
-  and [CPAL](https://github.com/RustAudio/cpal) for audio
+- [SQLite](https://www.sqlite.org/) through
+  [SQLx](https://github.com/transact-rs/sqlx)
+- [Symphonia](https://github.com/pdeljanov/Symphonia) and
+  [CPAL](https://github.com/RustAudio/cpal) for audio
 
 ## Todo
 
-- Finish in-app metadata editing
 - Expand automated test coverage
-- Improve handling of renamed, moved, and missing files
-- Add lyrics and synchronized lyrics
 - Continue expanding metadata and codec compatibility
+- Select multiple files/tracks
 
 ## License
 

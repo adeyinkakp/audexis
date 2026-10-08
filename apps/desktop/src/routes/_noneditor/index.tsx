@@ -6,15 +6,9 @@ export const Route = createFileRoute("/_noneditor/")({ component: HomePage });
 
 function HomePage() {
   const discovery = useHomeDiscovery("all");
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12
-      ? "Good morning."
-      : hour < 18
-        ? "Good afternoon."
-        : "Good evening.";
+
   return (
-    <main className="h-[calc(100dvh)] overflow-auto px-6 pb-10 pt-7 lg:px-9">
+    <main className="h-full overflow-auto px-6 pb-10 pt-7 lg:px-9">
       <header className="mb-7 flex items-end justify-between gap-4">
         <div className="flex flex-col gap-4 w-full">
           <Link
@@ -24,9 +18,7 @@ function HomePage() {
             <Search size={17} />
             <span className="hidden sm:inline">Search your library</span>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
-            {greeting}
-          </h1>
+
           {discovery.data && (
             <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[

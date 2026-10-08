@@ -1,8 +1,8 @@
 # Contributing to Audexis
 
-Thanks for helping improve Audexis. The project is under active development,
-and contributions of code, tests, documentation, bug reports, and design
-feedback are welcome.
+Thanks for helping improve Audexis. The project is under active development, and
+contributions of code, tests, documentation, bug reports, and design feedback
+are welcome.
 
 ## Ways to contribute
 
@@ -12,8 +12,8 @@ feedback are welcome.
 - Improve accessibility or usability
 - Propose a feature or architectural change
 
-Pls keep each contribution focused. Small pull requests are easier to
-review, test, and merge than changes that combine unrelated work.
+Pls keep each contribution focused. Small pull requests are easier to review,
+test, and merge than changes that combine unrelated work.
 
 ## Development setup
 
@@ -22,8 +22,8 @@ review, test, and merge than changes that combine unrelated work.
 - [Node.js](https://nodejs.org/) 24 or newer
 - [pnpm](https://pnpm.io/) 11
 - A stable [Rust toolchain](https://www.rust-lang.org/tools/install)
-- The [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
-  for your operating system
+- The [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your
+  operating system
 
 ### Install and run
 
@@ -67,7 +67,8 @@ Important Rust modules include:
 - Keep Tauri calls in focused hooks or utilities instead of scattering them
   through presentation components.
 - Follow the formatting and naming style of the surrounding files.
-- Pls use [ARIA](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference)
+- Pls use
+  [ARIA](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference)
 - Keep wording clear
 
 Run the frontend build before submitting a change:

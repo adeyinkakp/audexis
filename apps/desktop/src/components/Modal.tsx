@@ -188,7 +188,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
       aria-labelledby={title ? titleId : undefined}
       aria-describedby={description ? descId : undefined}
       className={cn(
-        "fixed inset-0 flex items-center justify-center p-4 md:p-8",
+        "fixed inset-x-0 bottom-0 top-14 flex items-center justify-center p-4 md:p-8",
         zIndexClassName,
       )}
     >
@@ -204,7 +204,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
         ref={mergedRef}
         className={cn(
           "relative w-full max-w-4xl rounded-lg border border-border bg-linear-to-b from-background/95 to-background/80 shadow-xl ring-1 ring-border/50 overflow-hidden",
-          "flex flex-col max-h-[85vh]",
+          "flex flex-col max-h-full",
           sizeMax ? "h-[85vh] w-full" : "",
           "animate-in duration-150",
 

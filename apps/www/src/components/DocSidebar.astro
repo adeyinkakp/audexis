@@ -1,0 +1,70 @@
+---
+import type { MarkdownInstance } from "astro";
+const pages = Object.values(
+    import.meta.glob<MarkdownInstance<{ title: string }>>(
+        "../pages/docs/**/*.md",
+        { eager: true },
+    ),
+);
+const groups = [
+    {
+        title: "Getting started",
+        slugs: ["index", "getting-started", "library"],
+    },
+    {
+        title: "Listening",
+        slugs: ["playback", "players", "playlists", "equalizer", "rewind"],
+    },
+    {
+        title: "Editing metadata",
+        slugs: ["metadata", "custom-fields", "artwork", "lyrics"],
+    },
+    {
+        title: "Reference",
+        slugs: [
+            "settings",
+            "formats",
+            "metadata-reference",
+            "privacy-and-data",
+        ],
+    },
+    {
+        title: "Help & development",
+        slugs: ["faq", "troubleshooting", "development"],
+    },
+];
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+---
+
+<nav class="docs-nav" aria-label="Documentation">
+    {groups.map((group) => (
+        <section>
+            <h2>{group.title}</h2>
+            <ul>
+                {group.slugs.map((slug) => {
+                    const href = slug === "index" ? "/docs" : `/docs/${slug}`;
+                    const page = pages.find(
+                        (page) => page.url?.replace(/\/$/, "") === href,
+                    );
+                    return (
+                        <li>
+                            <a
+                                href={href}
+                                aria-current={
+                                    pathname === href ? "page" : undefined
+                                }
+                            >
+                                {slug === "index"
+                                    ? "Introduction"
+                                    : (page?.frontmatter.title.replace(
+                                          /^Audexis — /,
+                                          "",
+                                      ) ?? slug)}
+                            </a>
+                        </li>
+                    );
+                })}
+            </ul>
+        </section>
+    ))}
+</nav>

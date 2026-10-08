@@ -24,7 +24,7 @@ function PlaylistsIndexPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   return (
-    <main className="h-[calc(100dvh)] overflow-auto px-8 pb-10 pt-7">
+    <main className="h-full overflow-auto px-8 pb-10 pt-7">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-5 border-b border-border/60 pb-6">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">

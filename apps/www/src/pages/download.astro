@@ -1,0 +1,75 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { releasesUrl } from "../lib/downloads";
+const platforms = [
+  { id: "macos", name: "macOS", chip: "Apple silicon & Intel", format: "Universal installer · .dmg", instructions: "Open the downloaded disk image and drag Audexis into Applications." },
+  { id: "windows", name: "Windows", chip: "64-bit Intel & AMD", format: "Windows x64 installer · .exe", instructions: "Open the downloaded installer and follow the setup steps." },
+];
+---
+<Layout title="Audexis — Download" description="Download the latest Audexis release for macOS or Windows. Choose your platform and start listening to your local music collection.">
+  <main id="main" class="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+    <header class="max-w-2xl">
+      <p class="mb-5 text-xs tracking-widest text-primary">MAKE YOURSELF AT HOME</p>
+      <h1 class="font-serif text-5xl leading-tight tracking-tight sm:text-6xl">Download Audexis.</h1>
+      <p class="mt-6 text-lg leading-relaxed text-muted-foreground">Your music, on your computer. Choose your system to get the latest release.</p>
+      <p id="release-status" class="mt-5 text-sm text-muted-foreground" role="status">Latest release available on GitHub.</p>
+    </header>
+    <div class="mt-10 grid gap-6 md:grid-cols-2">
+      {platforms.map(platform => (
+        <section class="flex flex-col rounded-2xl border border-border p-6 sm:p-8" aria-labelledby={`${platform.id}-title`}>
+          <h2 id={`${platform.id}-title`} class="text-3xl font-semibold">{platform.name}</h2>
+          <p class="mt-3 text-sm text-foreground">{platform.chip}</p>
+          <p class="mt-2 text-xs text-muted-foreground">{platform.format}</p>
+          <p class="my-6 flex-1 text-sm leading-relaxed text-muted-foreground">{platform.instructions}</p>
+          <a data-platform={platform.id} href={releasesUrl} class="inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">View {platform.name} release</a>
+          <p data-download-detail={platform.id} class="mt-3 text-xs text-muted-foreground">Choose the installer from the latest release assets.</p>
+        </section>
+      ))}
+    </div>
+    <noscript><p class="mt-6 text-sm text-muted-foreground">Use the links above to download your installer from GitHub’s latest release.</p></noscript>
+    <div class="mt-10 flex flex-col gap-5 border-t border-border pt-8 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+      <p>Linux builds are not currently available.</p>
+      <div class="flex flex-wrap gap-6">
+        <a href={releasesUrl} class="underline underline-offset-4 hover:text-primary">Release notes & all downloads ↗</a>
+        <a href="/docs/getting-started" class="underline underline-offset-4 hover:text-primary">Installation guide</a>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { findInstaller, latestReleaseApi } from "../lib/downloads";
+  const status = document.getElementById("release-status");
+  const buttons = document.querySelectorAll<HTMLAnchorElement>("[data-platform]");
+
+  async function loadDownloads() {
+    if (status) status.textContent = "Finding the latest release…";
+    try {
+      const response = await fetch(latestReleaseApi, {
+        headers: { Accept: "application/vnd.github+json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error("Release unavailable");
+      const release = await response.json();
+      if (!release || typeof release.tag_name !== "string" || !Array.isArray(release.assets) || release.draft || release.prerelease) {
+        throw new Error("Invalid release");
+      }
+      if (status) status.textContent = `Latest release · ${release.tag_name}`;
+      for (const button of buttons) {
+        const platform = button.dataset.platform!;
+        const asset = findInstaller(release.assets, platform);
+        const detail = document.querySelector(`[data-download-detail="${platform}"]`);
+        if (asset) {
+          button.href = asset.browser_download_url;
+          button.textContent = `Download for ${platform === "macos" ? "macOS" : "Windows"}`;
+          if (detail) detail.textContent = `${release.tag_name} · ${(asset.size / 1024 / 1024).toFixed(1)} MB`;
+        } else if (detail) {
+          detail.textContent = "Installer unavailable in this release. Check the release assets on GitHub.";
+        }
+      }
+    } catch {
+      if (status) status.textContent = "Couldn’t load direct downloads. You can still get the latest release on GitHub using the links below.";
+    }
+  }
+  loadDownloads();
+</script>
