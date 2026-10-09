@@ -1,3 +1,5 @@
+import { SongCollection } from "../songs/SongCollection";
+import type { SongSelectionItem } from "../../utils/songSelection";
 import { useRef, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 export function HomeShelf({
@@ -6,11 +8,13 @@ export function HomeShelf({
   action,
   children,
   row,
+  songs,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
   row?: boolean;
+  songs?: SongSelectionItem[];
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +27,7 @@ export function HomeShelf({
           ? "instant"
           : "smooth",
     });
-  return (
+  const content = (
     <section className="min-w-0 py-6">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -77,5 +81,12 @@ export function HomeShelf({
         </div>
       )}
     </section>
+  );
+  return songs ? (
+    <SongCollection items={songs} label={title}>
+      {content}
+    </SongCollection>
+  ) : (
+    content
   );
 }

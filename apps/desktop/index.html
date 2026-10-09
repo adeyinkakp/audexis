@@ -1,42 +1,43 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <script>
-      (function () {
-        const fetchedTheme = localStorage.getItem("theme");
-        const theme =
-          fetchedTheme === "dark" || fetchedTheme === "light"
-            ? fetchedTheme
-            : "light";
+    <script src="http://localhost:8097"></script>
+    <head>
+        <script>
+            (function () {
+                const fetchedTheme = localStorage.getItem("theme");
+                const theme =
+                    fetchedTheme === "dark" || fetchedTheme === "light"
+                        ? fetchedTheme
+                        : "light";
 
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
+                document.documentElement.dataset.theme = theme;
+            })();
+        </script>
 
-    <style>
-      [data-theme="dark"] {
-        --background: #0a0a0a;
-      }
-      [data-theme="light"] {
-        --background: #f1f1f1;
-      }
-      html,
-      body,
-      #root {
-        background-color: var(--background);
-        height: 100%;
-        width: 100%;
-      }
-    </style>
-    <meta charset="UTF-8" />
+        <style>
+            [data-theme="dark"] {
+                --background: #0a0a0a;
+            }
+            [data-theme="light"] {
+                --background: #f1f1f1;
+            }
+            html,
+            body,
+            #root {
+                background-color: var(--background);
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <meta charset="UTF-8" />
 
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
-  </head>
+        <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tauri + React + Typescript</title>
+    </head>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
 </html>

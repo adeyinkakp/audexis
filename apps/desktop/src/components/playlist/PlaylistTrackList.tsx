@@ -1,3 +1,4 @@
+import { SongCollection } from "../songs/SongCollection";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -10,7 +11,7 @@ import {
 import { useCurrentQueueTrack } from "../../hooks/useCurrentQueueTrack";
 import { usePlaylistTrackSorting } from "../../hooks/usePlaylistTrackSorting";
 import { useMediaFiles } from "../../hooks/useMediaFiles";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { DatabaseMediaMetadata } from "../../hooks/useFileWatcher";
 import { useNowPlayingState } from "../../hooks/useNowPlayingState";
 import { PlaylistRowContent } from "./PlaylistRowContent";
@@ -38,6 +39,8 @@ export function PlaylistTrackList({
   }, [media]);
   const { currentTrackId, song } = useNowPlayingState();
   const removePlaylistTrack = useRemovePlaylistTrack();
+  const [removing, setRemoving] = useState(false);
+  const removalInProgress = useRef(false);
   const currentQueueTrack = useCurrentQueueTrack();
   const {
     sensors,
@@ -59,101 +62,136 @@ export function PlaylistTrackList({
     return terms.every((term) => values.some((value) => value.includes(term)));
   };
   return (
-    <section
-      aria-busy={isSaving}
-      className={`overflow-hidden rounded-3xl] border border-border/60 bg-card/40 ${isSaving ? "pointer-events-none" : ""}`}
+    <SongCollection
+      key={JSON.stringify([
+        playlist.id,
+        search,
+        playlist.tracks.map((track) => [track.id, track.ord]),
+      ])}
+      label={playlist.name}
+      disabled={isSaving || removing || removePlaylistTrack.isPending}
+      onRemoveSelected={async (items) => {
+        if (removalInProgress.current) return;
+        removalInProgress.current = true;
+        setRemoving(true);
+        const keys = new Set(items.map((item) => item.key));
+        const tracks = playlist.tracks
+          .filter((track) => keys.has(`${track.id}-${track.ord}`))
+          .sort((a, b) => b.ord - a.ord);
+        try {
+          for (const track of tracks)
+            await removePlaylistTrack.mutateAsync({
+              playlistId: playlist.id,
+              ord: track.ord,
+            });
+          onError(null);
+        } catch (error) {
+          onError(String(error));
+        } finally {
+          removalInProgress.current = false;
+          setRemoving(false);
+        }
+      }}
+      items={orderedTracksPreview.filter(matches).map((track) => ({
+        key: `${track.id}-${track.ord}`,
+        fileId: track.id,
+      }))}
     >
-      <div className="grid grid-cols-[32px_minmax(0,1fr)_64px] gap-3 border-b border-border/60 px-5 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-        <div />
+      <section
+        aria-busy={isSaving || removing}
+        className={`overflow-hidden rounded-3xl border border-border/60 bg-card/40 ${isSaving || removing ? "pointer-events-none" : ""}`}
+      >
+        <div className="grid grid-cols-[32px_minmax(0,1fr)_64px] gap-3 border-b border-border/60 px-5 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          <div />
 
-        <div>Title</div>
-        <div className="text-right">Time</div>
-      </div>
-
-      {!orderedTracksPreview.some(matches) ? (
-        <div className="px-5 py-8 text-sm text-muted-foreground">
-          {search.trim()
-            ? "No matching songs in this playlist."
-            : "No songs in this playlist."}
+          <div>Title</div>
+          <div className="text-right">Time</div>
         </div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext
-            items={orderedTracksPreview
-              .filter(matches)
-              .map((track) => track.ord)}
-            strategy={verticalListSortingStrategy}
+
+        {!orderedTracksPreview.some(matches) ? (
+          <div className="px-5 py-8 text-sm text-muted-foreground">
+            {search.trim()
+              ? "No matching songs in this playlist."
+              : "No songs in this playlist."}
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
-            {orderedTracksPreview.map((track, index) => {
-              if (!matches(track)) return null;
-              const metadata = metadataByFileId[track.id];
-              const isCurrent =
-                track.id === currentTrackId &&
-                !!currentQueueTrack &&
-                currentQueueTrack.path === track.path &&
-                currentQueueTrack.occurrence === track.ord;
-              const fallbackIsCurrent =
-                !currentQueueTrack &&
-                (track.id === currentTrackId ||
-                  (!!song?.path && song.path === track.path));
+            <SortableContext
+              items={orderedTracksPreview
+                .filter(matches)
+                .map((track) => track.ord)}
+              strategy={verticalListSortingStrategy}
+            >
+              {orderedTracksPreview.map((track, index) => {
+                if (!matches(track)) return null;
+                const metadata = metadataByFileId[track.id];
+                const isCurrent =
+                  track.id === currentTrackId &&
+                  !!currentQueueTrack &&
+                  currentQueueTrack.path === track.path &&
+                  currentQueueTrack.occurrence === track.ord;
+                const fallbackIsCurrent =
+                  !currentQueueTrack &&
+                  (track.id === currentTrackId ||
+                    (!!song?.path && song.path === track.path));
 
-              return (
-                <SortablePlaylistRow
-                  key={`${track.id}-${track.ord}`}
-                  track={track}
-                  playlistId={playlist.id}
-                  index={index}
-                  metadata={metadata}
-                  isCurrent={isCurrent || fallbackIsCurrent}
-                  onPlay={() => void playQueue(index, false)}
-                  onRemove={() => {
-                    void removePlaylistTrack
-                      .mutateAsync({
-                        playlistId: playlist.id,
-                        ord: track.ord,
-                      })
-                      .then(() => onError(null))
-                      .catch((error) => {
-                        onError(String(error));
-                      });
-                  }}
-                />
-              );
-            })}
-          </SortableContext>
-          <DragOverlay>
-            {activeTrack ? (
-              <div className="rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur">
-                <PlaylistRowContent
-                  track={activeTrack}
-                  index={orderedTracksPreview.findIndex(
-                    (track) => track.ord === activeTrack.ord,
-                  )}
-                  metadata={metadataByFileId[activeTrack.id]}
-                  isCurrent={
-                    (!!currentQueueTrack &&
-                      currentTrackId === activeTrack.id &&
-                      currentQueueTrack.path === activeTrack.path &&
-                      currentQueueTrack.occurrence === activeTrack.ord) ||
-                    (!currentQueueTrack &&
-                      (activeTrack.id === currentTrackId ||
-                        (!!song?.path && song.path === activeTrack.path)))
-                  }
+                return (
+                  <SortablePlaylistRow
+                    key={`${track.id}-${track.ord}`}
+                    track={track}
+                    playlistId={playlist.id}
+                    index={index}
+                    metadata={metadata}
+                    isCurrent={isCurrent || fallbackIsCurrent}
+                    onPlay={() => void playQueue(index, false)}
+                    onRemove={() => {
+                      void removePlaylistTrack
+                        .mutateAsync({
+                          playlistId: playlist.id,
+                          ord: track.ord,
+                        })
+                        .then(() => onError(null))
+                        .catch((error) => {
+                          onError(String(error));
+                        });
+                    }}
+                  />
+                );
+              })}
+            </SortableContext>
+            <DragOverlay>
+              {activeTrack ? (
+                <div className="rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur">
+                  <PlaylistRowContent
+                    track={activeTrack}
+                    index={orderedTracksPreview.findIndex(
+                      (track) => track.ord === activeTrack.ord,
+                    )}
+                    metadata={metadataByFileId[activeTrack.id]}
+                    isCurrent={
+                      (!!currentQueueTrack &&
+                        currentTrackId === activeTrack.id &&
+                        currentQueueTrack.path === activeTrack.path &&
+                        currentQueueTrack.occurrence === activeTrack.ord) ||
+                      (!currentQueueTrack &&
+                        (activeTrack.id === currentTrackId ||
+                          (!!song?.path && song.path === activeTrack.path)))
+                    }
 
-                  isDragging
-                  onPlay={() => {}}
-                />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
-    </section>
+                    isDragging
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </section>
+    </SongCollection>
   );
 }

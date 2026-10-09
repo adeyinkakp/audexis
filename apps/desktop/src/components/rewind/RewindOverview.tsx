@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
-import { Play, Headphones } from "lucide-react";
+import { Headphones } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   useRewind,
@@ -11,7 +11,7 @@ import {
 import { useMediaFiles } from "../../hooks/useMediaFiles";
 import { Artwork } from "../library/CollectionGrid";
 import { HomeShelf } from "../home/HomeShelf";
-import { SongContextMenu } from "../SongContextMenu";
+import { SongItem } from "../songs/SongItem";
 const months = [
   "January",
   "February",
@@ -189,41 +189,33 @@ export function RewindOverview() {
                   </HomeShelf>
                 )}
                 {data.songs.length > 0 && (
-                  <HomeShelf title="Top Songs">
-                    {data.songs.map((item, index) => {
+                  <HomeShelf
+                    key={`${year}-${month}`}
+                    title="Top Songs"
+                    songs={data.songs
+                      .filter((item) => files.has(item.file_id))
+                      .map((item) => ({
+                        key: String(item.file_id),
+                        fileId: item.file_id,
+                      }))}
+                  >
+                    {data.songs.map((item) => {
                       const file = files.get(item.file_id);
                       const tag = tags.get(item.file_id) ?? {};
                       return (
-                        <SongContextMenu
+                        <SongItem
                           key={item.file_id}
+                          itemKey={String(item.file_id)}
                           fileId={item.file_id}
-                        >
-                          <button
-                            disabled={playing || !file}
-                            onClick={() => void play(item.file_id)}
-                            className="group min-w-0 text-left"
-                          >
-                            <div className="relative">
-                              <Artwork id={item.file_id} />
-                              <span className="absolute bottom-3 right-3 rounded-full bg-black/60 p-3 text-white opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
-                                <Play size={18} fill="currentColor" />
-                              </span>
-                            </div>
-                            <p
-                              className="mt-3 truncate font-semibold"
-                              title={tag.title || file?.file_name}
-                            >
-                              <span className="mr-2 text-muted-foreground">
-                                {index + 1}
-                              </span>
-                              {tag.title || file?.file_name || "Loading song…"}
-                            </p>
-                            <p className="mt-1 truncate text-sm text-muted-foreground">
-                              {tag.artist || "Unknown artist"}
-                            </p>
-                            {minutes(item.listened_us)}
-                          </button>
-                        </SongContextMenu>
+                          title={
+                            tag.title || file?.file_name || "Loading song…"
+                          }
+                          artist={tag.artist}
+                          detail={formatListeningMinutes(item.listened_us)}
+                          variant="card"
+                          disabled={playing || !file}
+                          onPlay={() => void play(item.file_id)}
+                        />
                       );
                     })}
                   </HomeShelf>

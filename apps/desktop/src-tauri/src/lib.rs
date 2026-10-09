@@ -73,6 +73,7 @@ pub fn run() {
             commands::library::custom_fields::get_metadata_field_catalog,
             commands::logs::get_logs,
             commands::playback::enqueue_song::enqueue_song,
+            commands::playback::remove_queue_entries::remove_queue_entries,
             commands::playback::get_artwork::get_artwork,
             commands::playback::get_artwork::get_artwork_details,
             commands::playback::get_artwork::import_artwork,

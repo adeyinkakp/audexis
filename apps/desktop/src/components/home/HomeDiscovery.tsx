@@ -9,7 +9,7 @@ import {
 import { useMediaFiles } from "../../hooks/useMediaFiles";
 import { useStore } from "../../hooks/useStore";
 import { Artwork } from "../library/CollectionGrid";
-import { SongContextMenu } from "../SongContextMenu";
+import { SongItem } from "../songs/SongItem";
 import { HomeShelf } from "./HomeShelf";
 import { getRelativeTime } from "../../routes/_noneditor";
 
@@ -101,72 +101,31 @@ export function HomeDiscovery({
     );
   const listening = data.listening;
 
-  const renderSongs = (ids: number[], detail: (id: number) => string) =>
-    ids.flatMap((id, index) => {
-      const file = files.get(id);
-      if (!file) return [];
-      const tag = tags.get(id) ?? {};
-      const title = tag.title || file.file_name;
-      return [
-        <SongContextMenu key={`${id}-${index}`} fileId={id}>
-          <button
-            disabled={starting}
-            onClick={() => void play(ids, index)}
-            className="min-w-0 text-left"
-          >
-            <Artwork id={id} />
-            <p className="mt-3 truncate font-medium" title={title}>
-              {title}
-            </p>
-            <p className="mt-1 truncate text-xs text-primary">{detail(id)}</p>
-          </button>
-        </SongContextMenu>,
-      ];
-    });
-
-  const renderSongsRow = (
+  const songItems = (ids: number[]) =>
+    ids
+      .filter((id) => files.has(id))
+      .map((id) => ({ key: String(id), fileId: id }));
+  const renderSongs = (
     ids: number[],
-    showOrder: boolean,
     detail: (id: number) => string,
+    row = false,
   ) =>
     ids.flatMap((id, index) => {
       const file = files.get(id);
       if (!file) return [];
       const tag = tags.get(id) ?? {};
-      const title = tag.title || file.file_name;
-      const artist = tag.artist ?? "";
       return [
-        <SongContextMenu key={`${id}-${index}`} fileId={id}>
-          <button
-            disabled={starting}
-            onClick={() => void play(ids, index)}
-            className="min-w-0 text-left w-full  gap-4 flex h-12"
-          >
-            {showOrder && (
-              <span className="items-center h-full flex text-muted-foreground">
-                {index + 1}.
-              </span>
-            )}
-            <div className="aspect-square">
-              <Artwork id={id} />
-            </div>
-            <span className="flex-1  min-w-0 flex flex-col gap-1">
-              <p className=" truncate text-md font-medium" title={title}>
-                {title}
-              </p>
-              <p
-                className=" truncate text-xs text-muted-foreground font-medium"
-                title={title}
-              >
-                {artist}
-              </p>
-            </span>
-
-            <p className="mt-3  w-20  mx-2 truncate text-xs text-primary ml-auto">
-              {detail(id)}
-            </p>
-          </button>
-        </SongContextMenu>,
+        <SongItem
+          key={`${id}-${index}`}
+          itemKey={String(id)}
+          fileId={id}
+          title={tag.title || file.file_name}
+          artist={tag.artist}
+          detail={detail(id)}
+          variant={row ? "row" : "card"}
+          disabled={starting}
+          onPlay={() => void play(ids, index)}
+        />,
       ];
     });
 
@@ -181,7 +140,11 @@ export function HomeDiscovery({
     .map((item) => item.file_id);
   return (
     <div>
-      <HomeShelf title="Recently Played" subtitle="Your songs">
+      <HomeShelf
+        title="Recently Played"
+        subtitle="Your songs"
+        songs={songItems(songIds)}
+      >
         {recent.map((item) => {
           const tag = tags.get(item.file_id) ?? {};
           const title =
@@ -212,17 +175,16 @@ export function HomeDiscovery({
           );
           if (item.kind === "song")
             return (
-              <SongContextMenu key={key} fileId={item.file_id}>
-                <button
-                  disabled={starting}
-                  onClick={() =>
-                    void play(songIds, songIds.indexOf(item.file_id))
-                  }
-                  className="min-w-0 text-left"
-                >
-                  {content}
-                </button>
-              </SongContextMenu>
+              <SongItem
+                key={key}
+                itemKey={String(item.file_id)}
+                fileId={item.file_id}
+                title={title}
+                artist={tag.artist}
+                variant="card"
+                disabled={starting}
+                onPlay={() => void play(songIds, songIds.indexOf(item.file_id))}
+              />
             );
           if (item.kind === "album")
             return (
@@ -253,6 +215,7 @@ export function HomeDiscovery({
 
       <HomeShelf
         title="Heavy Rotation"
+        songs={songItems(heavyRotationIds)}
         subtitle="Your most-played songs this month"
         row
         action={
@@ -264,10 +227,16 @@ export function HomeDiscovery({
           </Link>
         }
       >
-        {renderSongsRow(heavyRotationIds, true, (id) => {
-          const item = data.heavy_rotation.find((song) => song.file_id === id);
-          return `${item?.plays ?? 0} ${item?.plays === 1 ? "play" : "plays"}`;
-        })}
+        {renderSongs(
+          heavyRotationIds,
+          (id) => {
+            const item = data.heavy_rotation.find(
+              (song) => song.file_id === id,
+            );
+            return `${item?.plays ?? 0} ${item?.plays === 1 ? "play" : "plays"}`;
+          },
+          true,
+        )}
       </HomeShelf>
       {!heavyRotationIds.length && (
         <p className="pb-6 text-sm text-muted-foreground">
@@ -276,6 +245,7 @@ export function HomeDiscovery({
       )}
       <HomeShelf
         title="Rediscover"
+        songs={songItems(neglectedIds)}
         subtitle="Songs you haven’t heard in a while"
       >
         {renderSongs(neglectedIds, (id) => {

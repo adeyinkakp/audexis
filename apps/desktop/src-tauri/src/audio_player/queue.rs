@@ -96,6 +96,60 @@ impl Queue {
         true
     }
 
+    pub fn queue_ids(&self) -> Vec<String> {
+        self.tracks
+            .iter()
+            .filter_map(|track| track.lock().ok().map(|track| track.queue_id.clone()))
+            .collect()
+    }
+
+    pub fn remove_queue_entries(&mut self, ids: &[String]) -> Result<bool, String> {
+        let ids: std::collections::HashSet<_> = ids.iter().collect();
+
+        let queue_ids = self
+            .tracks
+            .iter()
+            .map(|track| {
+                track
+                    .lock()
+                    .map(|track| track.queue_id.clone())
+                    .map_err(|_| "Queue track is unavailable".to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let current_index = self.index.max(0) as usize;
+        let current_removed = queue_ids
+            .get(current_index)
+            .is_some_and(|id| ids.contains(id));
+        let removed_before = queue_ids
+            .iter()
+            .take(current_index)
+            .filter(|id| ids.contains(id))
+            .count();
+        let mut index = 0;
+        self.tracks.retain(|_| {
+            let keep = !ids.contains(&queue_ids[index]);
+            index += 1;
+            keep
+        });
+        let mut original_index = 0;
+        self.original_queue_ids.retain(|id| {
+            if ids.contains(id) {
+                self.original_order.remove(original_index);
+                false
+            } else {
+                original_index += 1;
+                true
+            }
+        });
+        self.index = current_index
+            .saturating_sub(removed_before)
+            .min(self.tracks.len()) as i32;
+        if self.tracks.is_empty() {
+            self.clear();
+        }
+        Ok(current_removed)
+    }
+
     pub fn remove_for_playlist(&mut self, playlist_id: i64, ord: i64) -> bool {
         if self.playlist_id != Some(playlist_id) {
             return false;

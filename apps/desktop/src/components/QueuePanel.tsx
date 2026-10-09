@@ -1,5 +1,6 @@
+import toast from "react-hot-toast";
 import { Artwork } from "./library/CollectionGrid";
-import { SongContextMenu } from "./SongContextMenu";
+import { SongCollection, SongCollectionItem } from "./songs/SongCollection";
 import { formatDuration } from "../utils/duration";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -8,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaFiles } from "../hooks/useMediaFiles";
 
 type QueueInfo = {
+  queue_ids: string[];
   paths: string[];
   file_ids: number[];
   occurrences: (number | null)[];
@@ -31,7 +33,10 @@ export default function QueuePanel({
   onPlay: (index: number) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [removing, setRemoving] = useState(false);
+  const removingRef = useRef(false);
   const [queueInfo, setQueueInfo] = useState<QueueInfo>({
+    queue_ids: [],
     paths: [],
     file_ids: [],
     occurrences: [],
@@ -100,48 +105,92 @@ export default function QueuePanel({
   }, [data, queueInfo]);
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-      <div
-        className="relative"
-        style={{ height: `${virtualizer.getTotalSize()}px` }}
-      >
-        {virtualizer.getVirtualItems().map((item) => {
-          const file = queueItems[item.index];
-          const isCurrent = item.index === queueInfo.current_index;
+    <SongCollection
+      key={JSON.stringify([
+        queueInfo.queue_ids,
+        queueInfo.paths,
+        queueInfo.file_ids,
+        queueInfo.occurrences,
+      ])}
+      label="Queue"
+      disabled={removing}
+      contextMenuItems={(entries) => [
+        {
+          text: "Remove from Queue",
+          disabled: removing,
+          action: async () => {
+            if (removingRef.current) return;
+            removingRef.current = true;
+            setRemoving(true);
+            try {
+              await invoke("remove_queue_entries", {
+                queueIds: entries.map((entry) => entry.key),
+              });
+            } catch (error) {
+              toast.error(
+                `Could not remove songs from queue: ${String(error)}`,
+              );
+            } finally {
+              removingRef.current = false;
+              setRemoving(false);
+            }
+          },
+        },
+      ]}
+      items={queueItems.map((file, index) => ({
+        key: queueInfo.queue_ids[index],
+        fileId: file.id,
+      }))}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+        <div
+          className="relative"
+          style={{ height: `${virtualizer.getTotalSize()}px` }}
+        >
+          {virtualizer.getVirtualItems().map((item) => {
+            const file = queueItems[item.index];
+            const isCurrent = item.index === queueInfo.current_index;
 
-          return (
-            <SongContextMenu fileId={file.id} key={item.index}>
-              <button
-                type="button"
-                key={`${file.id}-${file.occurrence}-${item.index}`}
-                onClick={() => onPlay(item.index)}
-                className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 rounded-lg bg-blend-screen ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
-                style={{
-                  height: `${item.size}px`,
-                  transform: `translateY(${item.start}px)`,
-                }}
+            return (
+              <SongCollectionItem
+                itemKey={queueInfo.queue_ids[item.index]}
+                fileId={file.id}
+                key={queueInfo.queue_ids[item.index]}
+                onPlay={() => onPlay(item.index)}
               >
-                <div className="h-8 w-8 shrink-0 aspect-square overflow-hidden ">
-                  <Artwork
-                    round={false}
-                    key={file.id}
-                    id={file.id > 0 ? file.id : null}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs">{file.title}</div>
-                  <div className="truncate text-[10px] text-muted-foreground">
-                    {file.artist}
+                <div
+                  key={`${file.id}-${file.occurrence}-${item.index}`}
+                  className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 rounded-lg bg-blend-screen ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
+                  style={{
+                    height: `${item.size}px`,
+                    transform: `translateY(${item.start}px)`,
+                  }}
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <div className="h-8 w-8 shrink-0 aspect-square overflow-hidden ">
+                      <Artwork
+                        round={false}
+                        key={file.id}
+                        id={file.id > 0 ? file.id : null}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs">{file.title}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {file.artist}
+                      </div>
+                    </div>
+                    <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                      {formatDuration(file.durationMs)}
+                    </span>
                   </div>
                 </div>
-                <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-                  {formatDuration(file.durationMs)}
-                </span>
-              </button>
-            </SongContextMenu>
-          );
-        })}
+              </SongCollectionItem>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </SongCollection>
   );
 }

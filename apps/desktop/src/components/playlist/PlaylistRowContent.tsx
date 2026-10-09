@@ -12,7 +12,6 @@ export function PlaylistRowContent({
   isDragging,
   dragHandleAttributes,
   dragHandleListeners,
-  onPlay,
 }: {
   track: PlaylistTrack;
   index: number;
@@ -21,7 +20,6 @@ export function PlaylistRowContent({
   isDragging?: boolean;
   dragHandleAttributes?: DraggableAttributes;
   dragHandleListeners?: Record<string, unknown> | undefined;
-  onPlay: () => void;
 }) {
   return (
     <div
@@ -35,6 +33,7 @@ export function PlaylistRowContent({
       )}
     >
       <button
+        data-song-drag-handle
         type="button"
         aria-label="Reorder track"
         className="flex cursor-grab justify-center text-muted-foreground active:cursor-grabbing touch-none"
@@ -44,11 +43,7 @@ export function PlaylistRowContent({
         <GripVertical size={16} />
       </button>
 
-      <button
-        type="button"
-        className="min-w-0 w-full flex-1 text-left"
-        onClick={onPlay}
-      >
+      <div className="min-w-0 w-full flex-1 text-left">
         <div
           className={cn(
             "truncate w-full text-sm font-medium",
@@ -65,7 +60,7 @@ export function PlaylistRowContent({
         >
           {subtitleFor(metadata) || track.file_name}
         </div>
-      </button>
+      </div>
       <span className="text-right text-xs tabular-nums text-muted-foreground">
         {formatDuration(track.duration_ms)}
       </span>

@@ -19,6 +19,8 @@ backend.
 - Keep library data locally in SQLite
 - Synced and unsynced lyrics
 - 10 band equalizer
+- Batch Editing up to 200 Songs
+- Custom Metadata fields
 
 Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA,
 SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the codec
@@ -26,8 +28,8 @@ and metadata contained in a file.
 
 ## Project status
 
-Audexis is pre-release software. Core library browsing and playback are in
-place, but testing, error handling, documentation, and metadata editing are
+Audexis is pre-release software. Core library browsing, metadata-editing
+and playback are in place, but testing, error handling, and documentation
 still being improved before a stable release.
 
 ## Development
@@ -90,7 +92,7 @@ audexis/
 
 - Expand automated test coverage
 - Continue expanding metadata and codec compatibility
-- Select multiple files/tracks
+- Gapless Playback
 
 ## License
 

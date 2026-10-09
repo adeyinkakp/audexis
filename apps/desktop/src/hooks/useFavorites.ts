@@ -28,5 +28,9 @@ export function useFavorites() {
     },
     onError: (error) => toast.error(String(error)),
   });
-  return { ...favorites, setLoved: mutation.mutate };
+  return {
+    ...favorites,
+    setLoved: mutation.mutate,
+    setLovedAsync: mutation.mutateAsync,
+  };
 }

@@ -22,6 +22,7 @@ pub struct NowPlayingInfo {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QueueInfo {
+    pub queue_ids: Vec<String>,
     pub paths: Vec<String>,
     pub file_ids: Vec<i64>,
     pub occurrences: Vec<Option<i64>>,
@@ -49,6 +50,7 @@ pub fn get_queue_info(state: &tauri::State<'_, AppState>) -> Result<QueueInfo, S
         .lock()
         .map_err(|_| "Audio queue is unavailable".to_string())?;
     Ok(QueueInfo {
+        queue_ids: queue.queue_ids(),
         paths: queue.paths(),
         file_ids: queue.file_ids(),
         occurrences: queue.playlist_ordinals(),
@@ -176,6 +178,7 @@ pub fn finish_playback_and_clear_queue(
     app.emit(
         "queue-changed",
         QueueInfo {
+            queue_ids: Vec::new(),
             paths: Vec::new(),
             file_ids: Vec::new(),
             occurrences: Vec::new(),

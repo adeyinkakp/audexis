@@ -20,3 +20,5 @@ pub mod update_media_controls;
 pub mod lyrics_preview;
 
 pub mod equalizer;
+
+pub mod remove_queue_entries;

@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlaylistTrack } from "../../hooks/usePlaylists";
-import { SongContextMenu } from "../SongContextMenu";
+import { SongCollectionItem } from "../songs/SongCollection";
 import { cn } from "../../utils";
 import { PlaylistRowContent } from "./PlaylistRowContent";
 
@@ -31,11 +31,12 @@ export function SortablePlaylistRow({
     isDragging,
   } = useSortable({ id: track.ord });
   return (
-    <SongContextMenu
+    <SongCollectionItem
+      itemKey={`${track.id}-${track.ord}`}
       fileId={track.id}
       playlistId={playlistId}
       onRemoveFromPlaylist={onRemove}
-      asChild={false}
+      onPlay={onPlay}
     >
       <div
         ref={setNodeRef}
@@ -55,9 +56,8 @@ export function SortablePlaylistRow({
           isDragging={isDragging}
           dragHandleAttributes={attributes}
           dragHandleListeners={listeners}
-          onPlay={onPlay}
         />
       </div>
-    </SongContextMenu>
+    </SongCollectionItem>
   );
 }

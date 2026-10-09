@@ -1,5 +1,5 @@
-import { SongContextMenu } from "../SongContextMenu";
-import { HeartButton } from "../HeartButton";
+import { SongCollection } from "../songs/SongCollection";
+import { SongItem } from "../songs/SongItem";
 import { ChevronRight } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
@@ -10,7 +10,6 @@ import {
   type SearchFilters,
 } from "../../hooks/useSearchMedia";
 import { formatDuration } from "../../utils/duration";
-import { Artwork } from "./CollectionGrid";
 import { useNowPlayingState } from "../../hooks/useNowPlayingState";
 export function CollectionSongs({
   query = "",
@@ -84,54 +83,39 @@ export function CollectionSongs({
       ) : !files.length ? (
         <p className="text-sm text-muted-foreground">No matching songs.</p>
       ) : (
-        <div
-          className={
-            favoritesOnly || filters.exactAlbum !== undefined
-              ? "flex flex-col"
-              : "grid gap-x-8 lg:grid-cols-2"
-          }
+        <SongCollection
+          key={JSON.stringify([query, filters, favoritesOnly])}
+          items={(preview ? files.slice(0, 5) : files).map((file) => ({
+            key: String(file.id),
+            fileId: file.id,
+          }))}
+          hasMore={!preview && result.hasNextPage}
         >
-          {(preview ? files.slice(0, 5) : files).map((file, index) => {
-            const tag = tags.get(file.id) ?? {};
-            return (
-              <SongContextMenu fileId={file.id} key={file.id}>
-                <div
-                  onDoubleClick={() => void play(index)}
-                  className={`flex min-w-0 items-center gap-3 border-b border-border/60 py-3 px-2 rounded ${currentTrackId === file.id ? "text-primary bg-active" : ""}`}
-                >
-                  <button
-                    aria-label={`Play ${tag.title || file.file_name}`}
-                    className="w-14 shrink-0"
-                  >
-                    <Artwork id={file.id} />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <button className="block max-w-full truncate text-left font-medium hover:text-primary">
-                      {tag.title || file.file_name}
-                    </button>
-                    {tag.artist ? (
-                      <Link
-                        to="/artists"
-                        search={{ artist: tag.artist }}
-                        className="block truncate text-sm text-muted-foreground hover:text-primary hover:underline"
-                      >
-                        {tag.artist}
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        Unknown artist
-                      </span>
-                    )}
-                  </div>
-                  <HeartButton fileId={file.id} />
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatDuration(file.duration_ms)}
-                  </span>
-                </div>
-              </SongContextMenu>
-            );
-          })}
-        </div>
+          <div
+            className={
+              favoritesOnly || filters.exactAlbum !== undefined
+                ? "flex flex-col"
+                : "grid gap-x-8 lg:grid-cols-2"
+            }
+          >
+            {(preview ? files.slice(0, 5) : files).map((file, index) => {
+              const tag = tags.get(file.id) ?? {};
+              return (
+                <SongItem
+                  key={file.id}
+                  itemKey={String(file.id)}
+                  fileId={file.id}
+                  title={tag.title || file.file_name}
+                  artist={tag.artist}
+                  detail={formatDuration(file.duration_ms)}
+                  current={currentTrackId === file.id}
+                  favorite
+                  onPlay={() => void play(index)}
+                />
+              );
+            })}
+          </div>
+        </SongCollection>
       )}
       {!preview && result.hasNextPage && (
         <button

@@ -46,6 +46,7 @@ where
         let _ = ctx.app_handle.emit(
             "queue-changed",
             QueueInfo {
+                queue_ids: Vec::new(),
                 paths: Vec::new(),
                 file_ids: Vec::new(),
                 occurrences: Vec::new(),
@@ -59,6 +60,7 @@ where
     }
 
     let queue_info = QueueInfo {
+        queue_ids: q.queue_ids(),
         paths: q.paths(),
         file_ids: q.file_ids(),
         occurrences: q.playlist_ordinals(),
