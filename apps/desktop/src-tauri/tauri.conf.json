@@ -131,12 +131,9 @@
   },
   "plugins": {
     "updater": {
-      "active": true,
-      "createUpdaterArtifacts": true,
       "endpoints": [
         "https://github.com/adeyinkakp/audexis/releases/latest/download/latest.json"
       ],
-      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYwN0U3RDA5NDhBMjcxMjMKUldRamNhSklDWDErOE1pdHZyRWlKaVlMTjRJNTlQN1pyT08rRUxISzhyOHNPVEF2SE1sTTFnN2gK"
     }
   }

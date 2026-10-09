@@ -15,6 +15,8 @@ import { ErrorPage } from "./components/ErrorPage";
 import { StartupValidate } from "./components/StartupValidate";
 import { installErrorLogging, logError } from "./utils/logger";
 
+import { AppUpdater } from "./components/AppUpdater";
+
 import MiniPlayer from "./components/MiniPlayer";
 
 const isMiniPlayer = new URLSearchParams(window.location.search).has("mini-player");
@@ -91,6 +93,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             </>
           ) : (
             <StoreProvider>
+              <AppUpdater />
               <LibraryEvents />
               <RouterProvider router={router} />
             </StoreProvider>

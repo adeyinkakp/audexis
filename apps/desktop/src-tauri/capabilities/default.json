@@ -7,6 +7,7 @@
   ],
   "permissions": [
     "core:default",
+    "updater:default",
     "opener:default",
     {
       "identifier": "http:default",
