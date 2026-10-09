@@ -194,7 +194,17 @@ impl Equalizer {
         }
         self.settings = settings;
         let (gains, preamp) = settings.curve();
-        self.target = std::array::from_fn(|i| coefficients(FREQUENCIES[i], gains[i], self.rate));
+
+        let nyquist = self.rate * 0.5;
+
+        self.target = std::array::from_fn(|i| {
+            if FREQUENCIES[i] >= nyquist {
+                [1.0, 0.0, 0.0, 0.0, 0.0]
+            } else {
+                coefficients(FREQUENCIES[i], gains[i], self.rate)
+            }
+        });
+
         self.target_gain = 10_f64.powf(preamp / 20.0);
         self.remaining = (self.rate * 0.02).max(1.0) as usize;
     }
