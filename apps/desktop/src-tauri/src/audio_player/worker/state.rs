@@ -46,8 +46,10 @@ impl WorkerState {
     }
 
     pub fn clear_loaded_track(&mut self) {
+        self.is_done = false;
         self.format = None;
         self.decoder = None;
+        self.resampler = None;
         self.clear_playback_buffers();
     }
 }

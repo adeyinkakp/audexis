@@ -51,6 +51,8 @@ export function selectSongSelection(
 ): Set<string> {
   if (!items.some((item) => item.key === key && item.fileId > 0))
     return new Set(selected);
+  if (!range && !additive && selected.size === 1 && selected.has(key))
+    return new Set();
   if (!range && !additive) return new Set([key]);
   return toggleSongSelection(items, selected, key, anchor, range);
 }

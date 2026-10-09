@@ -430,7 +430,9 @@ fn spawn_progress_notifier(
         let dur = audio_duration.load(Ordering::Acquire);
         let db_id = database_id.load(Ordering::Acquire);
 
-        let playback = if is_paused {
+        let playback = if db_id == 0 {
+            souvlaki::MediaPlayback::Stopped
+        } else if is_paused {
             souvlaki::MediaPlayback::Paused {
                 progress: Some(MediaPosition(Duration::from_millis(pos))),
             }

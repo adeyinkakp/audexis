@@ -6,7 +6,7 @@ use symphonia::core::formats::TrackType;
 use symphonia::core::formats::{probe::Hint, SeekMode, SeekTo};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::units::{Time, Timestamp};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 use super::{WorkerContext, WorkerState};
 use crate::audio_player::duration::resolve_duration_ms;
@@ -33,16 +33,7 @@ where
         ctx.audio_duration.store(0, Ordering::Release);
         ctx.database_id.store(0, Ordering::Relaxed);
         state.clear_loaded_track();
-        let _ = ctx
-            .controls
-            .lock()
-            .unwrap()
-            .set_playback(MediaPlayback::Stopped);
-        let _ = ctx
-            .controls
-            .lock()
-            .unwrap()
-            .set_metadata(MediaMetadata::default());
+        clear_now_playing(&ctx.app_handle);
         let _ = ctx.app_handle.emit(
             "queue-changed",
             QueueInfo {
@@ -56,6 +47,15 @@ where
         );
         let _ = ctx.app_handle.emit("playback-modes-changed", modes);
         let _ = ctx.app_handle.emit("playback-queue-done", ());
+        if let Ok(mut controls) = ctx.controls.lock() {
+            let _ = controls.set_playback(MediaPlayback::Stopped);
+            let _ = controls.set_metadata(MediaMetadata {
+                title: Some(""),
+                artist: Some(""),
+                album: Some(""),
+                ..MediaMetadata::default()
+            });
+        }
         return;
     }
 
@@ -72,6 +72,18 @@ where
     let _ = ctx.cmd_tx.send(PlayerCmd::Play { resuming: false });
     let _ = ctx.app_handle.emit("playback-media-done", ());
     state.is_done = false;
+}
+
+fn clear_now_playing(app: &tauri::AppHandle) {
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        if let Ok(mut now_playing) = state.now_playing.lock() {
+            *now_playing = None;
+        }
+    }
+    let _ = app.emit(
+        "now-playing-changed",
+        Option::<crate::commands::playback::shared::NowPlayingInfo>::None,
+    );
 }
 
 pub fn handle_command<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, cmd: PlayerCmd)
@@ -92,6 +104,9 @@ where
             }
             ctx.paused.store(true, Ordering::Release);
             ctx.flush_output.store(true, Ordering::Release);
+            ctx.position_ms.store(0, Ordering::Release);
+            ctx.audio_duration.store(0, Ordering::Release);
+            ctx.database_id.store(0, Ordering::Relaxed);
             state.clear_loaded_track();
         }
         PlayerCmd::Seek { seconds } => handle_seek(ctx, state, seconds.saturating_mul(1000)),
@@ -128,7 +143,8 @@ where
     let q = ctx.queue.lock().unwrap();
     let current_t = q.tracks.get(q.index as usize);
     if current_t.is_none() {
-        let _ = ctx.app_handle.emit("playback-queue-done", ());
+        drop(q);
+        handle_track_completion(ctx, state);
         return;
     }
 
