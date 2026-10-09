@@ -57,9 +57,17 @@ pub async fn update_media_controls(
         std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
         let path = directory.join(format!("media-controls-cover-{file_id}.{extension}"));
         std::fs::write(&path, data).map_err(|error| error.to_string())?;
-        tauri::Url::from_file_path(path)
-            .ok()
-            .map(|url| url.to_string())
+        #[cfg(target_os = "windows")]
+        {
+            // without `file://` at the beginning on windows It would cause err on windows
+            Some(format!("file://{}", path.display()))
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            tauri::Url::from_file_path(path)
+                .ok()
+                .map(|url| url.to_string())
+        }
     } else {
         None
     };

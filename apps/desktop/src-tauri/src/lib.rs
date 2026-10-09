@@ -149,19 +149,13 @@ fn initialize(app: &mut tauri::App) -> Result<(), startup::StartupError> {
     #[cfg(not(target_os = "windows"))]
     let hwnd = None;
     #[cfg(target_os = "windows")]
-    let hwnd = {
-        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-        main_window
-            .window_handle()
-            .ok()
-            .and_then(|handle| match handle.as_raw() {
-                RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as *mut std::ffi::c_void),
-                _ => None,
-            })
-    };
+    let hwnd = main_window
+        .hwnd()
+        .ok()
+        .map(|handle| handle.0 as *mut std::ffi::c_void);
     let controls = MediaControls::new(PlatformConfig {
-        dbus_name: "com.audexis",
-        display_name: "My Tauri Music Player",
+        dbus_name: "com.kp.audexis",
+        display_name: "Audexis",
         hwnd,
     })
     .map_err(|error| {
