@@ -2,17 +2,12 @@ use ringbuf::traits::{Observer, Producer};
 use souvlaki::{MediaMetadata, MediaPlayback};
 use std::sync::{atomic::Ordering, Arc};
 use std::time::Duration;
-use symphonia::core::formats::TrackType;
-use symphonia::core::formats::{probe::Hint, SeekMode, SeekTo};
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::formats::{SeekMode, SeekTo};
 use symphonia::core::units::{Time, Timestamp};
 use tauri::{Emitter, Manager};
 
 use super::{WorkerContext, WorkerState};
-use crate::audio_player::duration::resolve_duration_ms;
-use crate::audio_player::types::{
-    AudioPlayerError, PartialMetadata, PartialPlaybackInfo, PlayerCmd,
-};
+use crate::audio_player::types::{PartialMetadata, PartialPlaybackInfo, PlayerCmd};
 use crate::commands::playback::shared::QueueInfo;
 
 pub fn handle_track_completion<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState)
@@ -74,6 +69,36 @@ where
     state.is_done = false;
 }
 
+pub(super) fn fail_playback<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, error: &str)
+where
+    P: Producer<Item = f32> + Observer + Send,
+{
+    let file = state
+        .transitions
+        .back()
+        .map(|transition| transition.queue_id.clone());
+    let mut queue = ctx.queue.lock().unwrap();
+    let path = file
+        .and_then(|id| {
+            queue.tracks.iter().find_map(|track| {
+                let track = track.lock().ok()?;
+                (track.queue_id == id).then(|| track.path.clone())
+            })
+        })
+        .or_else(|| queue.current_path())
+        .unwrap_or_default();
+    queue.clear();
+    drop(queue);
+
+    handle_track_completion(ctx, state);
+    crate::utils::errors::report_backend_error(
+        &ctx.app_handle,
+        "AudioDecoderError",
+        "Playback stopped because this track could not be decoded. Try another track.",
+        format!("{path}: {error}"),
+    );
+}
+
 fn clear_now_playing(app: &tauri::AppHandle) {
     if let Some(state) = app.try_state::<crate::AppState>() {
         if let Ok(mut now_playing) = state.now_playing.lock() {
@@ -111,9 +136,14 @@ where
         }
         PlayerCmd::Seek { seconds } => handle_seek(ctx, state, seconds.saturating_mul(1000)),
         PlayerCmd::SeekMilliseconds { milliseconds } => handle_seek(ctx, state, milliseconds),
-        PlayerCmd::UpdateDeviceConfig { target_sample_rate } => {
-            state.pending_output = 0..0;
+        PlayerCmd::UpdateDeviceConfig {
+            target_sample_rate,
+            output_channels,
+        } => {
+            let position = ctx.position_ms.load(Ordering::Acquire);
+            handle_seek(ctx, state, position);
             state.target_sample_rate = target_sample_rate;
+            state.output_channels = output_channels;
             state.resampler = None;
         }
         PlayerCmd::Preload => {}
@@ -129,178 +159,75 @@ where
         ctx.paused.store(false, Ordering::Release);
         return;
     }
-
-    if !resuming {
-        if let Ok(mut counter) = ctx.play_counter.lock() {
-            counter.stop();
-        }
-        ctx.paused.store(true, Ordering::Release);
-        ctx.flush_output.store(true, Ordering::Release);
-        ctx.position_ms.store(0, Ordering::Release);
-        ctx.audio_duration.store(0, Ordering::Release);
-        ctx.database_id.store(0, Ordering::Relaxed);
+    ctx.paused.store(true, Ordering::Release);
+    ctx.flush_output.store(true, Ordering::Release);
+    ctx.position_ms.store(0, Ordering::Release);
+    ctx.audio_duration.store(0, Ordering::Release);
+    ctx.database_id.store(0, Ordering::Release);
+    if let Ok(mut counter) = ctx.play_counter.lock() {
+        counter.stop();
     }
+    state.clear_loaded_track();
     let q = ctx.queue.lock().unwrap();
-    let current_t = q.tracks.get(q.index as usize);
-    if current_t.is_none() {
+    let Some(track) = q.tracks.get(q.index as usize) else {
         drop(q);
         handle_track_completion(ctx, state);
         return;
-    }
-
-    let playlist_id = q.playlist_id.filter(|_| {
-        current_t
-            .unwrap()
-            .lock()
-            .ok()
-            .is_some_and(|track| track.playlist_ord.is_some())
-    });
-    let current_track = Arc::clone(current_t.unwrap());
-    let media_database_id = current_track.lock().unwrap().database_id;
-    ctx.database_id.store(media_database_id, Ordering::Relaxed);
+    };
+    let track = Arc::clone(track);
+    let track = track.lock().unwrap();
+    let path = track.path.clone();
+    let id = track.database_id;
+    let playlist_id = q.playlist_id.filter(|_| track.playlist_ord.is_some());
+    drop(track);
     drop(q);
-
-    state.clear_playback_buffers();
-
-    let file_path = current_track.lock().unwrap().path.clone();
-    let src = match crate::utils::library_files::open(&file_path) {
-        Ok(src) => src,
-        Err(error) => {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::FileOpen {
-                    path: file_path.clone(),
-                    source: error,
-                }
-            );
-            return;
+    match super::source::open(&path, state.target_sample_rate, state.output_channels) {
+        Ok((loaded, duration)) => {
+            *state = loaded;
+            publish_track(ctx, id, duration, playlist_id, 0);
+            ctx.paused.store(false, Ordering::Release);
         }
-    };
-
-    let mss = MediaSourceStream::new(Box::new(src), Default::default());
-    let mut hint = Hint::new();
-    if let Some(ext) = std::path::Path::new(&file_path)
-        .extension()
-        .and_then(|e| e.to_str())
-    {
-        hint.with_extension(ext);
+        Err(error) => fail_playback(ctx, state, &error),
     }
-
-    let mut probed = match symphonia::default::get_probe().probe(
-        &hint,
-        mss,
-        Default::default(),
-        Default::default(),
-    ) {
-        Ok(probed) => probed,
-        Err(error) => {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::Probe {
-                    path: file_path.clone(),
-                    message: error.to_string(),
-                }
-            );
-            return;
-        }
-    };
-
-    let (track_id, sample_rate, channel_count, decoder) = {
-        let track = match probed.default_track(TrackType::Audio) {
-            Some(track) => track,
-            None => {
-                tauri_plugin_log::log::error!(
-                    "{}",
-                    AudioPlayerError::MissingTrack { path: file_path }
-                );
-                return;
-            }
-        };
-
-        let track_id = track.id;
-        let Some(audio_codec_params) = track
-            .codec_params
-            .as_ref()
-            .and_then(|params| params.audio())
-        else {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::MissingTrack {
-                    path: file_path.clone(),
-                }
-            );
-            return;
-        };
-
-        let Some(sample_rate) = audio_codec_params.sample_rate else {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::MissingSampleRate {
-                    path: file_path.clone(),
-                }
-            );
-            return;
-        };
-
-        let Some(channels) = audio_codec_params.channels.as_ref() else {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::MissingChannels {
-                    path: file_path.clone(),
-                }
-            );
-            return;
-        };
-
-        let decoder = match symphonia::default::get_codecs()
-            .make_audio_decoder(audio_codec_params, &Default::default())
-        {
-            Ok(decoder) => decoder,
-            Err(error) => {
-                tauri_plugin_log::log::error!(
-                    "{}",
-                    AudioPlayerError::Decoder {
-                        path: file_path.clone(),
-                        message: error.to_string(),
-                    }
-                );
-                return;
-            }
-        };
-
-        (track_id, sample_rate, channels.count(), decoder)
-    };
-
-    state.track_id = track_id;
-
-    let duration = resolve_duration_ms(&mut probed, state.track_id, None);
-    ctx.audio_duration.store(duration.ms, Ordering::Release);
-    if let Ok(mut counter) = ctx.play_counter.lock() {
-        counter.start(media_database_id, duration.ms, playlist_id);
-    }
-
-    if let Err(err) = ctx.app_handle.emit(
-        "playback-media-start",
-        PartialPlaybackInfo {
-            id: media_database_id,
-            duration: duration.ms,
-        },
-    ) {
-        println!(":{:?}", err);
-    }
-
-    state.source_sample_rate = sample_rate;
-    state.channels_uz = channel_count;
-    state.decoder = Some(decoder);
-    state.format = Some(probed);
-    state.resampler = None;
-    ctx.paused.store(false, Ordering::Release);
 }
 
-fn handle_seek<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, milliseconds: u64)
+pub(super) fn publish_track<P>(
+    ctx: &mut WorkerContext<P>,
+    id: i64,
+    duration: u64,
+    playlist_id: Option<i64>,
+    position: u64,
+) where
+    P: Producer<Item = f32> + Observer + Send,
+{
+    ctx.database_id.store(id, Ordering::Release);
+    ctx.audio_duration.store(duration, Ordering::Release);
+    ctx.position_ms.store(position, Ordering::Release);
+    if let Ok(mut counter) = ctx.play_counter.lock() {
+        counter.start(id, duration, playlist_id);
+    }
+    let _ = ctx
+        .app_handle
+        .emit("playback-media-start", PartialPlaybackInfo { id, duration });
+}
+
+pub(super) fn handle_seek<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, milliseconds: u64)
 where
     P: Producer<Item = f32> + Observer + Send,
 {
+    if let Err(error) = crate::audio_player::decoder_guard::guard(|| {
+        seek_inner(ctx, state, milliseconds);
+        Ok(())
+    }) {
+        fail_playback(ctx, state, &error);
+    }
+}
+
+fn seek_inner<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState, milliseconds: u64)
+where
+    P: Producer<Item = f32> + Observer + Send,
+{
+    state.restore_audible_track();
     let was_paused = ctx.paused.swap(true, Ordering::AcqRel);
     if let Some(current_format) = state.format.as_mut() {
         let target_timestamp = current_format

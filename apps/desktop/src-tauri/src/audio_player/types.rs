@@ -11,14 +11,25 @@ pub struct PartialMetadata {
 }
 
 pub enum PlayerCmd {
-    Play { resuming: bool },
+    Play {
+        resuming: bool,
+    },
     Pause,
     Stop,
-    Seek { seconds: u64 },
-    SeekMilliseconds { milliseconds: u64 },
+    Seek {
+        seconds: u64,
+    },
+    SeekMilliseconds {
+        milliseconds: u64,
+    },
     Preload,
-    UpdateControlsMetadata { metadata: PartialMetadata },
-    UpdateDeviceConfig { target_sample_rate: u32 },
+    UpdateControlsMetadata {
+        metadata: PartialMetadata,
+    },
+    UpdateDeviceConfig {
+        target_sample_rate: u32,
+        output_channels: usize,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone)]

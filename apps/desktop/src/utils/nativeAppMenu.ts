@@ -81,8 +81,13 @@ export function updateNativeMenus(groups: MenuGroup[]) {
               );
               continue;
             }
+            if (item.nativeRole) {
+              result.push(track(await PredefinedMenuItem.new({ item: item.nativeRole, text: item.text })));
+              continue;
+            }
             const options = {
               text: item.text,
+              accelerator: item.accelerator,
               enabled: !item.disabled,
               action: () => {
                 const current = lookup(path);

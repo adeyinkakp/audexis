@@ -18,6 +18,8 @@ export type MenuItem = {
   action?: () => void | Promise<void>;
   disabled?: boolean;
   checked?: boolean;
+  nativeRole?: "Cut" | "Copy" | "Paste";
+  accelerator?: string;
   submenu?: MenuOptions | (() => MenuOptions);
 };
 

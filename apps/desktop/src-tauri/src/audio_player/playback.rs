@@ -4,7 +4,7 @@ use ringbuf::storage::Heap;
 use ringbuf::wrap::caching::Caching;
 use ringbuf::SharedRb;
 use ringbuf::{
-    traits::{Consumer, Split},
+    traits::{Consumer, Observer, Split},
     HeapRb,
 };
 use souvlaki::{MediaControlEvent, MediaControls, MediaPosition};
@@ -40,6 +40,7 @@ pub struct AudioPlayer {
     stream: Option<Stream>,
     cmd_tx: crossbeam_channel::Sender<PlayerCmd>,
     consumer: ConsumerType,
+    consumed_samples: Arc<AtomicU64>,
     flush_output: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     position_ms: Arc<AtomicU64>,
@@ -72,6 +73,7 @@ impl AudioPlayer {
         let paused = Arc::new(AtomicBool::new(false));
         let audio_duration = Arc::new(AtomicU64::new(0));
         let position_ms = Arc::new(AtomicU64::new(0));
+        let consumed_samples = Arc::new(AtomicU64::new(0));
 
         spawn_progress_notifier(
             app_handle.clone(),
@@ -88,6 +90,8 @@ impl AudioPlayer {
             cmd_rx,
             cmd_tx: cmd_tx_media,
             producer,
+            consumed_samples: Arc::clone(&consumed_samples),
+            produced_samples: 0,
             controls: Arc::clone(&controls),
             app_handle: app_handle.clone(),
             database_id: Arc::clone(&database_id),
@@ -201,6 +205,7 @@ impl AudioPlayer {
             queue,
             cmd_tx,
             consumer: Arc::clone(&consumer),
+            consumed_samples,
             flush_output: Arc::clone(&flush_output),
             paused: Arc::clone(&paused),
             position_ms: Arc::clone(&position_ms),
@@ -241,11 +246,13 @@ impl AudioPlayer {
             buffer_size: cpal::BufferSize::Default,
         };
 
-        let _ = self
-            .cmd_tx
-            .send(PlayerCmd::UpdateDeviceConfig { target_sample_rate });
+        let _ = self.cmd_tx.send(PlayerCmd::UpdateDeviceConfig {
+            target_sample_rate,
+            output_channels: channels as usize,
+        });
 
         let consumer = Arc::clone(&self.consumer);
+        let consumed_samples = Arc::clone(&self.consumed_samples);
         let flush_output = Arc::clone(&self.flush_output);
         let paused = Arc::clone(&self.paused);
         let position_ms = Arc::clone(&self.position_ms);
@@ -263,8 +270,11 @@ impl AudioPlayer {
                 config.to_owned(),
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     if let Ok(mut c) = consumer.lock() {
-                        if flush_output.swap(false, Ordering::AcqRel) {
+                        if flush_output.load(Ordering::Acquire) {
+                            let discarded = c.occupied_len();
                             c.clear();
+                            consumed_samples.fetch_add(discarded as u64, Ordering::Release);
+                            flush_output.store(false, Ordering::Release);
                             progress = FrameProgress::default();
                             equalizer.reset();
                         }
@@ -287,6 +297,7 @@ impl AudioPlayer {
                                 counter.heard(advance_us);
                             }
                         }
+                        consumed_samples.fetch_add(read as u64, Ordering::Release);
                         if read < data.len() {
                             data[read..].fill(0.0);
                         }

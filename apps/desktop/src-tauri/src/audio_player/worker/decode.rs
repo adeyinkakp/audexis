@@ -1,132 +1,120 @@
 use audioadapter_buffers::direct::InterleavedSlice;
 use ringbuf::traits::{Observer, Producer};
 use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
-
-use std::time::Duration;
 use symphonia::core::errors::Error;
 
 use super::{WorkerContext, WorkerState};
-use crate::audio_player::types::AudioPlayerError;
 
-pub fn ensure_resampler(state: &mut WorkerState) -> bool {
-    if state.resampler.is_some() {
-        return true;
+pub fn render(state: &mut WorkerState) -> Result<bool, String> {
+    let resampling = state.source_sample_rate != state.target_sample_rate;
+    if resampling && state.resampler.is_none() {
+        let resampler = Async::<f32>::new_poly(
+            state.target_sample_rate as f64 / state.source_sample_rate as f64,
+            1.1,
+            PolynomialDegree::Cubic,
+            1024,
+            state.channels_uz,
+            FixedAsync::Input,
+        )
+        .map_err(|e| e.to_string())?;
+        state.delay_remaining = resampler.output_delay();
+        state.resampler = Some(resampler);
     }
-
-    let resample_ratio = state.target_sample_rate as f64 / state.source_sample_rate as f64;
-    let chunk_size = 1024usize;
-    let resampler = match Async::<f32>::new_poly(
-        resample_ratio,
-        1.1,
-        PolynomialDegree::Cubic,
-        chunk_size,
-        state.channels_uz,
-        FixedAsync::Input,
-    ) {
-        Ok(resampler) => resampler,
-        Err(error) => {
-            tauri_plugin_log::log::error!(
-                "{}",
-                AudioPlayerError::Resampler {
-                    message: error.to_string(),
+    let required = state
+        .resampler
+        .as_mut()
+        .map_or(1024, |r| r.input_frames_next());
+    while !state.eof && state.decode_buffer.len() < required * state.channels_uz {
+        match state.format.as_mut().ok_or("No format")?.next_packet() {
+            Ok(Some(packet)) => {
+                if packet.track_id != state.track_id {
+                    continue;
                 }
-            );
-            state.resampler = None;
-            return false;
+                match state.decoder.as_mut().ok_or("No decoder")?.decode(&packet) {
+                    Ok(audio) => {
+                        state
+                            .packet_samples
+                            .resize(audio.samples_interleaved(), 0.0);
+                        audio.copy_to_slice_interleaved(&mut state.packet_samples);
+                        state.input_frames +=
+                            (state.packet_samples.len() / state.channels_uz) as u64;
+                        state.decode_buffer.extend_from_slice(&state.packet_samples);
+                    }
+                    Err(Error::DecodeError(_)) => continue,
+                    Err(error) => return Err(error.to_string()),
+                }
+            }
+            Ok(None) => state.eof = true,
+            Err(Error::IoError(error)) if error.kind() == std::io::ErrorKind::UnexpectedEof => {
+                state.eof = true
+            }
+            Err(error) => return Err(error.to_string()),
         }
+    }
+    let expected = (u128::from(state.input_frames) * u128::from(state.target_sample_rate))
+        .div_ceil(u128::from(state.source_sample_rate)) as u64;
+    if state.eof && state.output_frames >= expected {
+        return Ok(false);
+    }
+    let available = (state.decode_buffer.len() / state.channels_uz).min(required);
+    state.indata.clear();
+    state
+        .indata
+        .extend(state.decode_buffer.drain(..available * state.channels_uz));
+    let (samples, frames) = if let Some(resampler) = state.resampler.as_mut() {
+        state.indata.resize(required * state.channels_uz, 0.0);
+        let capacity = resampler.output_frames_max();
+        let mut output = vec![0.0; capacity * state.channels_uz];
+        let input = InterleavedSlice::new(&state.indata, state.channels_uz, required)
+            .map_err(|e| e.to_string())?;
+        let mut adapter = InterleavedSlice::new_mut(&mut output, state.channels_uz, capacity)
+            .map_err(|e| e.to_string())?;
+        let (_, written) = resampler
+            .process_into_buffer(&input, &mut adapter, None)
+            .map_err(|e| e.to_string())?;
+        let skip = state.delay_remaining.min(written);
+        state.delay_remaining -= skip;
+        let keep = if state.eof {
+            (written - skip).min(expected.saturating_sub(state.output_frames) as usize)
+        } else {
+            written - skip
+        };
+        (
+            output[skip * state.channels_uz..(skip + keep) * state.channels_uz].to_vec(),
+            keep,
+        )
+    } else {
+        (state.indata.clone(), available)
     };
-
-    state.indata = vec![0.0f32; state.channels_uz * chunk_size];
-    state.outdata = vec![0.0f32; state.channels_uz * resampler.output_frames_max()];
-    state.resampler = Some(resampler);
-    true
-}
-
-pub fn fill_decode_buffer<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState) -> bool
-where
-    P: Producer<Item = f32> + Observer + Send,
-{
-    let fmt_ref = state.format.as_mut().unwrap();
-    let dec_ref = state.decoder.as_mut().unwrap();
-
-    match fmt_ref.next_packet() {
-        Ok(packet) => {
-            if packet.is_none() {
-                return handle_end_of_stream(ctx, state);
+    state.outdata.clear();
+    for frame in samples.chunks_exact(state.channels_uz) {
+        if state.output_channels == 1 {
+            state
+                .outdata
+                .push(frame.iter().sum::<f32>() / state.channels_uz as f32);
+        } else {
+            for channel in 0..state.output_channels {
+                state.outdata.push(if state.channels_uz == 1 {
+                    frame[0]
+                } else {
+                    frame.get(channel).copied().unwrap_or(0.0)
+                });
             }
-            let packet = packet.unwrap();
-            if packet.track_id == state.track_id {
-                if let Ok(audio_buf) = dec_ref.decode(&packet) {
-                    let needed = audio_buf.samples_interleaved();
-                    state.packet_samples.resize(needed, 0.0);
-                    audio_buf.copy_to_slice_interleaved(&mut state.packet_samples);
-                    state.decode_buffer.extend_from_slice(&state.packet_samples);
-                }
-            }
-            true
-        }
-        Err(Error::ResetRequired) => {
-            println!("hmm");
-            true
-        }
-        Err(_) => {
-            println!("eof");
-            handle_end_of_stream(ctx, state)
         }
     }
+    state.output_frames += frames as u64;
+    state.pending_output = 0..state.outdata.len();
+    Ok(true)
 }
 
-pub fn handle_end_of_stream<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState) -> bool
+pub fn flush_pending_audio<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerState) -> bool
 where
     P: Producer<Item = f32> + Observer + Send,
 {
-    if !ctx.producer.is_empty() {
-        std::thread::sleep(Duration::from_millis(10));
-        return false;
-    }
-
-    if state.is_done {
-        return false;
-    }
-
-    let mut q = ctx.queue.lock().unwrap();
-    q.advance_after_eof();
-    drop(q);
-
-    state.is_done = true;
-
-    false
-}
-
-pub fn write_resampled_audio<P>(producer: &mut P, state: &mut WorkerState, required_samples: usize)
-where
-    P: Producer<Item = f32> + Observer + Send,
-{
-    let chunk_samples: Vec<f32> = state.decode_buffer.drain(0..required_samples).collect();
-    state.indata.copy_from_slice(&chunk_samples);
-
-    let current_resampler = state.resampler.as_mut().unwrap();
-    let frames_to_read = current_resampler.input_frames_next();
-    let input_adapter =
-        InterleavedSlice::new(&state.indata, state.channels_uz, frames_to_read).unwrap();
-
-    let current_capacity = state.outdata.len() / state.channels_uz;
-    let mut output_adapter =
-        InterleavedSlice::new_mut(&mut state.outdata, state.channels_uz, current_capacity).unwrap();
-
-    let (_, frames_written) = current_resampler
-        .process_into_buffer(&input_adapter, &mut output_adapter, Some(&state.indexing))
-        .unwrap();
-
-    state.pending_output = 0..frames_written * state.channels_uz;
-    flush_pending_audio(producer, state);
-}
-
-pub fn flush_pending_audio<P>(producer: &mut P, state: &mut WorkerState) -> bool
-where
-    P: Producer<Item = f32>,
-{
-    let written = producer.push_slice(&state.outdata[state.pending_output.clone()]);
+    let written = ctx
+        .producer
+        .push_slice(&state.outdata[state.pending_output.clone()]);
+    ctx.produced_samples += written as u64;
     state.pending_output.start += written;
     state.pending_output.is_empty()
 }

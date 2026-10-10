@@ -105,15 +105,23 @@ impl Queue {
 
     pub fn reorder(&mut self, queue_id: &str, target_id: &str) -> Result<(), String> {
         let ids = self.queue_ids();
-        let from = ids.iter().position(|id| id == queue_id)
+        let from = ids
+            .iter()
+            .position(|id| id == queue_id)
             .ok_or("Queue entry is no longer available")?;
-        let to = ids.iter().position(|id| id == target_id)
+        let to = ids
+            .iter()
+            .position(|id| id == target_id)
             .ok_or("Target queue entry is no longer available")?;
         let current = self.current_queue_id();
         let track = self.tracks.remove(from);
         self.tracks.insert(to, track);
         if let Some(current) = current {
-            self.index = self.queue_ids().iter().position(|id| id == &current).unwrap() as i32;
+            self.index = self
+                .queue_ids()
+                .iter()
+                .position(|id| id == &current)
+                .unwrap() as i32;
         }
         if !self.shuffled {
             self.original_order = self.paths();
@@ -332,6 +340,21 @@ impl Queue {
 
         self.index += 1;
         self.current_path()
+    }
+
+    pub fn next_after_eof_index(&self) -> Option<usize> {
+        self.next_after_index(self.index as usize)
+    }
+
+    pub fn next_after_index(&self, index: usize) -> Option<usize> {
+        if index >= self.tracks.len() {
+            return None;
+        }
+        match self.repeat_mode {
+            RepeatMode::Track => Some(index),
+            RepeatMode::Queue => Some((index + 1) % self.tracks.len()),
+            RepeatMode::Off => (index + 1 < self.tracks.len()).then_some(index + 1),
+        }
     }
 
     pub fn advance_after_eof(&mut self) -> bool {

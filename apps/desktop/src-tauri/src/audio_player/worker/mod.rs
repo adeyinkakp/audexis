@@ -1,9 +1,10 @@
 mod commands;
 mod decode;
+mod gapless;
+mod source;
 mod state;
 
 use ringbuf::traits::{Observer, Producer};
-use rubato::Resampler;
 use souvlaki::MediaControls;
 use std::sync::atomic::AtomicI64;
 use std::sync::{
@@ -33,6 +34,8 @@ where
     pub flush_output: Arc<AtomicBool>,
     pub paused: Arc<AtomicBool>,
     pub position_ms: Arc<AtomicU64>,
+    pub consumed_samples: Arc<AtomicU64>,
+    pub produced_samples: u64,
 }
 
 pub fn run<P>(mut ctx: WorkerContext<P>)
@@ -42,17 +45,19 @@ where
     let mut state = WorkerState::new();
 
     loop {
-        if state.is_done {
-            commands::handle_track_completion(&mut ctx, &mut state);
-        }
-
         while let Ok(cmd) = ctx.cmd_rx.try_recv() {
             commands::handle_command(&mut ctx, &mut state, cmd);
         }
 
-        let idle =
-            state.format.is_none() || state.decoder.is_none() || ctx.paused.load(Ordering::Acquire);
-        let blocked = !idle && !decode::flush_pending_audio(&mut ctx.producer, &mut state);
+        if state.is_done {
+            commands::handle_track_completion(&mut ctx, &mut state);
+        }
+        gapless::publish_boundary(&mut ctx, &mut state);
+        let idle = state.format.is_none()
+            || state.decoder.is_none()
+            || ctx.paused.load(Ordering::Acquire)
+            || ctx.flush_output.load(Ordering::Acquire);
+        let blocked = !idle && !decode::flush_pending_audio(&mut ctx, &mut state);
         if idle || blocked {
             let timeout = Duration::from_millis(if idle { 10 } else { 2 });
             match ctx.cmd_rx.recv_timeout(timeout) {
@@ -62,22 +67,23 @@ where
             }
             continue;
         }
-
-        if !decode::ensure_resampler(&mut state) {
-            continue;
-        }
-
-        let required_samples =
-            state.resampler.as_mut().unwrap().input_frames_next() * state.channels_uz;
-
-        if state.decode_buffer.len() < required_samples
-            && !decode::fill_decode_buffer(&mut ctx, &mut state)
-        {
-            continue;
-        }
-
-        if state.decode_buffer.len() >= required_samples {
-            decode::write_resampled_audio(&mut ctx.producer, &mut state, required_samples);
+        match super::decoder_guard::guard(|| decode::render(&mut state)) {
+            Ok(true) => {
+                decode::flush_pending_audio(&mut ctx, &mut state);
+            }
+            Ok(false) => {
+                gapless::finish_decoding(&mut ctx, &mut state);
+                if state.eof && !state.is_done {
+                    match ctx.cmd_rx.recv_timeout(Duration::from_millis(2)) {
+                        Ok(cmd) => commands::handle_command(&mut ctx, &mut state, cmd),
+                        Err(crossbeam_channel::RecvTimeoutError::Disconnected) => break,
+                        Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+                    }
+                }
+            }
+            Err(error) => {
+                commands::fail_playback(&mut ctx, &mut state, &error);
+            }
         }
     }
 }

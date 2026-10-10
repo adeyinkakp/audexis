@@ -1,4 +1,4 @@
-import { songSelectionMenu } from "../utils/songSelectionMenu";
+import { editTextForTarget, selectAllForTarget } from "../utils/textEditingMenu";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
@@ -34,6 +34,10 @@ export default function AppMenuBar() {
   const [creating, setCreating] = useState(false);
   const [libraryBusy, setLibraryBusy] = useState(false);
   const busy = useRef(false);
+  const editTarget = useRef<HTMLElement | null>(null);
+  const currentEditTarget = () => isMac && !nativeFailed
+    ? document.activeElement as HTMLElement | null
+    : editTarget.current;
 
   useEffect(
     () =>
@@ -125,7 +129,30 @@ export default function AppMenuBar() {
     },
     {
       text: "Edit",
-      items: [{ text: "Select All", action: () => songSelectionMenu.selectAll() }],
+      items: [
+        {
+          text: "Cut",
+          nativeRole: "Cut",
+          action: () => editTextForTarget("cut", currentEditTarget()),
+        },
+        {
+          text: "Copy",
+          nativeRole: "Copy",
+          action: () => editTextForTarget("copy", currentEditTarget()),
+        },
+        {
+          text: "Paste",
+          nativeRole: "Paste",
+          action: () => editTextForTarget("paste", currentEditTarget())
+            .catch((error) => { toast.error(`Could not paste: ${String(error)}`); }),
+        },
+        separator,
+        {
+          text: "Select All",
+          accelerator: "CmdOrCtrl+A",
+          action: () => selectAllForTarget(currentEditTarget()),
+        },
+      ],
     },
     { text: "Song", disabled: player.fileId <= 0, items: songItems() },
     {
@@ -181,6 +208,13 @@ export default function AppMenuBar() {
       {(!isMac || nativeFailed) && (
         <nav
           aria-label="Application menus"
+          onFocusCapture={(event) => {
+            const previous = event.relatedTarget;
+            if (previous instanceof HTMLElement && !event.currentTarget.contains(previous)
+              && !previous.closest('[role="menu"]')) {
+              editTarget.current = previous;
+            }
+          }}
           className="relative z-10 ml-2 flex items-center"
           onKeyDown={(event) => {
             if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;

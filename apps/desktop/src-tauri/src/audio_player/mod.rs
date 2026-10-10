@@ -1,3 +1,4 @@
+mod decoder_guard;
 pub(crate) mod duration;
 pub mod modes;
 mod playback;
