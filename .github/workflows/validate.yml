@@ -2,8 +2,12 @@ name: Validate
 
 on:
   pull_request:
+    paths:
+      - "apps/desktop/**"
   push:
     branches: [main]
+    paths:
+      - "apps/desktop/**"
   workflow_call:
 
 permissions:
