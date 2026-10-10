@@ -8,6 +8,7 @@ use std::io::Error;
 
 pub fn vorbis_code(key: FrameKey) -> &'static str {
     match key {
+        FrameKey::AttachedPicture => "METADATA_BLOCK_PICTURE",
         FrameKey::Title => "TITLE",
         FrameKey::Artist => "ARTIST",
         FrameKey::Album => "ALBUM",
@@ -16,18 +17,24 @@ pub fn vorbis_code(key: FrameKey) -> &'static str {
         FrameKey::RecordingDate => "DATE",
         FrameKey::ReleaseDate => "ORIGINALDATE",
         FrameKey::TrackNumber => "TRACKNUMBER",
+        FrameKey::TotalTracks => "TRACKTOTAL",
+        FrameKey::DiscNumber => "DISCNUMBER",
+        FrameKey::TotalDiscs => "DISCTOTAL",
         FrameKey::Genre => "GENRE",
         FrameKey::ContentGroup => "GROUPING",
         FrameKey::Composer => "COMPOSER",
         FrameKey::EncodedBy => "ENCODER",
         FrameKey::UnsyncedLyrics => "LYRICS",
+        FrameKey::SynchronizedLyrics => "SYNCEDLYRICS",
         FrameKey::Comments => "COMMENT",
         FrameKey::Conductor => "CONDUCTOR",
         FrameKey::BeatsPerMinute => "BPM",
         FrameKey::Language => "LANGUAGE",
+        FrameKey::Label => "LABEL",
+        FrameKey::Isrc => "ISRC",
         FrameKey::UserDefinedURL => "URL",
 
-        _ => "COMMENT",
+        _ => "",
     }
 }
 
@@ -38,7 +45,7 @@ fn normalize_vorbis_key(raw: &str) -> String {
 pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
-    let mappings: [(&'static str, FrameKey); 18] = [
+    let mappings: [(&'static str, FrameKey); 19] = [
         ("TITLE", FrameKey::Title),
         ("ARTIST", FrameKey::Artist),
         ("ALBUM", FrameKey::Album),
@@ -54,6 +61,7 @@ pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         ("COMPOSER", FrameKey::Composer),
         ("ENCODER", FrameKey::EncodedBy),
         ("LYRICS", FrameKey::UnsyncedLyrics),
+        ("SYNCEDLYRICS", FrameKey::SynchronizedLyrics),
         ("COMMENT", FrameKey::Comments),
         ("CONDUCTOR", FrameKey::Conductor),
         ("BPM", FrameKey::BeatsPerMinute),
@@ -62,6 +70,7 @@ pub static VORBIS_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     for (k, v) in mappings {
         map.insert(k, v);
     }
+    map.insert("LANGUAGE", FrameKey::Language);
     map
 });
 
@@ -70,22 +79,31 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
 
     for (raw_key, values) in raw.iter() {
         let norm = normalize_vorbis_key(raw_key);
-        let key_opt =
-            VORBIS_REVERSE_MAP
-                .get(norm.as_str())
-                .copied()
-                .or_else(|| match norm.as_str() {
-                    "TRACKTOTAL" | "TOTALTRACKS" => Some(FrameKey::TotalTracks),
-                    "DISCTOTAL" | "TOTALDISCS" => Some(FrameKey::TotalDiscs),
-                    "DISCNUMBER" => Some(FrameKey::DiscNumber),
-                    "LABEL" => Some(FrameKey::Label),
-                    "ISRC" => Some(FrameKey::Isrc),
-                    "METADATA_BLOCK_PICTURE" => Some(FrameKey::AttachedPicture),
+        let key_opt = VORBIS_REVERSE_MAP
+            .get(norm.as_str())
+            .copied()
+            .or(match norm.as_str() {
+                "TRACKTOTAL" | "TOTALTRACKS" => Some(FrameKey::TotalTracks),
+                "DISCTOTAL" | "TOTALDISCS" => Some(FrameKey::TotalDiscs),
+                "DISCNUMBER" => Some(FrameKey::DiscNumber),
+                "LABEL" => Some(FrameKey::Label),
+                "ISRC" => Some(FrameKey::Isrc),
+                "METADATA_BLOCK_PICTURE" => Some(FrameKey::AttachedPicture),
 
-                    _ => None,
-                });
+                _ => None,
+            });
 
         let Some(frame_key) = key_opt else {
+            let entries = result.entry(FrameKey::UserDefinedText).or_default();
+            entries.extend(values.iter().filter_map(|value| match value {
+                TagValue::Text(value) => Some(TagValue::UserText(
+                    crate::tag_manager::utils::UserTextEntry {
+                        description: norm.clone(),
+                        value: value.clone(),
+                    },
+                )),
+                _ => None,
+            }));
             continue;
         };
 
@@ -149,7 +167,7 @@ pub fn parse_comments(data: &[u8]) -> Result<HashMap<FrameKey, Vec<TagValue>>, E
         let v = &v_with_eq[1..];
 
         let norm_key = normalize_vorbis_key(k);
-        if norm_key == "METADATA_BLOCK_PICTURE".to_string() {
+        if norm_key == "METADATA_BLOCK_PICTURE" {
             let pic_data = b64_gp::STANDARD.decode(v).map_err(|_| {
                 Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -262,7 +280,12 @@ pub fn build_comments(tags: &HashMap<FrameKey, Vec<TagValue>>, needs_picture: bo
     for (key, values) in tags.iter() {
         let vorbis_key = vorbis_code(*key);
         for value in values.iter() {
-            if let TagValue::Text(text) = value {
+            if let TagValue::UserText(entry) = value {
+                let comment = format!("{}={}", entry.description, entry.value).into_bytes();
+                let mut bytes = (comment.len() as u32).to_le_bytes().to_vec();
+                bytes.extend(comment);
+                comment_list.push(bytes);
+            } else if let TagValue::Text(text) = value {
                 let comment_str = format!("{}={}", vorbis_key, text);
                 let comment_bytes = comment_str.as_bytes();
                 let comment_length = comment_bytes.len() as u32;
@@ -408,4 +431,68 @@ fn read_u32_le(buf: &[u8], offset: &mut usize) -> Result<u32, Error> {
     *offset += 4;
 
     Ok(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+}
+
+pub fn update_comments(
+    original: &[u8],
+    changes: &HashMap<FrameKey, Vec<TagValue>>,
+    needs_picture: bool,
+) -> Result<Vec<u8>, Error> {
+    if changes
+        .keys()
+        .any(|key| *key != FrameKey::UserDefinedText && vorbis_code(*key).is_empty())
+    {
+        return Err(Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Unsupported Vorbis metadata field",
+        ));
+    }
+    fn entries(data: &[u8]) -> Result<(Vec<u8>, Vec<Vec<u8>>), Error> {
+        let mut offset = 0;
+        let vendor_len = read_u32_le(data, &mut offset)? as usize;
+        let vendor = data
+            .get(offset..offset + vendor_len)
+            .ok_or_else(|| {
+                Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Invalid comment vendor length",
+                )
+            })?
+            .to_vec();
+        offset += vendor_len;
+        let count = read_u32_le(data, &mut offset)?;
+        let mut values = Vec::new();
+        for _ in 0..count {
+            let length = read_u32_le(data, &mut offset)? as usize;
+            values.push(
+                data.get(offset..offset + length)
+                    .ok_or_else(|| {
+                        Error::new(std::io::ErrorKind::InvalidData, "Invalid comment length")
+                    })?
+                    .to_vec(),
+            );
+            offset += length;
+        }
+        Ok((vendor, values))
+    }
+    let (vendor, mut comments) = entries(original)?;
+    comments.retain(|comment| {
+        let Some(equals) = comment.iter().position(|byte| *byte == b'=') else {
+            return true;
+        };
+        let key = String::from_utf8_lossy(&comment[..equals]).to_ascii_uppercase();
+        let mapped = raw_to_tags(&HashMap::from([(key.clone(), Vec::new())]));
+        !changes
+            .keys()
+            .any(|changed| mapped.contains_key(changed) || vorbis_code(*changed) == key)
+    });
+    comments.extend(entries(&build_comments(changes, needs_picture))?.1);
+    let mut result = (vendor.len() as u32).to_le_bytes().to_vec();
+    result.extend(vendor);
+    result.extend((comments.len() as u32).to_le_bytes());
+    for comment in comments {
+        result.extend((comment.len() as u32).to_le_bytes());
+        result.extend(comment);
+    }
+    Ok(result)
 }

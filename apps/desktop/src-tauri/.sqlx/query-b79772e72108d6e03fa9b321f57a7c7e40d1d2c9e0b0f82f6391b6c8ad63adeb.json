@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM files",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "path",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "file_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_validated",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "status",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "duration_ms",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "format",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "modified_at",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "size",
+        "ordinal": 8,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b79772e72108d6e03fa9b321f57a7c7e40d1d2c9e0b0f82f6391b6c8ad63adeb"
+}

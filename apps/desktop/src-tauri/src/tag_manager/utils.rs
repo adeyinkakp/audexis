@@ -1,13 +1,19 @@
-use crate::config::user::ColumnKind;
+use crate::tag_manager::tag_backend::BackendError;
 use crate::tag_manager::traits::Formats;
 
+use crate::tag_manager::tag_backend::TagError;
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use uuid::Uuid;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum FrameKeyKind {
+    Image,
+    Text,
+    URL,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +38,7 @@ pub enum FrameKey {
     Compilation,
     ComposerSort,
     Director,
+    #[serde(alias = "discnumber")]
     DiscNumber,
     DiscSubtitle,
     EncoderSettings,
@@ -103,6 +110,7 @@ pub enum FrameKey {
     Length,
     Conductor,
     AttachedPicture,
+    #[serde(rename = "userDefinedUrl", alias = "userDefinedURL")]
     UserDefinedURL,
     Comments,
     Private,
@@ -141,22 +149,22 @@ pub enum FrameKey {
 }
 impl FrameKey {
     pub fn is_multi_valued(&self) -> bool {
-        match self {
+        matches!(
+            self,
             FrameKey::AttachedPicture
-            | FrameKey::UserDefinedText
-            | FrameKey::UserDefinedURL
-            | FrameKey::Genre
-            | FrameKey::Artist
-            | FrameKey::AlbumArtist
-            | FrameKey::Composer
-            | FrameKey::Lyricist
-            | FrameKey::Comments => true,
-            _ => false,
-        }
+                | FrameKey::UserDefinedText
+                | FrameKey::UserDefinedURL
+                | FrameKey::Genre
+                | FrameKey::Artist
+                | FrameKey::AlbumArtist
+                | FrameKey::Composer
+                | FrameKey::Lyricist
+                | FrameKey::Comments
+        )
     }
-    pub fn get_kind(&self) -> ColumnKind {
+    pub fn get_kind(&self) -> FrameKeyKind {
         match self {
-            FrameKey::AttachedPicture => ColumnKind::Image,
+            FrameKey::AttachedPicture => FrameKeyKind::Image,
 
             FrameKey::PodcastUrl
             | FrameKey::Website
@@ -167,9 +175,9 @@ impl FrameKey {
             | FrameKey::ArtistURL
             | FrameKey::RadioStationURL
             | FrameKey::PaymentURL
-            | FrameKey::BitmapImageURL => ColumnKind::URL,
+            | FrameKey::BitmapImageURL => FrameKeyKind::URL,
 
-            _ => ColumnKind::Text,
+            _ => FrameKeyKind::Text,
         }
     }
 }
@@ -232,9 +240,16 @@ pub struct SerializableFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "operation", content = "values", rename_all = "camelCase")]
+pub enum TagChange {
+    Replace(Vec<SerializableTagValue>),
+    Delete,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Changes {
     pub paths: Vec<String>,
-    pub tags: HashMap<FrameKey, Vec<SerializableTagValue>>,
+    pub tags: HashMap<FrameKey, TagChange>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,8 +306,7 @@ pub struct SerializableFreeform {
 
 /// Internal File Struct
 #[derive(Debug, Clone)]
-pub struct File {
-    pub id: Uuid,
+pub struct MetadataFile {
     pub path: PathBuf,
 
     pub tags: HashMap<FrameKey, Vec<TagValue>>,
@@ -300,6 +314,7 @@ pub struct File {
     pub tag_formats: Vec<Formats>,
     pub freeforms: Vec<FreeformTag>,
 }
+
 impl fmt::Display for TagValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -338,8 +353,6 @@ impl fmt::Display for TagValue {
         }
     }
 }
-
-/// FrameKey to string
 
 impl fmt::Display for FrameKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -476,7 +489,7 @@ impl fmt::Display for FrameKey {
 }
 
 impl FrameKey {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn to_key(s: &str) -> Option<Self> {
         match s {
             "title" => Some(FrameKey::Title),
             "artist" => Some(FrameKey::Artist),
@@ -673,7 +686,7 @@ impl From<SerializableTagValuesWrapper> for Vec<TagValue> {
 
                     let data = STANDARD.decode(data_base64);
                     let data = data.unwrap_or_default();
-                    let picture_type = picture_type.clone();
+                    let picture_type = *picture_type;
                     let description = description.clone();
                     TagValue::Picture {
                         mime,
@@ -702,8 +715,8 @@ impl From<SerializableTagValuesWrapper> for Vec<TagValue> {
 }
 
 /// Internal File struct to file that can be sent via ipc
-impl From<File> for SerializableFile {
-    fn from(file: File) -> Self {
+impl From<MetadataFile> for SerializableFile {
+    fn from(file: MetadataFile) -> Self {
         let mut tags: HashMap<String, Vec<SerializableTagValue>> = HashMap::new();
         for (k, vals) in file.tags.into_iter() {
             let key = k.to_string();
@@ -781,27 +794,13 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
     p
 }
 
-//// Replaces the target file with the temporary file.
-pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), ()> {
-    #[cfg(not(windows))]
-    {
-        let ez = fs::remove_file(target);
-        if ez.is_err() {
-            return Err(());
-        }
-        let rename_result = fs::rename(tmp, target);
-        if rename_result.is_err() {
-            return Err(());
-        }
-        Ok(())
-    }
-    #[cfg(windows)]
-    {
-        let _ = fs::remove_file(target);
-        let rename_result = fs::rename(tmp, target);
-        if rename_result.is_err() {
-            return Err(());
-        }
-        Ok(())
-    }
+/// Replaces the target file with the temporary file.
+pub fn replace_tmp(tmp: &Path, target: &Path) -> Result<(), BackendError> {
+    fs::rename(tmp, target).map_err(|error| {
+        BackendError::WriteFailed(TagError {
+            path: target.to_string_lossy().into_owned(),
+            public_message: "Could not replace file".into(),
+            internal_message: error.to_string(),
+        })
+    })
 }

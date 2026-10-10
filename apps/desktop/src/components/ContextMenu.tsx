@@ -1,157 +1,202 @@
-import { useRef, useEffect, useCallback, useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  cloneElement,
+  isValidElement,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Check, ChevronRight } from "lucide-react";
+import { cn } from "../utils";
 
-export type MenuOptions = Array<MenuItem | OtherItem>;
-type MenuItem = {
+export type MenuOptions = Array<MenuItem | { item: string }>;
+export type MenuItem = {
   text: string;
   action?: () => void | Promise<void>;
   disabled?: boolean;
+  checked?: boolean;
+  submenu?: MenuOptions | (() => MenuOptions);
 };
-type OtherItem = {
-  item: string;
-};
-type MenuRef = {
-  x: number;
-  y: number;
-};
+
+const panelClass =
+  "z-9999999 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-48 max-w-xs overflow-auto rounded-md border border-border bg-popover p-1 text-xs text-foreground shadow-lg";
+const itemClass =
+  "relative flex cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-muted data-[state=open]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-40";
+
 export function ContextMenuArea({
   items,
   children,
   asChild,
-  ...props
+  className,
 }: {
   items: () => MenuOptions;
-
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   asChild?: boolean;
 }) {
-  const itemsRef = useRef(items);
-  useEffect(() => {
-    itemsRef.current = items;
-  }, []);
-
-  const [menuState, setMenuState] = useState<MenuRef | null>(null);
-  const openingRef = useRef(false);
-
-  const clickHandler = useCallback(async (event: React.MouseEvent) => {
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const open = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
-
-    if (openingRef.current) return;
-    openingRef.current = true;
-    setMenuState({
-      x: event.clientX,
-      y: event.clientY,
-    });
-    openingRef.current = false;
-  }, []);
-
-  return (
-    <div {...props} onContextMenu={clickHandler}>
-      {children}
-      <PortalContextMenu
-        menuState={menuState}
-        items={itemsRef.current}
-        setMenuState={setMenuState}
-      />
-    </div>
-  );
-}
-function PortalContextMenu({
-  menuState,
-  items,
-  setMenuState,
-}: {
-  menuState: MenuRef | null;
-  items: () => MenuOptions;
-  setMenuState: (menuState: MenuRef | null) => void;
-}) {
-  return createPortal(
-    menuState ? (
-      <Menu rr={menuState} items={items} setMenuState={setMenuState} />
-    ) : null,
-    document.body,
-  );
-}
-function Menu({
-  rr,
-  items,
-  setMenuState,
-}: {
-  rr: MenuRef;
-  setMenuState: (menuState: MenuRef | null) => void;
-  items: () => MenuOptions;
-}) {
-  const [position, setPosition] = useState<MenuRef>(rr);
-  const divRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    setPosition(rr);
-  }, [rr]);
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (divRef.current && !divRef.current.contains(event.target as Node)) {
-        setMenuState(null);
-      }
-    }
-
-    const el = divRef.current;
-
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const overflowX = rect.right - window.innerWidth;
-    const overflowY = rect.bottom - window.innerHeight;
-    if (overflowX > 0) {
-      setPosition({ ...position, x: Math.max(0, rr.x - overflowX) });
-    }
-    if (overflowY > 0) {
-      setPosition({ ...position, y: Math.max(0, rr.y - overflowY) });
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [setMenuState, divRef, rr, position]);
+    previousFocus.current = document.activeElement as HTMLElement | null;
+    setPosition({ x: event.clientX, y: event.clientY });
+  };
+  const content =
+    asChild && isValidElement<HTMLAttributes<HTMLElement>>(children) ? (
+      cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, {
+        className: [children.props.className, className]
+          .filter(Boolean)
+          .join(" "),
+        onContextMenu: (event) => {
+          children.props.onContextMenu?.(event);
+          if (!event.defaultPrevented) open(event);
+        },
+      })
+    ) : (
+      <div className={className} onContextMenu={open}>
+        {children}
+      </div>
+    );
 
   return (
-    <div
-      ref={divRef}
-      className="fixed w-48  text-xs z-[9999999999999999999999999999999999999999999999999] bg-background border border-border rounded shadow-lg"
-      style={{
-        top: position.y,
-        left: position.x,
+    <DropdownMenu.Root
+      modal={false}
+      open={position !== null}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) setPosition(null);
       }}
     >
-      {items().map((item, index) => {
-        if ("text" in item) {
+      {content}
+      <DropdownMenu.Trigger
+        tabIndex={-1}
+        aria-hidden="true"
+        className="pointer-events-none fixed h-px w-px opacity-0"
+        style={{ left: position?.x ?? 0, top: position?.y ?? 0 }}
+      />
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className={panelClass}
+          side="bottom"
+          align="start"
+          sideOffset={0}
+          collisionPadding={4}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (previousFocus.current?.isConnected)
+              previousFocus.current.focus({ preventScroll: true });
+          }}
+        >
+          <MenuEntries items={items()} />
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+export function MenuEntries({
+  items,
+  elevated = false,
+  compact = false,
+}: {
+  items: MenuOptions;
+  elevated?: boolean;
+  compact?: boolean;
+}) {
+  const entryClass = cn(
+    itemClass,
+    compact && "gap-1.5 py-[3px] text-[13px] leading-4",
+  );
+  return (
+    <>
+      {items.map((item, index) => {
+        if ("item" in item)
           return (
-            <div
-              className="hover:bg-hover px-2 py-1 rounded"
+            <DropdownMenu.Separator
               key={index}
-              style={{
-                cursor: item.disabled === true ? "not-allowed" : "default",
-                color: item.disabled
-                  ? "text-muted-foreground"
-                  : "text-foreground",
-              }}
-              onClick={() => {
-                if (item.disabled) return;
-                item.action?.();
-                setMenuState(null);
-              }}
-            >
-              <span>{item.text}</span>
-            </div>
+              className={cn("my-1 border-t border-border", compact && "my-0.5")}
+            />
           );
-        } else if ("item" in item) {
-          if (item.item === "separator") {
-            return <hr key={index} className="border-t border-border my-1" />;
-          } else {
-            return <hr key={index} className="border-t border-border my-1" />;
-          }
+        if (item.submenu) {
+          const children =
+            typeof item.submenu === "function" ? item.submenu() : item.submenu;
+          return (
+            <DropdownMenu.Sub key={index}>
+              <DropdownMenu.SubTrigger
+                disabled={item.disabled || children.length === 0}
+                className={entryClass}
+              >
+                <span className="min-w-0 flex-1 truncate">{item.text}</span>
+                <ChevronRight size={13} aria-hidden="true" />
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.SubContent
+                  className={cn(
+                    panelClass,
+                    elevated && "z-13003",
+                    compact && "min-w-40 text-[13px] leading-4",
+                  )}
+                  sideOffset={2}
+                  collisionPadding={4}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                >
+                  <MenuEntries
+                    items={children}
+                    elevated={elevated}
+                    compact={compact}
+                  />
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Sub>
+          );
         }
+        const select = () => {
+          void Promise.resolve()
+            .then(() => item.action?.())
+            .catch((error) =>
+              console.error("Context menu action failed", error),
+            );
+        };
+        if (item.checked !== undefined)
+          return (
+            <DropdownMenu.CheckboxItem
+              key={index}
+              checked={item.checked}
+              disabled={item.disabled}
+              onSelect={select}
+              className={entryClass}
+            >
+              <span className="w-3">
+                <DropdownMenu.ItemIndicator>
+                  <Check size={12} />
+                </DropdownMenu.ItemIndicator>
+              </span>
+              <span className="truncate">{item.text}</span>
+            </DropdownMenu.CheckboxItem>
+          );
+        return (
+          <DropdownMenu.Item
+            key={index}
+            disabled={item.disabled}
+            onSelect={select}
+            className={entryClass}
+          >
+            {item.text}
+          </DropdownMenu.Item>
+        );
       })}
-    </div>
+    </>
   );
 }

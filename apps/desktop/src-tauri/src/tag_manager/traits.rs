@@ -4,7 +4,7 @@ use crate::tag_manager::tag_backend::BackendError;
 use crate::tag_manager::utils::{FrameKey, FreeformTag, TagValue};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use std::path::PathBuf;
+use std::path::Path;
 use std::{fmt, write};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -51,17 +51,14 @@ pub trait TagFormat: Debug {
     where
         Self: Sized;
     ///  Reads the tags from the specified file path and returns a `HashMap` where the keys are `FrameKey` and the values are vectors of `TagValue`. If an error occurs during the reading process, it returns a `BackendError`.
-    fn get_tags(
-        &self,
-        file_path: &PathBuf,
-    ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError>;
-    fn get_freeforms(&self, _file_path: &PathBuf) -> Result<Vec<FreeformTag>, BackendError> {
+    fn get_tags(&self, file_path: &Path) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError>;
+    fn get_freeforms(&self, _file_path: &Path) -> Result<Vec<FreeformTag>, BackendError> {
         Ok(vec![])
     }
     ///  Writes the provided tags to the specified file path. The `updated_tags` parameter is a `HashMap` where the keys are `FrameKey` and the values are vectors of `TagValue`. If an error occurs during the writing process, it returns a `BackendError`.
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError>;
 }

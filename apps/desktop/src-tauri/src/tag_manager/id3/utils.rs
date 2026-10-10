@@ -10,6 +10,7 @@ pub fn id3v22_code(key: FrameKey) -> &'static str {
         FrameKey::Album => "TAL",
         FrameKey::Year => "TYE",
         FrameKey::TrackNumber => "TRK",
+        FrameKey::DiscNumber => "TPA",
         FrameKey::Genre => "TCO",
         FrameKey::AlbumArtist => "TP2",
         FrameKey::ContentGroup => "TT1",
@@ -70,6 +71,7 @@ pub fn id3v23_code(key: FrameKey) -> &'static str {
         FrameKey::Album => "TALB",
         FrameKey::Year => "TYER",
         FrameKey::TrackNumber => "TRCK",
+        FrameKey::DiscNumber => "TPOS",
         FrameKey::Genre => "TCON",
         FrameKey::AlbumArtist => "TPE2",
         FrameKey::ContentGroup => "TIT1",
@@ -132,6 +134,7 @@ pub fn id3v22_key(code: &str) -> Option<FrameKey> {
         "TAL" => Some(FrameKey::Album),
         "TYE" => Some(FrameKey::Year),
         "TRK" => Some(FrameKey::TrackNumber),
+        "TPA" => Some(FrameKey::DiscNumber),
         "TCO" => Some(FrameKey::Genre),
         "TP2" => Some(FrameKey::AlbumArtist),
         "TIT" => Some(FrameKey::ContentGroup),
@@ -169,6 +172,7 @@ pub fn id3v23_key(code: &str) -> Option<FrameKey> {
         "TALB" => Some(FrameKey::Album),
         "TYER" => Some(FrameKey::Year),
         "TRCK" => Some(FrameKey::TrackNumber),
+        "TPOS" => Some(FrameKey::DiscNumber),
         "TCON" => Some(FrameKey::Genre),
         "TPE2" => Some(FrameKey::AlbumArtist),
         "TIT1" => Some(FrameKey::ContentGroup),
@@ -232,6 +236,7 @@ pub static ID3V23_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         FrameKey::Album,
         FrameKey::Year,
         FrameKey::TrackNumber,
+        FrameKey::DiscNumber,
         FrameKey::Genre,
         FrameKey::AlbumArtist,
         FrameKey::ContentGroup,
@@ -279,6 +284,8 @@ pub static ID3V23_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v23_code(key), key);
     }
+    map.insert("TXXX", FrameKey::UserDefinedText);
+    map.insert("WXXX", FrameKey::UserDefinedURL);
     map
 });
 
@@ -290,6 +297,7 @@ pub static ID3V22_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         FrameKey::Album,
         FrameKey::Year,
         FrameKey::TrackNumber,
+        FrameKey::DiscNumber,
         FrameKey::Genre,
         FrameKey::AlbumArtist,
         FrameKey::ContentGroup,
@@ -337,6 +345,8 @@ pub static ID3V22_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v22_code(key), key);
     }
+    map.insert("TXX", FrameKey::UserDefinedText);
+    map.insert("WXX", FrameKey::UserDefinedURL);
     map
 });
 
@@ -348,6 +358,7 @@ pub static ID3V24_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         FrameKey::Album,
         FrameKey::Year,
         FrameKey::TrackNumber,
+        FrameKey::DiscNumber,
         FrameKey::Genre,
         FrameKey::AlbumArtist,
         FrameKey::ContentGroup,
@@ -395,6 +406,8 @@ pub static ID3V24_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
     ] {
         map.insert(id3v24_code(key), key);
     }
+    map.insert("TXXX", FrameKey::UserDefinedText);
+    map.insert("WXXX", FrameKey::UserDefinedURL);
     map
 });
 
@@ -405,10 +418,8 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
             let mut expanded: Vec<TagValue> = Vec::new();
             for v in values.iter() {
                 match v {
-                    TagValue::Text(s)
-                        if matches!(key, FrameKey::Artist | FrameKey::Genre) && s.contains(';') =>
-                    {
-                        for part in s.split(';').map(|s| s.trim()) {
+                    TagValue::Text(s) if key.is_multi_valued() && s.contains('\0') => {
+                        for part in s.split('\0') {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 expanded.push(TagValue::Text(seg.to_string()));
@@ -418,7 +429,7 @@ pub fn raw_to_tags(raw: &HashMap<String, Vec<TagValue>>) -> HashMap<FrameKey, Ve
                     _ => expanded.push(v.clone()),
                 }
             }
-            result.entry(*key).or_insert_with(Vec::new).extend(expanded);
+            result.entry(*key).or_default().extend(expanded);
         }
     }
     result
@@ -455,10 +466,8 @@ pub fn id3v22_tags_to_raw(tags: &HashMap<FrameKey, TagValue>) -> HashMap<&'stati
 pub fn id3v24_raw_to_tags(
     raw: &HashMap<String, Vec<TagValue>>,
 ) -> HashMap<FrameKey, Vec<TagValue>> {
-    let mut valll: u8 = 0;
     let mut result: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
     for (id, values) in raw.iter() {
-        println!("{:?}", id);
         let key_opt = ID3V24_REVERSE_MAP.get(id.as_str()).cloned().or_else(|| {
             if id == "TYER" {
                 Some(FrameKey::Year)
@@ -480,11 +489,6 @@ pub fn id3v24_raw_to_tags(
                     }
                     _ => expanded.push(v.clone()),
                 }
-            }
-            println!("{:?}", k);
-            if k == FrameKey::Year {
-                valll += 1;
-                println!("year, {}", { valll });
             }
             result.entry(k).or_default().extend(expanded);
         }

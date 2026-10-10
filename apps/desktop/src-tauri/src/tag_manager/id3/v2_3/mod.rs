@@ -1,13 +1,12 @@
-use crate::tag_manager::id3::utils::{id3v23_key, raw_to_tags, tags_to_raw};
+use crate::tag_manager::id3::utils::{id3v23_code, id3v23_key, raw_to_tags, tags_to_raw};
 use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagMap, TagValue, UserTextEntry, UserUrlEntry};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
 use std::io::Read;
 
 use crate::tag_manager::id3::v2_3::utils::{build_frame, create_header, encode_text_payload};
-use std::path::PathBuf;
+use crate::tag_manager::id3::v2_3::utils::{decode_text_payload, split_encoded_text};
 
 pub mod utils;
 
@@ -27,21 +26,21 @@ impl TagFormat for V2_3 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let has_header = utils::ensure_header(&file_path);
+        let has_header = utils::ensure_header(file_path);
 
         match has_header {
-            Err(_) => {
+            Ok(true) => {}
+            Ok(false) | Err(_) => {
                 return Err(BackendError::ReadFailed(TagError {
                     path: file_path.to_str().unwrap_or("").to_string(),
                     public_message: "File does not contain ID3 tag".to_string(),
                     internal_message: "File does not contain ID3 tag".to_string(),
                 }))
             }
-            _ => {}
         }
-        let mut file = File::open(file_path).map_err(|_| {
+        let mut file = crate::utils::library_files::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Unable to open and read file".to_string(),
@@ -102,36 +101,24 @@ impl TagFormat for V2_3 {
 
             let content = &tag_data[pos + 10..pos + 10 + size];
 
-            if frame_id == "TXXX" || frame_id == "WXXX" {
+            if matches!(frame_id.as_str(), "USLT" | "SYLT") {
+                if let Some(text) = super::lyrics::decode(&frame_id, content) {
+                    tags.entry(frame_id).or_default().push(TagValue::Text(text));
+                }
+            } else if frame_id == "COMM" {
+                if let Some(text) = super::lyrics::decode("USLT", content) {
+                    tags.entry(frame_id).or_default().push(TagValue::Text(text));
+                }
+            } else if frame_id == "TXXX" || frame_id == "WXXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
-                    let desc_end = rest.iter().position(|&b| b == 0x00).unwrap_or(rest.len());
-                    let (desc_bytes, _ignored_split) = rest.split_at(desc_end);
-                    let value_bytes = if desc_end < rest.len() {
-                        &rest[desc_end + 1..]
-                    } else {
-                        &[]
-                    };
-                    let decode = |bytes: &[u8]| match encoding {
-                        0x00 => String::from_utf8_lossy(bytes).to_string(),
-                        0x01 => {
-                            if bytes.starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &bytes[2..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                String::from_utf8_lossy(bytes).to_string()
-                            }
-                        }
-                        _ => String::from_utf8_lossy(bytes).to_string(),
-                    };
-                    let description = decode(desc_bytes);
-                    let value = decode(value_bytes);
+                    let (desc_bytes, value_bytes) = split_encoded_text(encoding, rest);
+                    let description = decode_text_payload(encoding, desc_bytes);
+                    let value = decode_text_payload(
+                        if frame_id == "WXXX" { 0 } else { encoding },
+                        value_bytes,
+                    );
                     let entry = if frame_id == "TXXX" {
                         TagValue::UserText(UserTextEntry { description, value })
                     } else {
@@ -142,32 +129,21 @@ impl TagFormat for V2_3 {
                     };
                     tags.entry(frame_id).or_default().push(entry);
                 }
-            } else if frame_id.starts_with('T') || frame_id.starts_with("W") {
+            } else if frame_id.starts_with('W') {
+                tags.entry(frame_id)
+                    .or_default()
+                    .push(TagValue::Text(decode_text_payload(0, content)));
+            } else if frame_id.starts_with('T') {
                 if !content.is_empty() {
                     let encoding = content[0];
-                    let raw_string = match encoding {
-                        0x00 => String::from_utf8_lossy(&content[1..]).to_string(),
-                        0x01 => {
-                            if content[1..].starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &content[3..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                "<Unsupported UTF-16>".to_string()
-                            }
-                        }
-                        _ => "<Unknown Encoding>".to_string(),
-                    };
+                    let raw_string = decode_text_payload(encoding, &content[1..]);
 
                     let key = id3v23_key(&frame_id);
 
-                    if (key.is_some() && key.unwrap().is_multi_valued()) && raw_string.contains(';')
+                    if (key.is_some() && key.unwrap().is_multi_valued())
+                        && raw_string.contains('\0')
                     {
-                        for part in raw_string.split(';').map(|s| s.trim()) {
+                        for part in raw_string.split('\0').map(|s| s.trim()) {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 tags.entry(frame_id.clone())
@@ -195,27 +171,11 @@ impl TagFormat for V2_3 {
                         continue;
                     }
                     let picture_type = content[picture_type_index];
-                    println!("pic type: {:?}", &picture_type.to_string());
                     let description_start = picture_type_index + 1;
-                    let description_end = content[description_start..]
-                        .iter()
-                        .position(|&b| b == 0x00)
-                        .map_or(content.len(), |p| description_start + p);
-                    let description = if description_end > description_start {
-                        Some(
-                            String::from_utf8_lossy(&content[description_start..description_end])
-                                .to_string(),
-                        )
-                    } else {
-                        None
-                    };
-                    let image_data =
-                        if description_end < content.len() && description_end + 1 < content.len() {
-                            &content[description_end + 1..]
-                        } else {
-                            &[]
-                        };
-
+                    let (description_bytes, image_data) =
+                        split_encoded_text(content[0], &content[description_start..]);
+                    let description_text = decode_text_payload(content[0], description_bytes);
+                    let description = (!description_text.is_empty()).then_some(description_text);
                     tags.entry(frame_id).or_default().push(TagValue::Picture {
                         mime: mime_type,
                         data: image_data.to_vec(),
@@ -234,22 +194,18 @@ impl TagFormat for V2_3 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
 
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(file_path)
-            .map_err(|_| {
-                BackendError::WriteFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "Failed to open file for writing".to_string(),
-                    internal_message: "Failed to open file for writing".to_string(),
-                })
-            })?;
+        let mut file = crate::utils::library_files::open_for_update(file_path).map_err(|_| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_str().unwrap_or("").to_string(),
+                public_message: "Failed to open file for writing".to_string(),
+                internal_message: "Failed to open file for writing".to_string(),
+            })
+        })?;
 
         let mut header = [0u8; 10];
         file.read_exact(&mut header).map_err(|_| {
@@ -314,7 +270,9 @@ impl TagFormat for V2_3 {
         let mut pictures: Vec<TagValue> = Vec::new();
         let mut flattened: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vec_vals) in updated_tags.clone().into_iter() {
-            if vec_vals.is_empty() {
+            if vec_vals.is_empty()
+                || matches!(k, FrameKey::UserDefinedText | FrameKey::UserDefinedURL)
+            {
                 continue;
             }
             if k == FrameKey::AttachedPicture {
@@ -334,24 +292,41 @@ impl TagFormat for V2_3 {
                         _ => None,
                     })
                     .collect::<Vec<_>>()
-                    .join("\\");
+                    .join("\0");
                 flattened.insert(k, TagValue::Text(joined));
             } else {
                 flattened.insert(k, vec_vals[0].clone());
             }
         }
         let raw_updated_tags = tags_to_raw(&flattened);
-        let mut updated_keys: Vec<String> =
-            raw_updated_tags.keys().map(|k| k.to_string()).collect();
-        if !pictures.is_empty() {
-            updated_keys.push("APIC".to_string());
-        }
-        raw_frames.retain(|(id, _)| !updated_keys.iter().any(|k| k == id));
+
+        let updated_keys: Vec<&str> = updated_tags
+            .keys()
+            .map(|key| {
+                id3v23_code(match key {
+                    FrameKey::Artists => FrameKey::Artist,
+                    _ => *key,
+                })
+            })
+            .collect();
+        raw_frames.retain(|(id, _)| !updated_keys.iter().any(|key| *key == id));
 
         for (k, v) in raw_updated_tags {
             match v {
                 TagValue::Text(text) => {
                     if !text.is_empty() {
+                        if matches!(k, "USLT" | "SYLT" | "COMM") {
+                            let payload = super::lyrics::encode(k, &text).map_err(|message| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Invalid lyrics".into(),
+                                    internal_message: message,
+                                })
+                            })?;
+                            raw_frames.push((k.to_string(), payload));
+                            continue;
+                        }
+
                         if k == "TXXX" || k == "WXXX" {
                             let (desc, val) = match text.split_once('=') {
                                 Some((d, v)) => (d.to_string(), v.to_string()),
@@ -364,7 +339,11 @@ impl TagFormat for V2_3 {
                             payload.extend_from_slice(val.as_bytes());
                             raw_frames.push((k.to_string(), payload));
                         } else {
-                            let encoded_text = encode_text_payload(&text, false);
+                            let encoded_text = if k.starts_with('W') {
+                                text.as_bytes().to_vec()
+                            } else {
+                                encode_text_payload(&text, false)
+                            };
                             raw_frames.push((k.to_string(), encoded_text));
                         }
                     }
@@ -399,8 +378,10 @@ impl TagFormat for V2_3 {
                 _ => { /*Handle other types later */ }
             }
         }
+        raw_frames.extend(super::v2_common::custom_frames(&updated_tags, false));
         let comments = updated_tags.get(&FrameKey::Comments);
-        comments.map(|vals| {
+
+        if let Some(vals) = comments {
             for val in vals {
                 if let TagValue::Comment {
                     encoding: _,
@@ -416,9 +397,7 @@ impl TagFormat for V2_3 {
                         payload.extend_from_slice(&lang_bytes[0..3]);
                     } else {
                         payload.extend_from_slice(lang_bytes);
-                        for _ in 0..(3 - lang_bytes.len()) {
-                            payload.push(0x00);
-                        }
+                        payload.extend(std::iter::repeat_n(0x00, 3 - lang_bytes.len()));
                     }
                     payload.extend_from_slice(description.as_bytes());
                     payload.push(0x00);
@@ -426,7 +405,7 @@ impl TagFormat for V2_3 {
                     raw_frames.push(("COMM".to_string(), payload));
                 }
             }
-        });
+        }
         for v in pictures.into_iter() {
             if let TagValue::Picture {
                 mime,

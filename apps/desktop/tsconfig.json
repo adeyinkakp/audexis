@@ -2,10 +2,9 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["es2023", "DOM", "DOM.Iterable"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "ignoreDeprecations": "5.0",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -15,9 +14,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    "paths": {
-      "@/ui/*": ["./src/*"]
-    },
+    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

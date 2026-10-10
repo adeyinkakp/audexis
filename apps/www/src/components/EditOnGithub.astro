@@ -1,34 +1,10 @@
 ---
-let url = Astro.url.pathname;
-if (url === "/docs" || url === "/docs/") {
-  url = "/docs/index";
-}
-const githubUrl = `https://github.com/kp-fyn/audexis/edit/main/apps/www/src/pages${url}
-${url.endsWith("/") ? "index" : ""}.md`;
+const pathname = Astro.url.pathname.replace(/\/$/, "");
+const sourcePath = pathname === "/docs" ? "/docs/index" : pathname;
+const href = `https://github.com/kp-fyn/audexis/edit/main/apps/www/src/pages${sourcePath}.md`;
 ---
-
-<div class="mt-12 pt-8 border-t border-border">
-  <a
-    href={githubUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke-width="1.5"
-      stroke="currentColor"
-      class="size-6"
-    >
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-      ></path>
-    </svg>
-
-    Edit this page on GitHub
+<div class="docs-edit">
+  <a href={href} target="_blank" rel="noopener noreferrer">
+    Edit this page on GitHub <span aria-hidden="true">↗</span>
   </a>
 </div>

@@ -14,6 +14,7 @@ pub fn itunes_code(key: FrameKey) -> &'static str {
         FrameKey::ContentGroup => "©grp",
         FrameKey::Genre => "©gen",
         FrameKey::TrackNumber => "trkn",
+        FrameKey::DiscNumber => "disk",
         FrameKey::BeatsPerMinute => "tmpo",
         FrameKey::AttachedPicture => "covr",
         FrameKey::Comments => "©cmt",
@@ -61,33 +62,6 @@ pub fn itunes_code(key: FrameKey) -> &'static str {
     }
 }
 
-pub fn itunes_key(code: &str) -> Option<FrameKey> {
-    match code {
-        "©nam" => Some(FrameKey::Title),
-        "©ART" => Some(FrameKey::Artist),
-        "©alb" => Some(FrameKey::Album),
-        "aART" => Some(FrameKey::AlbumArtist),
-        "©wrt" => Some(FrameKey::Composer),
-        "©grp" => Some(FrameKey::ContentGroup),
-        "©gen" => Some(FrameKey::Genre),
-        "trkn" => Some(FrameKey::TrackNumber),
-        "tmpo" => Some(FrameKey::BeatsPerMinute),
-        "covr" => Some(FrameKey::AttachedPicture),
-        "©cmt" => Some(FrameKey::Comments),
-        "©lyr" => Some(FrameKey::UnsyncedLyrics),
-        "©too" => Some(FrameKey::EncodedBy),
-        "cprt" => Some(FrameKey::CopyrightURL),
-        "stik" => Some(FrameKey::MediaType),
-        "pcnt" => Some(FrameKey::PlayCount),
-        "©len" => Some(FrameKey::Length),
-
-        "©day" => Some(FrameKey::RecordingDate),
-
-        "----" => Some(FrameKey::UserDefinedText),
-
-        _ => None,
-    }
-}
 #[derive(Debug, Clone)]
 pub struct AtomFlag {
     pub name: &'static str,
@@ -492,9 +466,8 @@ pub static ITUNES_REVERSE_MAP: Lazy<HashMap<&'static str, FrameKey>> = Lazy::new
         // ("ldes", FrameKey::Comments),       // Long description
         // ("©pub", FrameKey::EncodedBy),      // Publisher
         // ("purd", FrameKey::Year),           // Purchase date
-        ("catg", FrameKey::Genre),          // Category (podcast)
-        ("keyw", FrameKey::ContentGroup),   // Keywords
-        ("purl", FrameKey::UserDefinedURL), // Podcast URL
+        ("catg", FrameKey::Genre),        // Category (podcast)
+        ("keyw", FrameKey::ContentGroup), // Keywords
         // ("egid", FrameKey::UserDefinedURL), // Episode global unique ID
         // ("©mvn", FrameKey::Title),       // Movement name
         // ("©mvi", FrameKey::TrackNumber), // Movement number
@@ -578,6 +551,10 @@ pub fn itunes_freeform_spec(key: FrameKey) -> Option<FreeformSpec> {
         Lyricist => FreeformSpec {
             mean,
             name: "LYRICIST",
+        },
+        SynchronizedLyrics => FreeformSpec {
+            mean,
+            name: "SYNCEDLYRICS",
         },
         Lyrics => FreeformSpec {
             mean,
@@ -821,6 +798,13 @@ pub static FREEFORM_REVERSE_MAP: Lazy<HashMap<(&'static str, &'static str), Fram
             (
                 FreeformSpec {
                     mean: "com.apple.iTunes",
+                    name: "SYNCEDLYRICS",
+                },
+                FrameKey::SynchronizedLyrics,
+            ),
+            (
+                FreeformSpec {
+                    mean: "com.apple.iTunes",
                     name: "MEDIA",
                 },
                 FrameKey::Media,
@@ -1054,30 +1038,7 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
 
     for (k, v) in raw.iter() {
         if let Some(&key) = ITUNES_REVERSE_MAP.get(k.as_str()) {
-            match v {
-                TagValue::Text(s)
-                    if matches!(key, FrameKey::Artist | FrameKey::Genre)
-                        && (s.contains('/') || s.contains('\u{0}')) =>
-                {
-                    let splitter: fn(&str) -> Vec<&str> = |text: &str| {
-                        if text.contains('\u{0}') {
-                            text.split('\u{0}').collect()
-                        } else {
-                            text.split(';').collect()
-                        }
-                    };
-                    for part in splitter(s) {
-                        let seg = part.trim();
-                        if !seg.is_empty() {
-                            result
-                                .entry(key)
-                                .or_default()
-                                .push(TagValue::Text(seg.to_string()));
-                        }
-                    }
-                }
-                _ => result.entry(key).or_default().push(v.clone()),
-            }
+            result.entry(key).or_default().push(v.clone());
             continue;
         }
         if let Some(rest) = k.strip_prefix("----:") {
@@ -1086,29 +1047,20 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
                     result.entry(fk).or_default().push(v.clone());
                     continue;
                 }
-                if mean == "com.apple.iTunes" {
+                {
                     use FrameKey::UserDefinedText;
                     if let TagValue::Text(s) = v {
-                        let parts: Vec<&str> = if s.contains('\u{0}') {
-                            s.split('\u{0}').collect()
-                        } else if s.contains(';') {
-                            s.split(';').collect()
-                        } else {
-                            vec![s.as_str()]
-                        };
-                        for part in parts {
-                            let seg = part.trim();
-                            if seg.is_empty() {
-                                continue;
-                            }
-                            result
-                                .entry(UserDefinedText)
-                                .or_default()
-                                .push(TagValue::UserText(tag_manager::utils::UserTextEntry {
-                                    description: name.to_string(),
-                                    value: seg.to_string(),
-                                }));
-                        }
+                        result
+                            .entry(UserDefinedText)
+                            .or_default()
+                            .push(TagValue::UserText(tag_manager::utils::UserTextEntry {
+                                description: if mean == "com.apple.iTunes" {
+                                    name.to_string()
+                                } else {
+                                    k.clone()
+                                },
+                                value: s.clone(),
+                            }));
                     }
                     continue;
                 }
@@ -1117,4 +1069,20 @@ pub fn raw_to_tags(raw: &[(String, TagValue)]) -> HashMap<FrameKey, Vec<TagValue
     }
 
     result
+}
+
+pub(crate) fn parse_number_pair(text: &str) -> Option<(u16, Option<u16>)> {
+    let (number, total) = match text.split_once('/') {
+        Some((number, total)) => (number, Some(total.trim().parse::<u16>().ok()?)),
+        None => (text, None),
+    };
+    Some((number.trim().parse::<u16>().ok()?, total))
+}
+
+pub(crate) fn custom_key(name: &str) -> String {
+    if name.starts_with("----:") {
+        name.to_string()
+    } else {
+        format!("----:com.apple.iTunes:{name}")
+    }
 }

@@ -1,74 +1,200 @@
-import { ReactNode, useEffect, useRef } from "react";
-import { useSidebarWidth } from "@/ui/hooks/useSidebarWidth";
-import useWindowDimensions from "@/ui/hooks/useWindowDimensions";
-import EditMenu from "./EditMenu";
-import { useUserConfig } from "../hooks/useUserConfig";
-import Filetree from "./Filetree";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { ChevronDown, ListMusic, Music4, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { usePlaylists } from "../hooks/usePlaylists";
+import { useStore } from "../hooks/useStore";
+import { cn } from "../utils";
 
-export default function Sidebar(): ReactNode {
-  const { sidebarWidth, setSidebarWidth } = useSidebarWidth();
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const isResizing = useRef(false);
-  const { config } = useUserConfig();
+type SidebarProps = {
+  width: number;
+  onWidthChange: (width: number) => void;
+};
 
-  const { width } = useWindowDimensions();
+export default function Sidebar({ width, onWidthChange }: SidebarProps) {
+  const router = useRouterState();
+  const { openSettings } = useStore();
+  const { data: playlists } = usePlaylists();
+  const [showPlaylists, setShowPlaylists] = useState(true);
 
-  const startResizing = (): void => {
-    isResizing.current = true;
-    document.body.style.userSelect = "none";
+  const links = [
+    {
+      label: "",
+      children: [
+        {
+          name: "Home",
+          path: "/",
+        },
+        {
+          name: "Rewind",
+          path: "/rewind",
+        },
+        {
+          name: "Search",
+          path: "/search",
+        },
+      ],
+    },
+    {
+      label: "Library",
+      children: [
+        {
+          name: "Artists",
+          path: "/artists",
+        },
+        {
+          name: "Albums",
+          path: "/albums",
+        },
+        {
+          name: "Songs",
+          path: "/songs",
+        },
+        {
+          name: "Favorites",
+          path: "/favorites",
+        },
+      ],
+    },
+  ];
 
-    document.addEventListener("mousemove", resize);
-    document.addEventListener("mouseup", stopResizing);
-  };
-
-  const resize = (event: MouseEvent): void => {
-    if (isResizing.current && sidebarRef.current) {
-      const newWidth = event.clientX;
-      const minWidth = 0;
-      const maxWidth = window.innerWidth - 200;
-      document.body.style.userSelect = "none";
-
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setSidebarWidth(newWidth);
-      }
-    }
-  };
-
-  const stopResizing = (): void => {
-    isResizing.current = false;
-    document.body.style.userSelect = "";
-
-    document.removeEventListener("mousemove", resize);
-    document.removeEventListener("mouseup", stopResizing);
-  };
-
-  // const { src } = useImage({
-  //   srcList: [image?.url ?? "../assets/images/unknown.jpg"]
-  // });
-  useEffect(() => {
-    if (sidebarWidth > width - 200) {
-      setSidebarWidth(width - 200);
-    }
-  }, [width, sidebarWidth]);
+  const isPlaylistSectionActive =
+    router.location.pathname.startsWith("/playlists");
 
   return (
-    <div
-      ref={sidebarRef}
-      tabIndex={1}
-      style={{
-        width: `${sidebarWidth}px`,
-        // minWidth: "300px",
-        maxWidth: `${width - 200}px`,
-      }}
-      className="fixed select-none pb-12 top-12 left-0 h-screen z-50 bg-background  border-r border-border text-foreground overflow-y-auto overflow-x-clip"
+    <aside
+      className="fixed inset-y-0 left-0 z-40 top-14 pt-0 select-none"
+      style={{ width }}
     >
-      {config.view === "simple" ? <EditMenu /> : <Filetree />}
+      <div className="h-full overflow-hidden border-r border-border bg-background">
+        <div className="h-[calc(100%-4rem)] overflow-auto px-2 pb-4">
+          {links.map(({ label, children }) => (
+            <div key={label || "primary"} className="py-4">
+              <span className="px-2 text-[11px] uppercase text-muted-foreground">
+                {label}
+              </span>
+              <div className="mt-1 flex flex-col gap-0.5 px-1">
+                {children.map((child) => {
+                  const isActive = router.location.pathname === child.path;
+                  return (
+                    <Link
+                      key={child.path}
+                      className={cn(
+                        "rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                        isActive && "bg-active text-primary",
+                      )}
+                      to={child.path}
+                    >
+                      {child.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
+          <div className="py-4">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left"
+              onClick={() => setShowPlaylists((open) => !open)}
+            >
+              <span className="text-[11px] uppercase text-muted-foreground">
+                Playlists
+              </span>
+              <ChevronDown
+                size={16}
+                className={cn(
+                  "text-muted-foreground transition-transform duration-150",
+                  showPlaylists && "rotate-180",
+                )}
+              />
+            </button>
+
+            {showPlaylists && (
+              <div className="mt-1 flex flex-col gap-0.5 px-1">
+                <Link
+                  to="/playlists"
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                    router.location.pathname === "/playlists" &&
+                      "bg-active text-primary",
+                    isPlaylistSectionActive &&
+                      router.location.pathname !== "/playlists" &&
+                      "text-foreground",
+                  )}
+                >
+                  <ListMusic size={15} />
+                  <span>All Playlists</span>
+                </Link>
+
+                {playlists?.map((playlist) => {
+                  const path = `/playlists/${playlist.id}`;
+                  const isActive = router.location.pathname === path;
+                  return (
+                    <Link
+                      key={playlist.id}
+                      to="/playlists/$playlistId"
+                      params={{ playlistId: String(playlist.id) }}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                        isActive && "bg-active text-primary",
+                        isPlaylistSectionActive &&
+                          !isActive &&
+                          "text-foreground",
+                      )}
+                      title={playlist.name}
+                    >
+                      <Music4
+                        size={15}
+                        className="shrink-0 text-muted-foreground"
+                      />
+                      <span className="truncate">{playlist.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="border-t border-border/60 p-3">
+          <button
+            type="button"
+            onClick={() => openSettings("appearance")}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+          >
+            <Settings2 size={16} />
+            Settings
+            <span className="ml-auto text-xs opacity-60">
+              {navigator.userAgent.includes("Mac") ? "⌘," : "Ctrl+,"}
+            </span>
+          </button>
+        </div>
+      </div>
       <div
-        style={{ left: `${sidebarWidth}px` }}
-        className={`fixed top-12 bottom-0  left-[${sidebarWidth}px] h-screen w-[0.25px] cursor-col-resize  bg-border hover:bg-border `}
-        onMouseDown={startResizing}
-      ></div>
-    </div>
+        role="separator"
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const startX = event.clientX;
+          const startWidth = width;
+          const handleMove = (moveEvent: PointerEvent) => {
+            onWidthChange(
+              Math.min(
+                360,
+                Math.max(220, startWidth + moveEvent.clientX - startX),
+              ),
+            );
+          };
+          const handleUp = () => {
+            window.removeEventListener("pointermove", handleMove);
+            window.removeEventListener("pointerup", handleUp);
+          };
+          window.addEventListener("pointermove", handleMove);
+          window.addEventListener("pointerup", handleUp, { once: true });
+        }}
+        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/50"
+      />
+    </aside>
   );
 }

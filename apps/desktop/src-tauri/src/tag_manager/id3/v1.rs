@@ -2,9 +2,8 @@ use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagValue};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::Path;
 
 const TAG_SIZE: usize = 128;
 const TAG_ID: &[u8; 3] = b"TAG";
@@ -13,8 +12,8 @@ const TAG_ID: &[u8; 3] = b"TAG";
 pub struct V1 {}
 
 impl V1 {
-    fn read_tail(path: &PathBuf) -> std::io::Result<Option<[u8; TAG_SIZE]>> {
-        let mut f = File::open(path)?;
+    fn read_tail(path: &Path) -> std::io::Result<Option<[u8; TAG_SIZE]>> {
+        let mut f = crate::utils::library_files::open(path)?;
         let len = f.metadata()?.len();
         if len < TAG_SIZE as u64 {
             return Ok(None);
@@ -34,12 +33,12 @@ impl V1 {
             .take_while(|b| **b != 0)
             .cloned()
             .collect::<Vec<u8>>();
-        let s = String::from_utf8_lossy(&s).to_string();
+        let s = s.iter().map(|byte| char::from(*byte)).collect::<String>();
         s.trim_end().to_string()
     }
 
     fn write_tag(
-        path: &PathBuf,
+        path: &Path,
         fields: &HashMap<FrameKey, TagValue>,
         existing: Option<[u8; TAG_SIZE]>,
         is_v11: bool,
@@ -82,11 +81,7 @@ impl V1 {
             }
         }
 
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path)
-            .map_err(|_| ())?;
+        let mut f = crate::utils::library_files::open_for_update(path).map_err(|_| ())?;
         if existing.is_some() {
             f.seek(SeekFrom::End(-(TAG_SIZE as i64))).map_err(|_| ())?;
             f.write_all(&tag).map_err(|_| ())?;
@@ -101,7 +96,10 @@ impl V1 {
         for b in dest.iter_mut() {
             *b = 0;
         }
-        let bytes = value.as_bytes();
+        let bytes: Vec<u8> = value
+            .chars()
+            .map(|character| u8::try_from(character as u32).unwrap_or(b'?'))
+            .collect();
         let len = bytes.len().min(dest.len());
         dest[..len].copy_from_slice(&bytes[..len]);
     }
@@ -114,7 +112,7 @@ impl TagFormat for V1 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut map: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
         if let Some(buf) = Self::read_tail(file_path).map_err(|_| {
@@ -184,7 +182,7 @@ impl TagFormat for V1 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         let supported_keys = [
@@ -236,6 +234,17 @@ impl TagFormat for V1 {
             _ => false,
         });
         if !has_any {
+            if existing_buf.is_some() {
+                let result = crate::utils::library_files::open_for_update(file_path)
+                    .and_then(|file| file.set_len(file.metadata()?.len() - TAG_SIZE as u64));
+                result.map_err(|error| {
+                    BackendError::WriteFailed(TagError {
+                        path: file_path.to_string_lossy().into_owned(),
+                        public_message: "Failed to remove ID3v1 tag".into(),
+                        internal_message: error.to_string(),
+                    })
+                })?;
+            }
             return Ok(());
         }
 

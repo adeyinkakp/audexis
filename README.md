@@ -1,91 +1,99 @@
-# <img width="32" height="32" alt="Subject" src="./apps/desktop/src-tauri/icons/32x32.png" /> &nbsp; Audexis
+# Audexis
 
-Audexis is a modern, cross-platform audio metadata editor built with Tauri.  
-It lets you edit tags, album artwork, and filenames quickly while staying lightweight and privacy-respecting.
-
-It is designed for people who manage personal music libraries, DJ crates, podcast collections, or archived audio files.
-
-## Documentation
-
-You can view the documentation [here](https://www.audexis.app/docs)
-
-## Screenshots
-
-### Main interface
-
-[![Audexis main interface](apps/www/public/screenshot-dark.png)](https://www.audexis.app)
-
-### Tag and image editing
-
-[![Audexis image editing](apps/www/public/image-editing-dark.png)](https://www.audexis.app)
-
-### Settings
-
-[![Audexis settings](apps/www/public/settings-dark.png)](https://www.audexis.app)
-
-### File renaming
-
-[![Audexis renaming view](apps/www/public/renaming-dark.png)](https://www.audexis.app)
+Audexis is a local-first desktop music player for people who want to keep their
+library on their own computer. It uses react for the frontend and rust for the
+backend.
 
 ## Features
 
-- Cross-platform (macOS and Windows)
-- Fast, native performance using Tauri
-- Batch editing for large sets of files
-- Edit album artwork and embedded images
-- Supports MP3, M4A/MP4, and FLAC
-- Clean UI built with React and TailwindCSS
-- Automatic updates
-- Open source
+- Scan and monitor one or more local music folders
+- Browse music by song, album, or artist
+- Search and filter the local library
+- Create, rename, reorder, and delete playlists
+- Mark songs as favorites
+- Manage the playback queue
+- Shuffle and repeat playback modes
+- View listening history and statistics in Rewind
+- Read embedded metadata and artwork from common audio formats
+- Control playback through native system media controls
+- Keep library data locally in SQLite
+- Synced and unsynced lyrics
+- 10 band equalizer
+- Batch Editing up to 200 Songs
+- Custom Metadata fields
 
-## Installation
+Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA,
+SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the codec
+and metadata contained in a file.
 
-Download the latest release from:
+## Project status
 
-https://github.com/kp-fyn/audexis/releases
+Audexis is pre-release software. Core library browsing, metadata-editing
+and playback are in place, but testing, error handling, and documentation
+still being improved before a stable release.
 
-Windows:
+## Development
 
-- `.msi` or `.exe`
+### Prerequisites
 
-macOS:
+- [Node.js](https://nodejs.org/) 22.18 or newer
+- [pnpm](https://pnpm.io/) 9
+- A stable [Rust toolchain](https://www.rust-lang.org/tools/install)
+- The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/)
+  for your operating system
 
-- `.dmg`
+### Run locally
 
-## Building From Source
+From the repository root:
 
-### Requirements
-
-- Node.js 22+
-- Rust 1.90+
-- pnpm
-
-### Clone
-
-```bash
-git clone https://github.com/kp-fyn/audexis
-cd audexis
-
-```
-
-### Install dependencies
-
-```bash
+```sh
 pnpm install
+pnpm --filter desktop tauri dev
 ```
 
-### Build
+On the first run, choose the folders that contain your music. Audexis will scan
+them and build a local library database.
 
-```bash
+### Build the frontend
+
+```sh
+pnpm --filter desktop build
+```
+
+### Build the desktop application
+
+```sh
 pnpm --filter desktop tauri build
 ```
 
-## Contributing
+## Project structure
 
-Contributions, bug reports, and feature suggestions are welcome.
+```text
+audexis/
+├── apps/
+│   ├── dekstop        Desktop App
+│   └── www            Website
+└── packages/
+    └── shared         Shared Styles
+```
 
-Feel free to open an issue before submitting a pull request.
+## Tech Stack
 
-## Privacy
+- [Tauri](https://tauri.app/)
+- [React](https://react.dev/) and TypeScript
+- [TanStack Router](https://tanstack.com/router) and TanStack Query
+- [Rust](https://www.rust-lang.org/)
+- [SQLite](https://www.sqlite.org/) through
+  [SQLx](https://github.com/transact-rs/sqlx)
+- [Symphonia](https://github.com/pdeljanov/Symphonia) and
+  [CPAL](https://github.com/RustAudio/cpal) for audio
 
-Audexis performs all metadata editing locally on your machine.
+## Todo
+
+- Expand automated test coverage
+- Continue expanding metadata and codec compatibility
+- Gapless Playback
+
+## License
+
+Audexis is available under the [MIT License](./LICENSE).

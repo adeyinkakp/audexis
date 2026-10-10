@@ -1,20 +1,32 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "audexis",
+  "productName": "Audexis",
 
-  "version": "0.9.6",
-  "identifier": "com.audexis",
+  "version": "0.10.0",
+  "identifier": "com.kp.audexis",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
 
   "app": {
-    "macOSPrivateApi": true,
-
-    "windows": [],
+    "windows": [
+      {
+        "url": "index.html",
+        "titleBarStyle": "Overlay",
+        "decorations": true,
+        "hiddenTitle": true,
+        "visible": false,
+        "minHeight": 800,
+        "minWidth": 1000,
+        "trafficLightPosition": {
+          "x": 15,
+          "y": 30
+        }
+      }
+    ],
 
     "security": {
       "assetProtocol": {
@@ -119,12 +131,9 @@
   },
   "plugins": {
     "updater": {
-      "active": true,
-      "createUpdaterArtifacts": true,
       "endpoints": [
-        "https://github.com/kp-fyn/audexis/releases/latest/download/latest.json"
+        "https://github.com/adeyinkakp/audexis/releases/latest/download/latest.json"
       ],
-      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYwN0U3RDA5NDhBMjcxMjMKUldRamNhSklDWDErOE1pdHZyRWlKaVlMTjRJNTlQN1pyT08rRUxISzhyOHNPVEF2SE1sTTFnN2gK"
     }
   }

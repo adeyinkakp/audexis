@@ -1,0 +1,73 @@
+---
+import { Image } from "astro:assets";
+
+interface Props {
+    id: string;
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    imagePosition?: "left" | "right";
+    image: {
+        src: string;
+        alt: string;
+
+        width: number;
+        height: number;
+    };
+}
+
+const {
+    id,
+    eyebrow,
+    title,
+    subtitle,
+    description,
+    imagePosition = "right",
+    image,
+} = Astro.props;
+const titleId = `${id}-title`;
+---
+
+<section
+    aria-labelledby={titleId}
+    class="grid items-center gap-10 pt-20 lg:grid-cols-5 lg:gap-16 lg:pt-28"
+>
+    <div
+        class:list={[
+            "lg:col-span-2",
+            { "lg:col-start-4 lg:row-start-1": imagePosition === "left" },
+        ]}
+    >
+        <p class="mb-5 text-xs leading-relaxed tracking-widest text-primary">
+            {eyebrow}
+        </p>
+        <h2
+            id={titleId}
+            class="text-3xl font-medium leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+        >
+            {title}
+            <br />
+            <span class="text-muted-foreground">{subtitle}</span>
+        </h2>
+        <p class="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            {description}
+        </p>
+        <slot />
+    </div>
+    <div
+        class:list={[
+            "min-w-0 lg:col-span-3",
+            { "lg:col-start-1 lg:row-start-1": imagePosition === "left" },
+        ]}
+    >
+        <Image
+            src={image.src}
+            width={image.width}
+            height={image.height}
+            alt={image.alt}
+            loading="lazy"
+            class="h-auto w-full"
+        />
+    </div>
+</section>
