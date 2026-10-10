@@ -1,0 +1,70 @@
+@import "@audexis/shared/styles";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+/* @custom-variant light (&:where([data-theme=light], [data-theme=light] *));
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *)); */
+@font-face {
+    font-family: "Jet Brains Monos";
+    src: url("./Open_Sans/OpenSans-VariableFont_wdth,wght.ttf")
+        format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+#root {
+    background-color: var(--background);
+    height: 100%;
+    width: 100%;
+    position: relative;
+    font-family: "Jet Brains Mono", sans-serif;
+    box-sizing: border-box;
+    color: var(--foreground);
+    border-color: var(--border) !important;
+    outline-color: var(--primary) !important;
+}
+
+html,
+body {
+    overflow-x: hidden;
+}
+
+[data-density="compact"] .tag-row {
+    height: 34px;
+    min-height: 34px;
+}
+
+[data-density="default"] .tag-row {
+    height: 46px;
+    min-height: 46px;
+}
+
+[data-density="comfort"] .tag-row {
+    height: 56px;
+    min-height: 56px;
+}
+
+.table-scroll-fade {
+    position: relative;
+}
+
+.table-scroll-fade:before,
+.table-scroll-fade:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 18px;
+    pointer-events: none;
+    z-index: 30;
+}
+
+.table-scroll-fade:before {
+    left: 0;
+    background: linear-gradient(to right, var(--background), rgba(0, 0, 0, 0));
+}
+
+.table-scroll-fade:after {
+    right: 0;
+    background: linear-gradient(to left, var(--background), rgba(0, 0, 0, 0));
+}

@@ -1,315 +1,67 @@
 ---
-interface Props {
-  title: string;
-  description: string;
-  keywords?: string;
-}
-import "../styles/global.css";
+import "../assets/main.css";
 import Navbar from "../components/Navbar.astro";
-import { SEO } from "astro-seo";
-const url = Astro.url.pathname;
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+interface Props {
+    title?: string;
+    description?: string;
+    image?: string;
+    imageAlt?: string;
+}
+const {
+    title = "Audexis — Home.",
+    description = "A local-first desktop music player for the collection you've made your own. Browse your albums, build playlists, tag metadata, and rediscover your favorites with Audexis.",
+    image = "/screenshots/home.png",
+    imageAlt = "Audexis music library",
+} = Astro.props;
+const canonical = new URL(
+    Astro.url.pathname.replace(/\/$/, "") || "/",
+    Astro.site,
+);
+const socialImage = new URL(image, Astro.site);
 ---
 
 <!doctype html>
-<html lang="en">
-  <head>
-    <SEO
-      title={Astro.props.title}
-      description={Astro.props.description}
-      twitter={{
-        card: "summary_large_image",
-        image: "https://www.audexis.app/og.png",
-        site: "https://www.audexis.app",
-        creator: "kp_fyn1",
-        description: Astro.props.description,
-        title: Astro.props.title,
-      }}
-      openGraph={{
-        basic: {
-          title: Astro.props.title,
-          type: "website",
-          image: "https://www.audexis.app/og.png",
-          url: `https://www.audexis.app${url}`,
-        },
-        optional: {
-          description: Astro.props.description,
-          siteName: "Audexis",
-        },
-        image: {
-          url: "https://www.audexis.app/og.png",
-          alt: "Audexis Image",
-
-          width: 1200,
-          height: 630,
-        },
-      }}
-      extend={{
-        meta: [
-          {
-            name: "keywords",
-            content:
-              Astro.props.keywords ??
-              "audexis, metadata editing, metadata editor",
-          },
-        ],
-      }}
-      titleTemplate="%s — Audexis"
-    />
-    <style is:inline>
-      [data-theme="light"] {
-        --background: #f1f1f1;
-      }
-      [data-theme="dark"] {
-        --background: #0a0a0a;
-      }
-      body {
-        background-color: var(--background);
-      }
-    </style>
-    <script is:inline>
-      let theme = localStorage.getItem("theme");
-      if (theme !== "light" && theme !== "dark") {
-        if (
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches
-        ) {
-          theme = "dark";
-        } else {
-          theme = "light";
-        }
-        localStorage.setItem("theme", theme);
-        document.documentElement.setAttribute("data-theme", theme);
-      } else {
-        document.documentElement.setAttribute("data-theme", theme);
-      }
-    </script>
-    <script is:inline type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Audexis",
-        "operatingSystem": "Windows 10, Windows 11, macOS 10.15+",
-        "applicationCategory": "MultimediaApplication",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "downloadUrl": "https://github.com/kp-fyn/audexis/releases",
-        "license": "https://opensource.org/license/mit"
-      }
-    </script>
-    <script>
-      function handleTheme(th: string) {
-        let newTheme = th === "dark" ? "dark" : "light";
-        let oldTheme = newTheme === "dark" ? "light" : "dark";
-        const images = document.getElementsByClassName("theme-img");
-        const themeColor = document.querySelector('meta[name="theme-color"]');
-        if (themeColor) {
-          if (newTheme === "dark") {
-            themeColor.setAttribute("content", "#0a0a0a");
-          } else {
-            themeColor.setAttribute("content", "#f1f1f1");
-          }
-        }
-
-        for (let i = 0; i < images.length; i++) {
-          if (images[i].tagName.toLowerCase() === "image") {
-            const img = images[i] as SVGImageElement;
-
-            img.href.baseVal = img.href.baseVal.replace(oldTheme, newTheme);
-
-            img.classList.add("block");
-
-            img.classList.remove("hidden");
-          } else if (images[i].tagName.toLowerCase() === "img") {
-            const img = images[i] as HTMLImageElement;
-
-            img.src = img.src.replace(oldTheme, newTheme);
-
-            img.classList.add("block");
-
-            img.classList.remove("hidden");
-            i;
-          }
-        }
-      }
-      const targetElement = document.documentElement;
-      let thme = targetElement.getAttribute("data-theme");
-      if (!thme || (thme !== "dark" && thme !== "light")) {
-        if (
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches
-        ) {
-          thme = "dark";
-        } else {
-          thme = "light";
-        }
-        targetElement.setAttribute("data-theme", thme);
-      }
-      handleTheme(thme);
-
-      const config = { attributes: true, attributeFilter: ["data-theme"] };
-
-      const callback: MutationCallback = (mutationsList) => {
-        for (const mutation of mutationsList) {
-          if (
-            mutation.type === "attributes" &&
-            mutation.attributeName === "data-theme"
-          ) {
-            let newTheme = targetElement.getAttribute("data-theme");
-            if (!newTheme || (newTheme !== "light" && newTheme !== "dark")) {
-              if (
-                window.matchMedia &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches
-              ) {
-                newTheme = "dark";
-              } else {
-                newTheme = "light";
-              }
-            }
-            handleTheme(newTheme);
-          }
-        }
-      };
-
-      const observer = new MutationObserver(callback);
-
-      observer.observe(targetElement, config);
-    </script>
-
-    <script>
-      fetch("https://api.github.com/repos/kp-fyn/audexis/releases/latest")
-        .then((response) => response.json())
-        .then((release: any) => {
-          type ReleaseAsset = {
-            name: string;
-            browser_download_url: string;
-            size: number;
-          };
-
-          let defaultUrl = "https://github.com/kp-fyn/audexis/releases/latest";
-          let macDownloadUrl = defaultUrl;
-          let windowsDownloadUrl = defaultUrl;
-
-          const assets: ReleaseAsset[] = Array.isArray(release?.assets)
-            ? (release.assets as ReleaseAsset[])
-            : [];
-
-          const os = window.navigator.platform.toLowerCase();
-          const dmgAsset = assets.find((a) => a.name.endsWith(".dmg"));
-          if (dmgAsset) {
-            macDownloadUrl = dmgAsset.browser_download_url;
-          }
-          const exeAsset = assets.find((a) => a.name.endsWith(".exe"));
-          if (exeAsset) {
-            windowsDownloadUrl = exeAsset.browser_download_url;
-          }
-          const downloadButtons = document.getElementsByClassName(
-            "download-latest-release",
-          );
-          const dmgLinkElements = document.querySelectorAll(
-            "[data-dmg-download-link]",
-          );
-          const exeLinkElements = document.querySelectorAll(
-            "[data-exe-download-link]",
-          );
-          for (let i = 0; i < dmgLinkElements.length; i++) {
-            const linkEl = dmgLinkElements[i];
-            linkEl.setAttribute("href", macDownloadUrl);
-          }
-          for (let i = 0; i < exeLinkElements.length; i++) {
-            const linkEl = exeLinkElements[i];
-            linkEl.setAttribute("href", windowsDownloadUrl);
-          }
-          for (let i = 0; i < downloadButtons.length; i++) {
-            const btn = downloadButtons[i];
-
-            if (
-              os.includes("mac") ||
-              os.includes("iphone") ||
-              os.includes("ipad")
-            ) {
-              btn.setAttribute("href", macDownloadUrl);
-              btn.innerHTML = "Download for Mac";
-            } else if (os.includes("win")) {
-              btn.setAttribute("href", windowsDownloadUrl);
-              btn.innerHTML = "Download for Windows";
-            } else {
-              btn.setAttribute("href", defaultUrl);
-              btn.innerHTML = "Download Latest Release";
-            }
-          }
-          const macFileSize = dmgAsset
-            ? (dmgAsset.size / (1024 * 1024)).toFixed(1)
-            : "0";
-          const windowsFileSize = exeAsset
-            ? (exeAsset.size / (1024 * 1024)).toFixed(1)
-            : "0";
-          document.querySelectorAll("[data-latest-dmg-size]").forEach((el) => {
-            el.innerHTML = macFileSize;
-          });
-          document.querySelectorAll("[data-latest-exe-size]").forEach((el) => {
-            el.innerHTML = windowsFileSize;
-          });
-        })
-        .catch((error) => {
-          console.error("Error fetching release data:", error);
-        });
-    </script>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
-    <meta theme-color="#f1f1f1" />
-    <meta
-      name="theme-color"
-      content="#f1f1f1"
-      media="(prefers-color-scheme: dark)"
-    />
-
-    <link rel="icon" href="/logo.ico" />
-  </head>
-  <body class="w-full h-full">
-    <Navbar />
-    <main class="min-height-full w-full">
-      <slot class="w-full mt-18" />
-    </main>
-
-    <footer
-      class="px-4 py-8 h-12 items-center text-sm opacity-70 border-t border-border"
-    >
-      <div
-        class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground"
-      >
-        <div>MIT {new Date().getFullYear()} © Kp Adeyinka</div>
-        <div class="flex items-center gap-6">
-          <a href="/docs" class="hover:text-foreground transition-colors">
-            Documentation
-          </a>{" "}
-          <a href="/blog" class="hover:text-foreground transition-colors">
-            Blog
-          </a>
-          <a
-            href="/blog/releases"
-            class="hover:text-foreground transition-colors"
-          >
-            Releases
-          </a>
-          <a
-            href="https://github.com/kp-fyn/audexis"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:text-foreground transition-colors"
-          >
-            GitHub
-          </a>
-        </div>
-      </div>
-    </footer>
-  </body>
+<html
+    lang="en"
+    data-theme="dark"
+    class="m-0 h-full w-full scroll-pt-8 scroll-smooth motion-reduce:scroll-auto"
+>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <link rel="icon" type="image/png" href="/audexis-logo.png" />
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:site_name" content="Audexis" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={socialImage} />
+        <meta property="og:image:alt" content={imageAlt} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={socialImage} />
+        <meta name="twitter:image:alt" content={imageAlt} />
+        <meta name="generator" content={Astro.generator} />
+        <title>{title}</title>
+    </head>
+    <body class="m-0 min-h-screen bg-background font-mono text-foreground antialiased selection:bg-primary selection:text-primary-foreground">
+        <Navbar />
+        <slot />
+        <footer class="mx-auto flex max-w-7xl flex-col gap-8 border-t border-border px-5 py-8 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+            <a class="font-mono font-semibold" href="/">
+                Audexis
+            </a>
+            <div class="flex flex-wrap gap-6 text-muted-foreground *:hover:text-primary">
+                <a href="/download">Download</a>
+                <a href="/docs">Docs</a>
+                <a href="https://github.com/adeyinkakp/audexis">GitHub ↗</a>
+                <a href="https://github.com/adeyinkakp/audexis/blob/main/LICENSE">
+                    MIT License
+                </a>
+            </div>
+        </footer>
+    </body>
 </html>

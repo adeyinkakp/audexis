@@ -2,31 +2,36 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled",
     "core:default",
-    "core:window:allow-start-dragging",
-    "core:window:allow-maximize",
-    "core:window:allow-minimize",
-    "core:window:allow-close",
-    "core:window:allow-unmaximize",
-    "core:window:allow-set-fullscreen",
-    "core:window:allow-is-maximized",
-    "core:window:allow-is-fullscreen",
-    "core:window:allow-hide",
-    "opener:default",
-    "dialog:default",
     "updater:default",
-    "updater:allow-check",
-    "updater:allow-download-and-install",
-    "clipboard-manager:allow-clear",
-    "clipboard-manager:allow-read-text",
-    "clipboard-manager:allow-write-text",
-    "clipboard-manager:default",
-    "clipboard-manager:allow-read-image",
-    "clipboard-manager:allow-write-image"
+    "opener:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://lrclib.net/api/*"
+        },
+        {
+          "url": "https://itunes.apple.com/search*"
+        },
+        {
+          "url": "https://*.mzstatic.com/*"
+        }
+      ]
+    },
+    "core:window:allow-show",
+    "core:window:allow-start-dragging",
+    "core:window:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "store:default",
+    "log:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-set-focus"
   ]
 }

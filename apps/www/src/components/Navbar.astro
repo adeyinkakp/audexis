@@ -1,200 +1,45 @@
 ---
-import logo from "../assets/old.svg";
-import moon from "../assets/moon.svg";
-import sun from "../assets/sun.svg";
 import { Image } from "astro:assets";
 ---
 
-<div class="flex top-0 p-7 px-0 z-50 bg-background w-full h-14">
-  <div
-    class="px-2 w-full h-full flex items-center bg-transparent backdrop-blur-3xl md:px-8 gap-4"
-  >
-    <div class="flex items-center gap-4 min-w-0">
-      <button
-        id="mobile-menu-toggle"
-        class="md:hidden py-2 px-2 rounded hover:bg-hover text-muted-foreground"
-        aria-label="Open menu"
-        aria-expanded="false"
-        aria-controls="mobile-menu"
-        type="button"
-      >
-        <span class="sr-only">Menu</span>
-        <span class="block w-5">
-          {/* Burger! */}
-          <span class="block h-0.5 w-full bg-current"></span>
-          <span class="block h-0.5 w-full bg-current mt-1"></span>
-          <span class="block h-0.5 w-full bg-current mt-1"></span>
-        </span>
-      </button>
-      <a href="/" class="flex items-center gap-2 shrink-0">
-        <Image src={logo} alt="Audexis logo" width={26} height={26} />
-        <span class="text-lg font- text-foreground">Audexis</span>
-      </a>
-      <div
-        class="hidden md:flex top-0 md:ml-8 gap-8 text-sm text-muted-foreground"
-      >
-        <a href="/docs">Docs</a>
-        <a href="/blog">Blog</a>
-        <a href="/releases">Releases</a>
-        <a href="https://github.com/kp-fyn/audexis">Github</a>
-      </div>
-    </div>
-    <div class="ml-auto flex items-center h-full gap-2">
-      <div class="md:block hidden">
-        <div class="flex flex-col">
-          <a
-            class="download-latest-release bg-primary text-primary-foreground hover:bg-primary/70 rounded text-sm px-4 py-2 border border-black"
-          >
-            Download Latest Release
-          </a>
+<header class="border-b border-border/30 sticky">
+    <nav class="mx-auto flex mh-12 w-full max-w-7xl flex-wrap items-center justify-between gap-3 sm:gap-x-6 sm:gap-y-4 px-5 py-4 sm:px-8 lg:px-12">
+        <a
+            href="/"
+            aria-label="Audexis home"
+            class="flex items-center gap-1 sm:gap-3 font-mono text-foreground no-underline"
+        >
+            <Image
+                src="/audexis-logo.png"
+                alt=""
+                width="36"
+                height="36"
+                class="size-7 sm:size-9"
+            />
+            <span class="text-base sm:text-xl font-semibold tracking-tight">
+                Audexis
+            </span>
+        </a>
+
+        <div class="flex items-center gap-3 text-xs sm:text-sm sm:gap-7">
+            <a
+                class="text-muted-foreground no-underline transition-colors hover:text-foreground motion-reduce:transition-none"
+                href={`/docs`}
+            >
+                Docs
+            </a>
+            <a
+                class="text-muted-foreground no-underline transition-colors hover:text-foreground motion-reduce:transition-none"
+                href={"https://github.com/adeyinkakp/audexis"}
+            >
+                GitHub
+            </a>
+            <a
+                class="no-underline rounded-lg bg-primary px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-primary-foreground transition-colors motion-reduce:transition-none hover:bg-accent hover:text-accent-foreground"
+                href="/download"
+            >
+                Download
+            </a>
         </div>
-      </div>
-      <button id="theme-toggle" class="py-2 px-2 rounded hover:bg-hover">
-        <Image
-          id="light"
-          loading="eager"
-          src={moon}
-          alt="Dark mode"
-          height={20}
-          color={"#fff"}
-          width={20}
-        />
-        <Image
-          id="dark"
-          loading="eager"
-          src={sun}
-          alt="Dark mode"
-          height={20}
-          color={"#fff"}
-          width={20}
-        />
-        <span class="sr-only">Toggle theme</span>
-      </button>
-    </div>
-  </div>
-
-  <div
-    id="mobile-menu"
-    class="hidden md:hidden absolute left-0 right-0 mt-6 px-2 md:px-8"
-  >
-    <div
-      class="mt-2 rounded border border-primary bg-transparent backdrop-blur-2xl"
-    >
-      <div class="flex flex-col py-2">
-        <a
-          class="px-4 py-2 text-sm text-muted-foreground hover:bg-background/30"
-          href="/docs">Docs</a
-        >
-        <a
-          class="px-4 py-2 text-sm text-muted-foreground hover:bg-background/30"
-          href="/blog">Blog</a
-        >
-        <a
-          class="px-4 py-2 text-sm text-muted-foreground hover:bg-background/30"
-          href="/releases">Releases</a
-        >
-        <a
-          class="px-4 py-2 text-sm text-muted-foreground hover:bg-background/30"
-          href="https://github.com/kp-fyn/audexis">Github</a
-        >
-        <a
-          class="download-latest-release px-4 py-2 text-sm text-muted-foreground hover:bg-background/30"
-          >Download Latest Release</a
-        >
-      </div>
-    </div>
-  </div>
-</div>
-
-<script is:inline>
-  function showCorrectIcon(newTheme) {
-    const iconToHideId = newTheme === "light" ? "dark" : "light";
-    const iconToShowId = newTheme;
-
-    const iconToHide = document.getElementById(iconToHideId);
-    if (iconToHide) {
-      iconToHide.style.display = "none";
-    }
-    const iconToSHow = document.getElementById(iconToShowId);
-    if (iconToSHow) {
-      iconToSHow.style.display = "block";
-      iconToSHow.style.color = "var(--text-foreground)";
-    }
-  }
-  (() => {
-    let currentTheme = document.documentElement.getAttribute("data-theme");
-    let defaultTheme = "";
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      defaultTheme = "dark";
-    } else {
-      defaultTheme = "light";
-    }
-    if (
-      !currentTheme ||
-      (currentTheme !== "dark" && currentTheme !== "light")
-    ) {
-      currentTheme = defaultTheme;
-    }
-    showCorrectIcon(currentTheme);
-  })();
-  const button = document.getElementById("theme-toggle");
-  if (button) {
-    button.addEventListener("click", toggleTheme);
-    function toggleTheme() {
-      let currentTheme = document.documentElement.getAttribute("data-theme");
-      let defaultTheme = "light";
-      if (
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
-      ) {
-        defaultTheme = "dark";
-      } else {
-        defaultTheme = "light";
-      }
-      let newTheme = "light";
-      if (currentTheme) {
-        if (currentTheme !== "dark" && currentTheme !== "light") {
-          localStorage.setItem("theme", defaultTheme);
-          document.documentElement.setAttribute("data-theme", defaultTheme);
-          showCorrectIcon(defaultTheme);
-        } else {
-          newTheme = currentTheme === "dark" ? "light" : "dark";
-          localStorage.setItem("theme", newTheme);
-          document.documentElement.setAttribute("data-theme", newTheme);
-          showCorrectIcon(newTheme);
-        }
-      } else {
-        localStorage.setItem("theme", defaultTheme);
-        document.documentElement.setAttribute("data-theme", defaultTheme);
-        showCorrectIcon(defaultTheme);
-      }
-    }
-  }
-
-  const mobileMenuToggle = document.getElementById("mobile-menu-toggle");
-  const mobileMenu = document.getElementById("mobile-menu");
-
-  if (mobileMenuToggle && mobileMenu) {
-    mobileMenuToggle.addEventListener("click", () => {
-      const isOpen = mobileMenu.classList.contains("hidden") === false;
-      if (isOpen) {
-        mobileMenu.classList.add("hidden");
-        mobileMenuToggle.setAttribute("aria-expanded", "false");
-      } else {
-        mobileMenu.classList.remove("hidden");
-        mobileMenuToggle.setAttribute("aria-expanded", "true");
-      }
-    });
-
-    mobileMenu.addEventListener("click", (e) => {
-      const target = e.target;
-      if (target && target instanceof HTMLElement && target.tagName === "A") {
-        mobileMenu.classList.add("hidden");
-        mobileMenuToggle.setAttribute("aria-expanded", "false");
-      }
-    });
-  }
-</script>
+    </nav>
+</header>

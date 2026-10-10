@@ -1,20 +1,32 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "audexis",
+  "productName": "Audexis",
 
-  "version": "0.9.6",
-  "identifier": "com.audexis",
+  "version": "0.10.0",
+  "identifier": "com.kp.audexis",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
 
   "app": {
-    "macOSPrivateApi": true,
-
-    "windows": [],
+    "windows": [
+      {
+        "url": "index.html",
+        "titleBarStyle": "Overlay",
+        "decorations": true,
+        "hiddenTitle": true,
+        "visible": false,
+        "minHeight": 800,
+        "minWidth": 1000,
+        "trafficLightPosition": {
+          "x": 15,
+          "y": 30
+        }
+      }
+    ],
 
     "security": {
       "assetProtocol": {
@@ -38,71 +50,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "fileAssociations": [
-      {
-        "name": "Audexis Audio",
-        "description": "Audexis Audio File",
-        "role": "Editor",
-        "mimeType": "audio/mp4",
-        "ext": ["m4a", "m4b"]
-      },
-      {
-        "name": "Audexis Video",
-        "description": "Audexis Video File",
-        "role": "Editor",
-        "mimeType": "video/mp4",
-        "ext": ["mp4"]
-      },
-      {
-        "name": "Audexis Video",
-        "description": "Audexis Video File",
-        "role": "Editor",
-        "mimeType": "video/x-m4v",
-        "ext": ["m4v"]
-      },
-      {
-        "name": "Audexis QuickTime",
-        "description": "Audexis QuickTime File",
-        "role": "Editor",
-        "mimeType": "video/quicktime",
-        "ext": ["mov", "qt"]
-      },
-      {
-        "name": "Audexis Ogg",
-        "description": "Audexis Ogg File",
-        "role": "Editor",
-        "mimeType": "audio/ogg",
-        "ext": ["ogg", "oga", "spx"]
-      },
-      {
-        "name": "Audexis Opus",
-        "description": "Audexis Opus File",
-        "role": "Editor",
-        "mimeType": "audio/opus",
-        "ext": ["opus"]
-      },
-      {
-        "name": "Audexis Ogg Video",
-        "description": "Audexis Ogg Video File",
-        "role": "Editor",
-        "mimeType": "video/ogg",
-        "ext": ["ogv"]
-      },
-      {
-        "name": "Audexis MP3",
-        "description": "Audexis MPEG Audio File",
-        "role": "Editor",
-        "mimeType": "audio/mpeg",
-        "ext": ["mp3", "mp2", "mp1"]
-      },
-      {
-        "name": "Audexis FLAC",
-        "description": "Audexis FLAC File",
-        "role": "Editor",
-        "mimeType": "audio/flac",
-        "ext": ["flac"]
-      }
-    ],
+
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.15",
@@ -114,17 +62,14 @@
     "windows": {
       "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a Audexis -c Audexis -d Audexis %1"
     },
-    "publisher": "kp-fyn",
-    "homepage": "https://github.com/kp-fyn/audexis"
+    "publisher": "adeyinkakp",
+    "homepage": "https://github.com/adeyinkakp/audexis"
   },
   "plugins": {
     "updater": {
-      "active": true,
-      "createUpdaterArtifacts": true,
       "endpoints": [
-        "https://github.com/kp-fyn/audexis/releases/latest/download/latest.json"
+        "https://github.com/adeyinkakp/audexis/releases/latest/download/latest.json"
       ],
-      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYwN0U3RDA5NDhBMjcxMjMKUldRamNhSklDWDErOE1pdHZyRWlKaVlMTjRJNTlQN1pyT08rRUxISzhyOHNPVEF2SE1sTTFnN2gK"
     }
   }

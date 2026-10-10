@@ -1,6 +1,103 @@
 ---
-import astroLogo from "../assets/astro.svg";
-import background from "../assets/background.svg";
+import Hero from "./welcome/Hero.astro";
+import CollectionIntro from "./welcome/CollectionIntro.astro";
+import FeatureSection from "./welcome/FeatureSection.astro";
+import GettingStarted from "./welcome/GettingStarted.astro";
+
+const formats = ["MP3", "FLAC", "M4A", "OPUS", "+ more"];
 ---
 
-sss
+<div>
+    <main id="main" class="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+        <Hero />
+
+        <CollectionIntro />
+
+        <FeatureSection
+            id="mini-player"
+            eyebrow="MAKE IT YOURS"
+            title="Every detail."
+            subtitle="Just how you want it."
+            description="Fix missing titles, update artists and albums, and give your collection the details it deserves.Add custom fields and save your changes directly to your music files."
+            imagePosition="right"
+            image={{
+                src: "/screenshots/trackinfo.png",
+                alt: "Audexis metadata editor showing editable song titles, artists, albums, and custom fields tab.",
+
+                width: 852,
+                height: 614,
+            }}
+        >
+            <div
+                aria-label="Example supported formats"
+                class="mt-6 flex flex-wrap gap-4 text-xs text-muted-foreground"
+            >
+                {formats.map((format) => (
+                    <span class="border-b border-border pb-2 hover:border-primary cursor-default">
+                        {format}
+                    </span>
+                ))}
+            </div>
+        </FeatureSection>
+
+        <FeatureSection
+            id="rewind"
+            eyebrow="MEET REWIND"
+            title="Some songs"
+            subtitle="stay with you."
+            description="See the artists, albums, and tracks you’ve spent time with. Explore your listening history by month or year, and find your way back to a favorite."
+            imagePosition="left"
+            image={{
+                src: "/screenshots/rewind.png",
+                alt: "Audexis Rewind showing listening time and top artists for the selected year.",
+
+                width: 2850,
+                height: 1846,
+            }}
+        >
+            <a
+                href="/docs#rewind"
+                class="mt-6 inline-flex items-center gap-3 text-sm hover:text-primary focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            >
+                Get to know Rewind{" "}
+                <span aria-hidden="true" class="text-xl leading-none">
+                    ↗
+                </span>
+            </a>
+        </FeatureSection>
+
+        <FeatureSection
+            id="mini-player"
+            eyebrow="KEEP MUSIC CLOSE"
+            title="Keep it close."
+            subtitle="Music by your side."
+            description="Keep your music beside whatever you’re doing in a compact, separate window. See what’s playing, skip tracks, and seek to your favorite part or pin the player above other windows to keep it close."
+            imagePosition="right"
+            image={{
+                src: "/screenshots/miniplayer.png",
+                alt: "Audexis mini player showing album artwork, track details, and compact playback controls.",
+
+                width: 852,
+                height: 614,
+            }}
+        />
+        <FeatureSection
+            id="fullscreen"
+            eyebrow="KIMMERSE YOURSELF"
+            title="Take it all in."
+            subtitle="Just you and the music."
+            description="Set your library aside and settle into what’s playing. Follow the lyrics and explore your queue with playback controls always within reach."
+            imagePosition="left"
+            image={{
+                src: "/screenshots/fullscreen.png",
+                alt: "Audexis fullscreen player showing album artwork, playback controls, and the lyrics panel.",
+
+                width: 3164,
+                height: 2070,
+            }}
+        />
+
+        <GettingStarted />
+        <div class="h-20"></div>
+    </main>
+</div>

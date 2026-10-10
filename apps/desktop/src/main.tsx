@@ -1,134 +1,105 @@
 import React from "react";
+import { useLibraryEvents } from "./hooks/useLibraryEvents";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import ErrorPage from "./error";
-import { ErrorBoundary } from "react-error-boundary";
 
-import "./assets/main.css";
-import Titlebar from "@/ui/components/Titlebar";
-import queryString from "query-string";
-import { UserConfigProvider } from "@/ui/hooks/useUserConfig";
-import { SidebarWidthProvider } from "@/ui/hooks/useSidebarWidth";
-import { ChangesProvider } from "@/ui/hooks/useChanges";
-import { OnboardingModal } from "@/ui/components/modals/OnboardingModal";
+import { StoreProvider } from "./hooks/StoreProvider";
 import { Toaster } from "react-hot-toast";
-import { AutoUpdaterProvider } from "@/ui/hooks/useAutoUpdater";
+import "./styles/main.css";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { routeTree } from "./routeTree.gen";
 
-import SaveBar from "@/ui/components/SaveBar";
-import { RenameProvider, useRename } from "@/ui/hooks/useRename";
-import RenameModal from "@/ui/components/RenameModal";
-import { FindReplaceProvider } from "@/ui/hooks/useFindReplace";
-import FindReplaceBar from "@/ui/components/FindReplaceBar";
-import { CleanupModal } from "@/ui/components/modals/CleanupModal";
-import { TagEditorError } from "@/ui/components/modals/TagEditorError";
-import { CleanupProvider } from "./hooks/useCleanup";
-import { TagEditorErrorsProvider } from "./hooks/useTagEditorErrors";
-import { BottombarHeightProvider } from "./hooks/useBottombarHeight";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache } from "@tanstack/react-query";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorPage } from "./components/ErrorPage";
+import { StartupValidate } from "./components/StartupValidate";
+import { installErrorLogging, logError } from "./utils/logger";
 
-const query = queryString.parse(window.location.search);
-const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error("Root element not found");
+import { AppUpdater } from "./components/AppUpdater";
 
-let theme = localStorage.getItem("theme") || query.theme || "light";
-theme = theme.toString().toLowerCase();
-if (theme !== "light" && theme !== "dark") theme = "light";
-document.documentElement.setAttribute("data-theme", theme);
+import MiniPlayer from "./components/MiniPlayer";
 
-const params = new URLSearchParams(window.location.href);
+const isMiniPlayer = new URLSearchParams(window.location.search).has("mini-player");
 
-const viewMode = params.get("view") ?? "simple";
+installErrorLogging();
 
-if (params.get("theme") !== theme) {
-  params.set("theme", theme);
-  const newUrl = `${window.location.pathname}?${params.toString()}`;
-  window.history.replaceState({}, "", newUrl);
+export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) =>
+      logError(`Query failed [${query.queryHash}]`, error),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) =>
+      logError(
+        `Mutation failed [${String(mutation.options.mutationKey ?? "unknown")}]`,
+        error,
+      ),
+  }),
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+      gcTime: Infinity,
+    },
+  },
+});
+
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+  defaultPreload: "intent",
+  scrollRestoration: true,
+  defaultErrorComponent: ({ error, reset }) => (
+    <ErrorPage kind="error" error={error} onRetry={reset} />
+  ),
+  defaultNotFoundComponent: () => <ErrorPage kind="not-found" />,
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
 }
 
-function Root() {
-  const [showOnboarding, setShowOnboarding] = React.useState(
-    query.onboarding === "true",
-  );
-
-  const { open: renameOpen } = useRename();
-  const handleCloseOnboarding = () => {
-    setShowOnboarding(false);
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("onboarding")) {
-      params.delete("onboarding");
-      const newUrl = `${window.location.pathname}?${params.toString()}`.replace(
-        /\?$/,
-        "",
-      );
-      window.history.replaceState({}, "", newUrl);
-    }
-  };
-
-  return (
-    <div
-      className="h-screen overflow-hidden"
-      onContextMenu={(e) => {
-        e.preventDefault();
-      }}
-    >
-      <Titlebar />
-      <div
-        style={{ marginTop: 48, height: "calc(100vh - 48px)" }}
-        className="flex flex-col flex-1 min-h-0 overflow-y-hidden overflow-x-hidden"
-      >
-        <App />
-        <TagEditorError />
-        <FindReplaceBar />
-        <SaveBar />
-        {renameOpen && <RenameModal />}
-        <CleanupModal />
-      </div>
-      {showOnboarding && (
-        <OnboardingModal
-          open={showOnboarding}
-          onClose={handleCloseOnboarding}
-        />
-      )}
-    </div>
-  );
+function LibraryEvents() {
+  useLibraryEvents();
+  return null;
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ErrorBoundary FallbackComponent={ErrorPage}>
-      <UserConfigProvider initialView={viewMode} initialTheme={theme}>
-        <TagEditorErrorsProvider>
-          <ChangesProvider>
-            <AutoUpdaterProvider>
-              <CleanupProvider>
-                <RenameProvider>
-                  <FindReplaceProvider>
-                    <BottombarHeightProvider>
-                      <SidebarWidthProvider>
-                        <Root />
-                        <Toaster
-                          position="top-right"
-                          containerStyle={{
-                            marginTop: "64px",
-                          }}
-                          toastOptions={{
-                            className:
-                              "!bg-background !text-foreground !border !border-border",
-                            style: {
-                              background: "var(--background)",
-                              color: "var(--foreground)",
-                              border: "1px solid var(--border)",
-                            },
-                          }}
-                        />
-                      </SidebarWidthProvider>
-                    </BottombarHeightProvider>
-                  </FindReplaceProvider>
-                </RenameProvider>
-              </CleanupProvider>
-            </AutoUpdaterProvider>
-          </ChangesProvider>
-        </TagEditorErrorsProvider>
-      </UserConfigProvider>
+    <ErrorBoundary>
+      <Toaster
+        position="top-right"
+        containerStyle={{
+          marginTop: "64px",
+          zIndex: 20000,
+        }}
+        toastOptions={{
+          className: "!bg-background !text-foreground !border !border-border",
+          style: {
+            background: "var(--background)",
+            color: "var(--foreground)",
+            border: "1px solid var(--border)",
+          },
+        }}
+      />
+
+      <StartupValidate>
+        <QueryClientProvider client={queryClient}>
+          {isMiniPlayer ? (
+            <>
+              <LibraryEvents />
+              <MiniPlayer />
+            </>
+          ) : (
+            <StoreProvider>
+              <AppUpdater />
+              <LibraryEvents />
+              <RouterProvider router={router} />
+            </StoreProvider>
+          )}
+        </QueryClientProvider>
+      </StartupValidate>
     </ErrorBoundary>
   </React.StrictMode>,
 );

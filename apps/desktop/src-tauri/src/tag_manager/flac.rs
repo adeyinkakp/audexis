@@ -5,7 +5,6 @@ use crate::tag_manager::vorbis_comments::utils;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Flac;
@@ -57,10 +56,10 @@ impl TagFormat for FlacFormat {
     }
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut data: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
-        let b = fs::read(file_path);
+        let b = crate::utils::library_files::read(file_path);
         if b.is_err() {
             print!("I guess");
             return Err(BackendError::ReadFailed(TagError {
@@ -81,10 +80,17 @@ impl TagFormat for FlacFormat {
         let pos = 4;
         let mut offset = pos;
         while offset < b.len() {
+            if offset + 4 > b.len() {
+                return Err(BackendError::ReadFailed(TagError {
+                    path: file_path.to_string_lossy().to_string(),
+                    public_message: "Truncated FLAC metadata block".to_string(),
+                    internal_message: "Metadata block header is shorter than four bytes"
+                        .to_string(),
+                }));
+            }
             let is_last = (b[offset] & 0x80) != 0;
 
             let block_type = FlacBlockType::from(b[offset] & 0x7F);
-            println!("Found block type: {:?}", block_type);
             let block_length = ((b[offset + 1] as u32) << 16)
                 | ((b[offset + 2] as u32) << 8)
                 | (b[offset + 3] as u32);
@@ -109,7 +115,7 @@ impl TagFormat for FlacFormat {
                     }));
                 }
                 let tags = tags.unwrap();
-                data.extend(tags.into_iter());
+                data.extend(tags);
             } else if FlacBlockType::Picture == block_type {
                 let pic = utils::parse_picture(block_data);
                 if pic.is_err() {
@@ -132,10 +138,10 @@ impl TagFormat for FlacFormat {
     }
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated_tags: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
-        let b = fs::read(&file_path);
+        let b = crate::utils::library_files::read(file_path);
         if b.is_err() {
             return Err(BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
@@ -163,12 +169,10 @@ impl TagFormat for FlacFormat {
         }
         let mut tags: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
 
-        tags.extend(updated_tags.into_iter());
+        tags.extend(updated_tags.clone());
 
         old_tags.into_iter().for_each(|(k, v)| {
-            if !tags.contains_key(&k) {
-                tags.insert(k, v);
-            }
+            tags.entry(k).or_insert(v);
         });
         let payload = utils::build_comments(&tags, false);
 
@@ -177,6 +181,14 @@ impl TagFormat for FlacFormat {
         let mut offset = 4;
 
         while offset < b.len() {
+            if offset + 4 > b.len() {
+                return Err(BackendError::ReadFailed(TagError {
+                    path: file_path.to_string_lossy().to_string(),
+                    public_message: "Truncated FLAC metadata block".to_string(),
+                    internal_message: "Metadata block header is shorter than four bytes"
+                        .to_string(),
+                }));
+            }
             let is_last = (b[offset] & 0x80) != 0;
             let block_type_raw = b[offset] & 0x7F;
             let block_type = FlacBlockType::from(block_type_raw);
@@ -202,10 +214,19 @@ impl TagFormat for FlacFormat {
                     all_blocks.push(FlacBlock {
                         block_type: FlacBlockType::VorbisComment,
 
-                        data: payload.clone(),
+                        data: utils::update_comments(block_data, &updated_tags, false).map_err(
+                            |error| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Could not update comments".into(),
+                                    internal_message: error.to_string(),
+                                })
+                            },
+                        )?,
                     });
                 }
-                FlacBlockType::Picture => {}
+                FlacBlockType::Picture if updated_tags.contains_key(&FrameKey::AttachedPicture) => {
+                }
                 _ => {
                     all_blocks.push(FlacBlock {
                         block_type,
@@ -242,7 +263,7 @@ impl TagFormat for FlacFormat {
                 },
             );
         }
-        for payload in utils::build_picture_tag(&tags) {
+        for payload in utils::build_picture_tag(&updated_tags) {
             all_blocks.push(FlacBlock {
                 block_type: FlacBlockType::Picture,
 
@@ -256,6 +277,13 @@ impl TagFormat for FlacFormat {
         let mut out: Vec<u8> = Vec::new();
         out.extend(b"fLaC");
         for (i, block) in all_blocks.iter().enumerate() {
+            if block.data.len() > 0xFF_FFFF {
+                return Err(BackendError::WriteFailed(TagError {
+                    path: file_path.to_string_lossy().into_owned(),
+                    public_message: "Metadata block is too large".into(),
+                    internal_message: "FLAC blocks cannot exceed 24-bit lengths".into(),
+                }));
+            }
             let block_length = block.data.len() as u32;
             let is_last = if i == all_blocks.len() - 1 {
                 0x80

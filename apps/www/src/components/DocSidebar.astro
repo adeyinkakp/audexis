@@ -1,280 +1,70 @@
 ---
 import type { MarkdownInstance } from "astro";
-
-interface Frontmatter {
-  title: string;
-  description?: string;
-  date?: number;
-  keywords?: string;
-}
-interface DocPage extends Frontmatter {
-  url: string;
-}
-
-export type DocsNavItem = { href: string; title: string };
-export type DocsGroup = { label: string; items: DocsNavItem[] };
-
-const matches = import.meta.glob<MarkdownInstance<Frontmatter>>(
-  "../pages/docs/**/*.md",
-  { eager: true },
+const pages = Object.values(
+    import.meta.glob<MarkdownInstance<{ title: string }>>(
+        "../pages/docs/**/*.md",
+        { eager: true },
+    ),
 );
-
-const docPages = Object.values(matches);
-
-const arr = new Map<string, DocPage[]>();
-docPages.forEach((page) => {
-  const url = page.url;
-  if (!url) return;
-  const split = url.split("/");
-
-  if (!split[2]) {
-    return;
-  } else {
-    arr.set(split[2], [
-      ...(arr.get(split[2]) || []),
-      { ...page.frontmatter, url },
-    ]);
-  }
-});
-const docSidebarData = Array.from(arr.entries()).map(([key, value]) => ({
-  title: key === "root" ? "Getting Started" : key.replace(/-/g, " "),
-  pages: value.sort((a, b) => a.title.localeCompare(b.title)),
-}));
-
-let groups: DocsGroup[] = docSidebarData.map((group) => ({
-  label: group.title,
-  items: group.pages.map((page) => ({ href: page.url, title: page.title })),
-}));
-
-const i = groups.findIndex((g) => g.label === "getting started");
-if (i > -1) {
-  const folder = groups[i];
-  let newItems = [{ href: "/docs", title: "Introduction" }, ...folder.items];
-  groups[i] = { label: folder.label, items: newItems };
-}
-const pathname = Astro.url.pathname;
-const isActive = (href: string) => {
-  if (pathname === href) return true;
-  if (pathname.endsWith("/") && pathname.slice(0, -1) === href) return true;
-  if (!href.endsWith("/") && pathname === `${href}/`) return true;
-  return false;
-};
+const groups = [
+    {
+        title: "Getting started",
+        slugs: ["index", "getting-started", "library"],
+    },
+    {
+        title: "Listening",
+        slugs: ["playback", "players", "playlists", "equalizer", "rewind"],
+    },
+    {
+        title: "Editing metadata",
+        slugs: ["metadata", "custom-fields", "artwork", "lyrics"],
+    },
+    {
+        title: "Reference",
+        slugs: [
+            "settings",
+            "formats",
+            "metadata-reference",
+            "privacy-and-data",
+        ],
+    },
+    {
+        title: "Help & development",
+        slugs: ["faq", "troubleshooting", "development"],
+    },
+];
+const pathname = Astro.url.pathname.replace(/\/$/, "");
 ---
 
-<div class="space-y-3">
-  <div class="lg:hidden">
-    <button
-      type="button"
-      data-docs-nav-open
-      class="inline-flex items-center gap-2 rounded-md
-        border border-border bg-background text-foreground
-        px-3 py-2 text-sm font-medium
-        hover:bg-accent/30 transition-colors
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      aria-label="Open documentation navigation"
-    >
-      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M4 6h16M4 12h16M4 18h16"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"></path>
-      </svg>
-      Browse docs
-    </button>
-
-    <div
-      data-docs-nav-drawer
-      class="fixed inset-0 z-1000 hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Documentation navigation"
-    >
-      <button
-        type="button"
-        data-docs-nav-close
-        class="absolute inset-0 bg-background/70 backdrop-blur-sm"
-        aria-label="Close navigation"></button>
-
-      <div
-        data-docs-nav-panel
-        class="absolute inset-y-0 left-0 w-full sm:max-w-sm
-          bg-background border-r border-border shadow-2xl flex flex-col"
-      >
-        <div
-          class="flex items-center justify-between px-3 py-3 border-b border-border"
-        >
-          <div class="flex items-center gap-2">
-            <div class="h-6 w-1 bg-primary rounded-full"></div>
-            <div>
-              <div class="text-sm font-bold text-foreground">Documentation</div>
-              <div class="text-[11px] text-muted-foreground">Audexis</div>
-            </div>
-          </div>
-          <button
-            type="button"
-            data-docs-nav-close
-            class="inline-flex items-center gap-2 rounded-md
-              border border-border bg-muted/40 text-foreground
-              px-2 py-1.5 text-xs font-medium
-              hover:bg-accent/30 transition-colors
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            aria-label="Close navigation"
-          >
-            Close
-          </button>
-        </div>
-
-        <div class="p-3 overflow-y-auto">
-          {
-            groups.map((group) => (
-              <div class="space-y-3 mb-4">
-                {group.label !== "General" && (
-                  <div class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-                    {group.label}
-                  </div>
-                )}
-                <ul class="space-y-1">
-                  {group.items.map((item) => {
-                    const active = isActive(item.href);
-                    return (
-                      <li>
-                        <a
-                          href={item.href}
-                          data-docs-nav-link
-                          class={
-                            "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 " +
-                            (active
-                              ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent")
-                          }
-                          aria-current={active ? "page" : undefined}
-                        >
-                          <span
-                            class={
-                              active
-                                ? ""
-                                : "group-hover:translate-x-0.5 transition-transform"
-                            }
-                          >
-                            {item.title}
-                          </span>
-                        </a>
-                      </li>
+<nav class="docs-nav" aria-label="Documentation">
+    {groups.map((group) => (
+        <section>
+            <h2>{group.title}</h2>
+            <ul>
+                {group.slugs.map((slug) => {
+                    const href = slug === "index" ? "/docs" : `/docs/${slug}`;
+                    const page = pages.find(
+                        (page) => page.url?.replace(/\/$/, "") === href,
                     );
-                  })}
-                </ul>
-              </div>
-            ))
-          }
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <nav
-    class="hidden lg:block space-y-6 overflow-y-auto max-h-[calc(100vh-8rem)]"
-    aria-label="Documentation navigation"
-  >
-    {
-      groups.map((group) => (
-        <div class="space-y-3">
-          {group.label !== "General" && (
-            <div class="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-              {group.label}
-            </div>
-          )}
-          <ul class="space-y-1">
-            {group.items.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <li>
-                  <a
-                    href={item.href}
-                    class={
-                      "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 " +
-                      (active
-                        ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent")
-                    }
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span
-                      class={
-                        active
-                          ? ""
-                          : "group-hover:translate-x-0.5 transition-transform"
-                      }
-                    >
-                      {item.title}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))
-    }
-  </nav>
-</div>
-
-<script>
-  const root = document.documentElement;
-
-  const openButton = root.querySelector("[data-docs-nav-open]");
-  const drawer = root.querySelector("[data-docs-nav-drawer]");
-  const backdrop = root.querySelector("[data-docs-nav-close]");
-  const closeButtons = root.querySelectorAll("[data-docs-nav-close]");
-  const panel = root.querySelector("[data-docs-nav-panel]");
-  const linkButtons = root.querySelectorAll("[data-docs-nav-link]");
-
-  const ANIM_MS = 180;
-  let open = false;
-  let visible = false;
-  const applyAnimationClasses = () => {
-    if (!panel) return;
-
-    panel.classList.remove("animate-slide-in-left", "animate-slide-out-left");
-
-    if (open && visible) {
-      panel.classList.add("animate-slide-in-left");
-    } else if (!open && !visible) {
-      panel.classList.add("animate-slide-out-left");
-    }
-  };
-
-  const openDocSidebar = () => {
-    if (!drawer) return;
-    open = true;
-
-    drawer.classList.remove("hidden");
-    visible = true;
-    applyAnimationClasses();
-  };
-
-  const closeDocSidebar = () => {
-    if (!drawer) return;
-    open = false;
-
-    visible = false;
-    applyAnimationClasses();
-
-    drawer.classList.add("hidden");
-  };
-
-  if (openButton) {
-    openButton.addEventListener("click", openDocSidebar);
-  }
-  closeButtons.forEach((btn) => {
-    btn.addEventListener("click", closeDocSidebar);
-  });
-  linkButtons.forEach((a) => {
-    a.addEventListener("click", closeDocSidebar);
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (!open) return;
-    if (e.key === "Escape") closeDocSidebar();
-  });
-</script>
+                    return (
+                        <li>
+                            <a
+                                href={href}
+                                aria-current={
+                                    pathname === href ? "page" : undefined
+                                }
+                            >
+                                {slug === "index"
+                                    ? "Introduction"
+                                    : (page?.frontmatter.title.replace(
+                                          /^Audexis — /,
+                                          "",
+                                      ) ?? slug)}
+                            </a>
+                        </li>
+                    );
+                })}
+            </ul>
+        </section>
+    ))}
+</nav>

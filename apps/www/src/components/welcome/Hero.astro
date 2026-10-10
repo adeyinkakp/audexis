@@ -1,0 +1,40 @@
+---
+import { Image } from "astro:assets";
+
+---
+
+<section class="pt-12 text-center sm:pt-16 lg:pt-20 font-serif">
+    <h1 class="mt-8 mb-6 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
+        The Music Manager
+        <br />
+        <span class="text-primary">You Actually Own.</span>
+    </h1>
+    <p class="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+        Fix missing metadata, embed high-res artwork, and experience High
+        Quality Playback. Designed to handle thousands of tracks.
+    </p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-6">
+        <a
+            href="/download"
+            class="flex min-h-12 items-center justify-center gap-3 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground motion-reduce:transition-none"
+        >
+            Download Audexis
+        </a>
+        <a href="#explore" class="Flex items-center text-sm hover:text-primary">
+            Take a look
+        </a>
+    </div>
+    <p class="mt-6 text-xs leading-relaxed text-muted-foreground">
+        Open source. No Subscriptions. No telemetry.
+    </p>
+    <figure class="mt-10 sm:mt-16">
+        <Image
+            src="/screenshots/home.png"
+            width="2850"
+            height="1846"
+            alt="Audexis Home with recently played album artwork, library information, and songs in heavy rotation."
+            fetchpriority="high"
+            class="h-auto w-full"
+        />
+    </figure>
+</section>

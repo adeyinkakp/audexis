@@ -1,65 +1,64 @@
 ---
-layout: "../../layouts/MarkdownLayout.astro"
-title: "Getting Started"
-description: "Get started with Audexis audio metadata editor for macOS. Learn how to download, install, and set up Audexis to start editing your music files."
-keywords: "audexis installation, download audexis, install audio tag editor, setup music metadata editor, macOS audio tools"
+layout: ../../layouts/MarkdownLayout.astro
+title: "Audexis — Getting started"
+description: "Install Audexis, add a music folder, and play your first track."
 ---
 
-# Getting Started
+# Getting started
 
-## Installation
+## Install Audexis
 
-1. Download the latest `.dmg` file from the [releases page](https://github.com/kp-fyn/audexis/releases/latest)
-2. Open the `.dmg` file and drag Audexis to your Applications folder
-3. Launch Audexis from Applications
+1. Open the
+   [Audexis download page](/download).
+2. Choose the installer for your operating system and processor, following that
+   release’s installation notes.
+3. Install and launch Audexis.
 
-**First launch**: If macOS shows a security warning, right-click Audexis and select "Open" to grant permission.
+## Add your music
 
-**Requirements**: macOS 10.15 or later
+On first launch, choose folders containing your music. You can add more later
+through **File → Import Folder…** or **Settings → Library**.
 
-## Welcome Setup
+Audexis indexes files where they already live. Adding a folder is not an import
+into a new managed copy of your music. Keep external drives connected while
+using tracks stored on them.
 
-On first launch, choose your preferences:
+Choose a parent folder if you want its music subfolders included. You do not
+need to add every album folder separately. Overlapping library roots are
+normalized so a child folder does not need its own root entry.
 
-- **Theme** — Light or Dark
-- **View** — Folder or Simple list
-- **Columns** — Basic or Detailed
+## Wait for the first scan
 
-You can change these anytime in Settings (⌘+,).
+Scanning discovers supported files and reads their metadata, artwork, and audio
+information. Large collections can take time. Let the scan finish before
+diagnosing missing albums or incomplete search results.
 
-## Import Files
+If nothing appears:
 
-**Individual files**: Press ⌘+I and select your audio files
+1. Confirm that the selected folder contains supported audio files.
+2. Check that the folder is available and that Audexis can read it.
+3. Open **Settings → Library** and rescan the saved folders.
+4. Check [Troubleshooting](/docs/troubleshooting) if the problem continues.
 
-**Folders**: Press ⌘+Shift+I and select a folder
+## Play your first song
 
-Supported formats: MP3, M4A, MP4, FLAC
+Open **Songs**, **Albums**, or **Artists**, find a track, and use its play
+action. The bottom playback bar shows the active song and provides playback,
+seeking, shuffle, repeat, lyrics, and queue controls.
 
-## The Interface
+Right-click a song to play it next, add it to the end of the queue, favorite it,
+add it to a playlist, or open **Get Info**.
 
-- **Sidebar** — Import and workspace controls
-- **Table** — Your files with editable tags
-- **Columns** — Click to sort, drag to reorder, resize by dragging edges
-- **Save Bar** — Appears when you have unsaved changes
+## Make the app comfortable
 
-## Basic Editing
+In **Settings → Appearance**, choose the theme, row density, and reduced-motion
+preference. Save those settings to apply them.
 
-- **Click** the file you want to edit
-- Type your changes in the respective input field in the sidebar
-- Click **Save** in the save bar
+In **Settings → Metadata**, choose which regular fields appear in Track Info’s
+Details tab. Those selections save automatically.
 
-**Tip**: Select multiple files (⌘+Click) to edit them all at once
+## Next steps
 
-## Essential Shortcuts
-
-- **⌘+A** — Select all
-- **⌘+F** — Find
-- **⌘+S** — Save changes
-- **⌘+,** — Settings
-- **Esc** — Clear selection
-
-## Next Steps
-
-- [Editing Tags](/docs/guides/editing-tags) — Learn batch editing
-- [Find and Replace](/docs/guides/find-and-replace) — Bulk updates
-- [Settings](/docs/settings/appearance) — Customize Audexis
+- [Organize the library](/docs/library).
+- [Understand the playback queue](/docs/playback).
+- [Edit song metadata](/docs/metadata).

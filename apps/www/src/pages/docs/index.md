@@ -1,82 +1,74 @@
 ---
-layout: "../../layouts/MarkdownLayout.astro"
-title: "Audexis Documentation"
-description: "Complete documentation for Audexis, a powerful audio metadata editor. Learn how to edit ID3 tags,, rename files, and organize your music library."
-keywords: "audexis documentation, audio metadata editor guide, ID3 tag editor tutorial, MP3 tag editing, music library management, album art management"
+layout: ../../layouts/MarkdownLayout.astro
+title: "Audexis — Documentation"
+description:
+  "Find your way around Audexis, from your first music folder to advanced
+  metadata editing."
 ---
 
-# Audexis Documentation
+# Audexis documentation
 
-Welcome to the official Audexis documentation. Audexis is a powerful and intuitive audio metadata editor for macOS, built with Tauri and React.
+Audexis is a local-first desktop music player and metadata editor. It reads
+music from folders on your computer, helps you organize your collection, and can
+save tags, artwork, and lyrics into your audio files.
 
-## What is Audexis?
+These guides describe the current app. Audexis is pre-release software: a
+recognized file extension does not guarantee that every codec or metadata
+feature is supported.
 
-Audexis helps you organize and edit metadata (ID3 tags) for your audio files. Whether you're managing a small personal collection or a large music library, Audexis provides the tools you need to keep your metadata clean and consistent.
+## Start here
 
-### Key Features
+1. [Install Audexis and add your music](/docs/getting-started).
+2. [Learn the library views and Songs table](/docs/library).
+3. [Start playback and manage the queue](/docs/playback).
+4. [Choose the fullscreen or mini player](/docs/players).
 
-- **Batch Editing** — Edit multiple files at once with powerful selection tools
-- **Album Art Management** — Import and edit cover images for your tracks
-- **Find & Replace** — Quickly locate and update tag values across your library
-- **Pattern-Based Renaming** — Rename files using metadata templates
-- **Customizable Interface** — Adjust columns, theme, density, and more
-- **Fast & Native** — Built with Tauri for native performance
-- **Auto-Updates** — Receive new features and fixes automatically
+## Organize your collection
 
-## Supported Formats
+- [Library and folders](/docs/library): scanning, columns, moved files, and
+  missing tracks.
+- [Search and filters](/docs/search): find tracks by tags, filename, folder,
+  format, or duration.
+- [Playlists and favorites](/docs/playlists): build collections without moving
+  your audio files.
 
-Audexis currently supports the following audio formats:
+## Make every detail yours
 
-- MP3 (`.mp3`)
-- MP4 Audio (`.m4a`, `.mp4`, `.m4v`, `.mov`, `.qt`, `.m4b`, )
-- FLAC (`.flac`)
-- OGG (`.ogg`, `.oga`, `.ogv`, `.spx`)
-- OPUS (`.opus`)
+- [Metadata editing](/docs/metadata): Details fields, multiple values, batch
+  edits, and saving.
+- [Custom fields](/docs/custom-fields): display titles, storage keys, text and
+  URL fields, and table columns.
+- [Artwork](/docs/artwork): import, replace, reorder, and remove embedded
+  images.
+- [Lyrics](/docs/lyrics): plain lyrics, synchronized lyrics, timing, and online
+  lookup.
+- [Metadata field reference](/docs/metadata-reference): the field catalog and
+  its limitations.
+- [Formats and compatibility](/docs/formats): the difference between playback
+  support and tag-writing support.
 
-## Getting Started
+## Listen your way
 
-1. **[Installation](/docs/getting-started)** — Download and install Audexis
-2. **[Workspace Setup](/docs/guides/workspace)** — Import your audio files
-3. **[Editing Tags](/docs/guides/editing-tags)** — Start editing metadata
-4. **[Keyboard Shortcuts](/docs/reference/keyboard-shortcuts)** — Work faster with hotkeys
+- [Playback and queue](/docs/playback).
+- [Fullscreen and mini players](/docs/players).
+- [Equalizer](/docs/equalizer).
+- [Settings](/docs/settings).
 
-## Documentation Sections
+## Rewind
 
-### Guides
+[Rewind](/docs/rewind) shows listening time and your top artists, albums, and
+tracks. Learn why a recent listen and a counted play are not always the same
+thing.
 
-Learn how to use Audexis features effectively:
+## Help and reference
 
-- [Workspace Management](/docs/guides/workspace)
-- [Editing Tags](/docs/guides/editing-tags)
-- [Table and Columns](/docs/guides/table-and-columns)
-- [Find and Replace](/docs/guides/find-and-replace)
-- [Saving Changes](/docs/guides/saving-changes)
+- [Troubleshooting](/docs/troubleshooting).
+- [Privacy](/docs/privacy-and-data).
+- [Frequently asked questions](/docs/faq).
+- [Development](/docs/development).
 
-### Settings
+## What changes your files?
 
-Configure Audexis to match your workflow:
-
-- [Appearance](/docs/settings/appearance)
-- [Behavior](/docs/settings/behavior)
-- [Columns](/docs/settings/columns)
-
-### Reference
-
-Quick references and technical details:
-
-- [Keyboard Shortcuts](/docs/reference/keyboard-shortcuts)
-- [User Configuration](/docs/reference/user-config)
-- [Updates](/docs/reference/updates)
-
-### Troubleshooting
-
-Having issues? Check the troubleshooting guide:
-
-- [Common Issues](/docs/troubleshooting/common-issues)
-
-## Support
-
-Need help? Found a bug?
-
-- **GitHub Issues**: [github.com/kp-fyn/audexis/issues](https://github.com/kp-fyn/audexis/issues)
-- **GitHub Discussions**: [github.com/kp-fyn/audexis/discussions](https://github.com/kp-fyn/audexis/discussions)
+Playing songs, favoriting them, rearranging table columns, and creating
+playlists do not rewrite embedded tags. Saving metadata, artwork, or lyrics
+does. Choosing an online result to apply can also write to the selected files.

@@ -1,12 +1,12 @@
 use crate::tag_manager::id3::utils::{id3v22_key, id3v22_raw_to_tags, id3v22_tags_to_raw};
-use crate::tag_manager::id3::v2_3::utils::{create_header_with_version, encode_text_payload};
+use crate::tag_manager::id3::v2_3::utils::{
+    create_header_with_version, decode_text_payload, encode_text_payload, split_encoded_text,
+};
 use crate::tag_manager::tag_backend::{BackendError, TagError};
 use crate::tag_manager::traits::TagFormat;
 use crate::tag_manager::utils::{FrameKey, TagValue, UserTextEntry, UserUrlEntry};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
 use std::io::Read;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct V2_2 {}
@@ -24,15 +24,16 @@ impl TagFormat for V2_2 {
 
     fn get_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let mut file = File::open(file_path).map_err(|_| {
+        let mut file = crate::utils::library_files::open(file_path).map_err(|_| {
             BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "Unable to open and read file".to_string(),
                 internal_message: "Unable to open and read file".to_string(),
             })
         })?;
+        // TODO: Bad handling of no header
         let mut header = [0u8; 10];
         if file.read_exact(&mut header).is_err() {
             return Ok(HashMap::new());
@@ -69,36 +70,22 @@ impl TagFormat for V2_2 {
                 break;
             }
             let content = &tag_data[pos + 6..pos + 6 + size];
-            if id == "TXX" || id == "WXX" {
+            if matches!(id.as_str(), "ULT" | "SLT") {
+                if let Some(text) = super::lyrics::decode(&id, content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
+            } else if id == "COM" {
+                if let Some(text) = super::lyrics::decode("USLT", content) {
+                    raw.entry(id).or_default().push(TagValue::Text(text));
+                }
+            } else if id == "TXX" || id == "WXX" {
                 if !content.is_empty() {
                     let encoding = content[0];
                     let rest = &content[1..];
-                    let desc_end = rest.iter().position(|&b| b == 0x00).unwrap_or(rest.len());
-                    let (desc_bytes, _ignored_split) = rest.split_at(desc_end);
-                    let value_bytes = if desc_end < rest.len() {
-                        &rest[desc_end + 1..]
-                    } else {
-                        &[]
-                    };
-                    let decode = |bytes: &[u8]| match encoding {
-                        0x00 => String::from_utf8_lossy(bytes).to_string(),
-                        0x01 => {
-                            if bytes.starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &bytes[2..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                String::from_utf8_lossy(bytes).to_string()
-                            }
-                        }
-                        _ => String::from_utf8_lossy(bytes).to_string(),
-                    };
-                    let description = decode(desc_bytes);
-                    let value = decode(value_bytes);
+                    let (desc_bytes, value_bytes) = split_encoded_text(encoding, rest);
+                    let description = decode_text_payload(encoding, desc_bytes);
+                    let value =
+                        decode_text_payload(if id == "WXX" { 0 } else { encoding }, value_bytes);
                     let entry = if id == "TXX" {
                         TagValue::UserText(UserTextEntry { description, value })
                     } else {
@@ -109,29 +96,17 @@ impl TagFormat for V2_2 {
                     };
                     raw.entry(id).or_default().push(entry);
                 }
-            } else if id.starts_with('T') || id.starts_with('W') {
+            } else if id.starts_with('W') {
+                raw.entry(id)
+                    .or_default()
+                    .push(TagValue::Text(decode_text_payload(0, content)));
+            } else if id.starts_with('T') {
                 if !content.is_empty() {
                     let encoding = content[0];
-                    let text = match encoding {
-                        0x00 => String::from_utf8_lossy(&content[1..]).to_string(),
-                        0x01 => {
-                            if content[1..].starts_with(&[0xFF, 0xFE]) {
-                                String::from_utf16_lossy(
-                                    &content[3..]
-                                        .chunks(2)
-                                        .filter(|c| c.len() == 2)
-                                        .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                                        .collect::<Vec<_>>(),
-                                )
-                            } else {
-                                "<Unsupported UTF-16>".to_string()
-                            }
-                        }
-                        _ => "<Unknown Encoding>".to_string(),
-                    };
+                    let text = decode_text_payload(encoding, &content[1..]);
                     let key = id3v22_key(&id);
-                    if (key.is_some() && key.unwrap().is_multi_valued()) && text.contains(';') {
-                        for part in text.split(';') {
+                    if (key.is_some() && key.unwrap().is_multi_valued()) && text.contains('\0') {
+                        for part in text.split('\0') {
                             let seg = part.trim();
                             if !seg.is_empty() {
                                 raw.entry(id.clone())
@@ -155,22 +130,10 @@ impl TagFormat for V2_2 {
                 if idx >= content.len() {
                     break;
                 }
-                let desc_end = content[idx..]
-                    .iter()
-                    .position(|&b| b == 0x00)
-                    .map(|o| idx + o)
-                    .unwrap_or(idx);
-                let image_data_start = if desc_end < content.len() {
-                    desc_end + 1
-                } else {
-                    desc_end
-                };
-                let description = if desc_end > idx {
-                    Some(String::from_utf8_lossy(&content[idx..desc_end]).to_string())
-                } else {
-                    None
-                };
-                let image_data = &content[image_data_start..];
+                let (description_bytes, image_data) =
+                    split_encoded_text(content[0], &content[idx..]);
+                let description_text = decode_text_payload(content[0], description_bytes);
+                let description = (!description_text.is_empty()).then_some(description_text);
                 let mime = match std::str::from_utf8(image_format) {
                     Ok(f) => match f {
                         "PNG" => "image/png",
@@ -194,21 +157,17 @@ impl TagFormat for V2_2 {
 
     fn write_tags(
         &self,
-        file_path: &PathBuf,
+        file_path: &std::path::Path,
         updated: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
         use std::io::{Read, Seek, SeekFrom, Write};
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(file_path)
-            .map_err(|_| {
-                BackendError::WriteFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "Failed to open file for writing".to_string(),
-                    internal_message: "Failed to open file for writing".to_string(),
-                })
-            })?;
+        let mut file = crate::utils::library_files::open_for_update(file_path).map_err(|_| {
+            BackendError::WriteFailed(TagError {
+                path: file_path.to_str().unwrap_or("").to_string(),
+                public_message: "Failed to open file for writing".to_string(),
+                internal_message: "Failed to open file for writing".to_string(),
+            })
+        })?;
         let mut header = [0u8; 10];
         file.read_exact(&mut header).map_err(|_| {
             BackendError::WriteFailed(TagError {
@@ -237,7 +196,7 @@ impl TagFormat for V2_2 {
             })
         })?;
         let mut pos = 0usize;
-        let mut raw: HashMap<String, Vec<u8>> = HashMap::new();
+        let mut raw: Vec<(String, Vec<u8>)> = Vec::new();
         while pos + 6 <= tag_data.len() {
             let id_bytes = &tag_data[pos..pos + 3];
             if id_bytes.iter().all(|b| *b == 0) {
@@ -253,12 +212,16 @@ impl TagFormat for V2_2 {
                 break;
             }
             let content = &tag_data[pos + 6..pos + 6 + size];
-            raw.insert(id, content.to_vec());
+            raw.push((id, content.to_vec()));
             pos += 6 + size;
+        }
+        for key in updated.keys() {
+            raw.retain(|(id, _)| id != super::utils::id3v22_code(*key));
         }
         let mut single_map: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vals) in updated.clone().into_iter() {
-            if vals.is_empty() {
+            if vals.is_empty() || matches!(k, FrameKey::UserDefinedText | FrameKey::UserDefinedURL)
+            {
                 continue;
             }
             if matches!(vals[0], TagValue::Text(_)) && vals.len() > 1 {
@@ -269,7 +232,7 @@ impl TagFormat for V2_2 {
                         _ => None,
                     })
                     .collect::<Vec<_>>()
-                    .join("\\");
+                    .join("\0");
                 single_map.insert(k, TagValue::Text(joined));
             } else {
                 single_map.insert(k, vals[0].clone());
@@ -280,8 +243,24 @@ impl TagFormat for V2_2 {
             match v {
                 TagValue::Text(t) => {
                     if !t.is_empty() {
-                        let encoded = encode_text_payload(&t, false);
-                        raw.insert(k.to_string(), encoded);
+                        if matches!(k, "ULT" | "SLT" | "COM") {
+                            let payload = super::lyrics::encode(k, &t).map_err(|message| {
+                                BackendError::WriteFailed(TagError {
+                                    path: file_path.to_string_lossy().into_owned(),
+                                    public_message: "Invalid lyrics".into(),
+                                    internal_message: message,
+                                })
+                            })?;
+                            raw.push((k.to_string(), payload));
+                            continue;
+                        }
+
+                        let encoded = if k.starts_with('W') {
+                            t.as_bytes().to_vec()
+                        } else {
+                            encode_text_payload(&t, false)
+                        };
+                        raw.push((k.to_string(), encoded));
                     }
                 }
                 TagValue::Picture {
@@ -290,40 +269,45 @@ impl TagFormat for V2_2 {
                     picture_type,
                     description,
                 } => {
-                    let enc: u8 = 0x00;
+                    let encoded_description =
+                        encode_text_payload(description.as_deref().unwrap_or(""), false);
+                    let enc = encoded_description[0];
                     let format_code = if mime == "image/png" { b"PNG" } else { b"JPG" };
                     let pt = picture_type.unwrap_or(3);
-                    let desc_bytes = description.as_deref().unwrap_or("").as_bytes();
+                    let desc_bytes = &encoded_description[1..];
                     let mut payload = Vec::new();
                     payload.push(enc);
                     payload.extend_from_slice(format_code);
                     payload.push(pt);
                     payload.extend_from_slice(desc_bytes);
                     payload.push(0x00);
+                    if enc == 1 {
+                        payload.push(0x00);
+                    }
                     payload.extend_from_slice(&data);
-                    raw.insert("PIC".to_string(), payload);
+                    raw.push(("PIC".to_string(), payload));
                 }
                 TagValue::UserText(ut) => {
                     let joined = format!("{}={}", ut.description, ut.value);
                     let encoded = encode_text_payload(&joined, false);
-                    raw.insert(k.to_string(), encoded);
+                    raw.push((k.to_string(), encoded));
                 }
                 TagValue::UserUrl(uu) => {
                     let joined = format!("{}={}", uu.description, uu.url);
                     let encoded = encode_text_payload(&joined, false);
-                    raw.insert(k.to_string(), encoded);
+                    raw.push((k.to_string(), encoded));
                 }
                 _ => { /*Hnandle other types later */ }
             }
 
             for (key, value) in updated.iter() {
-                if key.clone() == FrameKey::Comments {
-                    if let TagValue::Comment {
+                if *key == FrameKey::Comments {
+                    if let Some(TagValue::Comment {
                         encoding,
                         language,
                         description,
                         text,
-                    } = &value[0]
+                    }) = value.first()
                     {
                         let enc_byte = match encoding.as_str() {
                             "UTF-16" => 0x01,
@@ -335,11 +319,13 @@ impl TagFormat for V2_2 {
                         payload.extend_from_slice(description.as_bytes());
                         payload.push(0x00);
                         payload.extend_from_slice(text.as_bytes());
-                        raw.insert("COM".to_string(), payload);
+                        raw.retain(|(id, _)| id != "COM");
+                        raw.push(("COM".to_string(), payload));
                     }
                 }
             }
         }
+        raw.extend(super::v2_common::custom_frames(&updated, true));
         let mut frames: Vec<u8> = Vec::new();
         for (id, content) in raw {
             if id.len() != 3 {

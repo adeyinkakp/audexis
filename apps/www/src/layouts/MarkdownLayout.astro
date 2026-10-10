@@ -1,82 +1,42 @@
 ---
-import DocSidebar from "../components/DocSidebar.astro";
+import type { MarkdownLayoutProps } from "astro";
 import Layout from "./Layout.astro";
+import DocSidebar from "../components/DocSidebar.astro";
 import TOC from "../components/TOC.astro";
 import EditOnGithub from "../components/EditOnGithub.astro";
-type Heading = {
-  depth: number;
-  slug: string;
-  text: string;
-};
-const { frontmatter, headings, url } = Astro.props;
-const fake: Heading[] = headings as Heading[];
-
-const h = fake.filter((uh) => uh.depth != 1);
-
-let isReleaseOrBlog = false;
-if (url.startsWith("/releases") || url.startsWith("/blog")) {
-  isReleaseOrBlog = true;
-}
-const showSideBar = url.startsWith("/docs");
+type Props = MarkdownLayoutProps<{
+  title: string;
+  description: string;
+  image?: string;
+  imageAlt?: string;
+}>;
+const { frontmatter, headings } = Astro.props;
+const sections = headings.filter(heading => heading.depth === 2 || heading.depth === 3);
 ---
-
-<Layout
-  keywords={frontmatter.keywords}
-  title={frontmatter.title}
-  description={frontmatter.description}
->
-  <div class="min-h-screen bg-background mx-auto max-w-7xl pb-32">
-    <div class="mx-auto max-w-8xl px-4 sm:px-6 lg:px-4 py-8 md:py-12">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        <aside class="col-span-2">
-          <div
-            class="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pb-8"
-          >
-            {
-              isReleaseOrBlog && (
-                <div>
-                  <a
-                    class="text-primary hover:underline"
-                    href={url.startsWith("/releases") ? "/releases" : "/blog"}
-                  >
-                    Back To{" "}
-                    {isReleaseOrBlog
-                      ? url.startsWith("/releases")
-                        ? "Releases"
-                        : "Blog"
-                      : ""}
-                  </a>
-                </div>
-              )
-            }
-            {
-              showSideBar && (
-                <div class="mt-8">
-                  <DocSidebar />
-                </div>
-              )
-            }
-          </div>
-        </aside>
-
-        <main class="docs l lg:col-span-9 xl:col-span-7 min-w-0">
-          <article
-            class="prose prose-a:text-accent prose-headings:text-headings prose-hr:border-b-border text-foreground/80 prose-strong:text-headings prose-li:decoration- prose-ul:marker:text-accent prose-hr:border-border prose-headings-text-accent h-full"
-          >
-            <slot />
-          </article>
-          {showSideBar && <EditOnGithub />}
-        </main>
-
-        <div class="hidden xl:block xl:col-span-3">
-          <div
-            class="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto pb-8"
-          >
-            <TOC headings={h} />
-          </div>
-        </div>
-      </div>
+<Layout {...frontmatter}>
+  <div class="docs-layout">
+    <aside class="docs-sidebar docs-sticky">
+      <p class="docs-label">Documentation</p>
+      <DocSidebar />
+    </aside>
+    <div class="docs-mobile-nav">
+      <details>
+        <summary>Browse documentation</summary>
+        <DocSidebar />
+      </details>
     </div>
+    <main id="main" class="docs-main" tabindex="-1">
+      <p class="docs-label">Audexis documentation</p>
+      {sections.length > 0 && <details class="docs-mobile-toc">
+        <summary>On this page</summary>
+        <TOC headings={sections} />
+      </details>}
+      <article class="docs-content"><slot /></article>
+      <EditOnGithub />
+    </main>
+    {sections.length > 0 && <aside class="docs-page-toc docs-sticky">
+      <p class="docs-label">On this page</p>
+      <TOC headings={sections} />
+    </aside>}
   </div>
-  );
 </Layout>
