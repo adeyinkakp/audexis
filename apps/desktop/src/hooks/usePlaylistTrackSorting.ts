@@ -1,11 +1,12 @@
 import {
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRef, useState } from "react";
 import {
   useReorderPlaylistTrack,
@@ -25,6 +26,10 @@ export function usePlaylistTrackSorting(
   const saving = useRef(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
+    }),
   );
   const orderedTracksPreview = optimisticTracks ?? playlist.tracks;
   const sortableTrackIds = orderedTracksPreview.map((track) => track.ord);

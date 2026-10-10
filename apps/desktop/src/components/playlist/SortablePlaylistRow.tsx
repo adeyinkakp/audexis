@@ -40,13 +40,15 @@ export function SortablePlaylistRow({
     >
       <div
         ref={setNodeRef}
+        {...attributes}
+        {...listeners}
         style={{
           transform: CSS.Transform.toString(transform),
           transition:
             transition ?? "transform 180ms cubic-bezier(0.2, 0, 0, 1)",
           zIndex: isDragging ? 10 : undefined,
         }}
-        className={cn(isDragging && "opacity-0")}
+        className={cn("touch-none cursor-grab active:cursor-grabbing", isDragging && "opacity-0")}
       >
         <PlaylistRowContent
           track={track}
@@ -54,8 +56,6 @@ export function SortablePlaylistRow({
           metadata={metadata}
           isCurrent={isCurrent}
           isDragging={isDragging}
-          dragHandleAttributes={attributes}
-          dragHandleListeners={listeners}
         />
       </div>
     </SongCollectionItem>

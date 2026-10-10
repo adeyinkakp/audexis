@@ -101,9 +101,7 @@ export function PlaylistTrackList({
         aria-busy={isSaving || removing}
         className={`overflow-hidden rounded-3xl border border-border/60 bg-card/40 ${isSaving || removing ? "pointer-events-none" : ""}`}
       >
-        <div className="grid grid-cols-[32px_minmax(0,1fr)_64px] gap-3 border-b border-border/60 px-5 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-          <div />
-
+        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-3 border-b border-border/60 px-5 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
           <div>Title</div>
           <div className="text-right">Time</div>
         </div>

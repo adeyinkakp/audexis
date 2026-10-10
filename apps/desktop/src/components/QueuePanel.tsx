@@ -1,3 +1,20 @@
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
 import { Artwork } from "./library/CollectionGrid";
 import { SongCollection, SongCollectionItem } from "./songs/SongCollection";
@@ -35,6 +52,30 @@ export default function QueuePanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [removing, setRemoving] = useState(false);
   const removingRef = useRef(false);
+  const [sorting, setSorting] = useState(false);
+  const sortingRef = useRef(false);
+  const [activeItem, setActiveItem] = useState<QueueItem | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
+    }),
+  );
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    setActiveItem(null);
+    if (sortingRef.current || removingRef.current || !over || active.id === over.id) return;
+    sortingRef.current = true;
+    setSorting(true);
+    try {
+      await invoke("reorder_queue", { queueId: String(active.id), targetId: String(over.id) });
+    } catch (error) {
+      toast.error(`Could not reorder queue: ${String(error)}`);
+    } finally {
+      sortingRef.current = false;
+      setSorting(false);
+    }
+  };
   const [queueInfo, setQueueInfo] = useState<QueueInfo>({
     queue_ids: [],
     paths: [],
@@ -70,6 +111,7 @@ export default function QueuePanel({
     count: queueInfo.paths.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 52,
+    getItemKey: (index) => queueInfo.queue_ids[index],
     overscan: 8,
   });
   const visibleRows = virtualizer.getVirtualItems();
@@ -105,21 +147,27 @@ export default function QueuePanel({
   }, [data, queueInfo]);
 
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={({ active }) => {
+        if (!sortingRef.current && !removingRef.current) {
+          setActiveItem(queueItems[queueInfo.queue_ids.indexOf(String(active.id))] ?? null);
+        }
+      }}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveItem(null)}
+    >
     <SongCollection
-      key={JSON.stringify([
-        queueInfo.queue_ids,
-        queueInfo.paths,
-        queueInfo.file_ids,
-        queueInfo.occurrences,
-      ])}
+      key={JSON.stringify([...queueInfo.queue_ids].sort())}
       label="Queue"
-      disabled={removing}
+      disabled={removing || sorting}
       contextMenuItems={(entries) => [
         {
           text: "Remove from Queue",
-          disabled: removing,
+          disabled: removing || sorting || activeItem !== null,
           action: async () => {
-            if (removingRef.current) return;
+            if (removingRef.current || sortingRef.current || activeItem) return;
             removingRef.current = true;
             setRemoving(true);
             try {
@@ -148,49 +196,72 @@ export default function QueuePanel({
           className="relative"
           style={{ height: `${virtualizer.getTotalSize()}px` }}
         >
-          {virtualizer.getVirtualItems().map((item) => {
-            const file = queueItems[item.index];
-            const isCurrent = item.index === queueInfo.current_index;
-
-            return (
-              <SongCollectionItem
-                itemKey={queueInfo.queue_ids[item.index]}
-                fileId={file.id}
+          <SortableContext items={queueInfo.queue_ids} strategy={verticalListSortingStrategy}>
+            {visibleRows.map((item) => (
+              <SortableQueueRow
                 key={queueInfo.queue_ids[item.index]}
+                queueId={queueInfo.queue_ids[item.index]}
+                file={queueItems[item.index]}
+                isCurrent={item.index === queueInfo.current_index}
+                start={item.start}
+                size={item.size}
+                disabled={removing || sorting}
                 onPlay={() => onPlay(item.index)}
-              >
-                <div
-                  key={`${file.id}-${file.occurrence}-${item.index}`}
-                  className={`absolute left-0 flex w-full items-center gap-3 px-3 text-left hover:bg-muted/50 rounded-lg bg-blend-screen ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
-                  style={{
-                    height: `${item.size}px`,
-                    transform: `translateY(${item.start}px)`,
-                  }}
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <div className="h-8 w-8 shrink-0 aspect-square overflow-hidden ">
-                      <Artwork
-                        round={false}
-                        key={file.id}
-                        id={file.id > 0 ? file.id : null}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-xs">{file.title}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {file.artist}
-                      </div>
-                    </div>
-                    <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-                      {formatDuration(file.durationMs)}
-                    </span>
-                  </div>
-                </div>
-              </SongCollectionItem>
-            );
-          })}
+              />
+            ))}
+          </SortableContext>
         </div>
       </div>
     </SongCollection>
+    <DragOverlay dropAnimation={null}>
+      {activeItem ? (
+        <div className="flex h-[52px] items-center gap-2 rounded-lg border border-border bg-popover px-3 shadow-xl">
+          <QueueRowContent file={activeItem} />
+        </div>
+      ) : null}
+    </DragOverlay>
+    </DndContext>
+  );
+}
+
+function QueueRowContent({ file }: { file: QueueItem }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
+      <div className="h-8 w-8 shrink-0 overflow-hidden">
+        <Artwork round={false} id={file.id > 0 ? file.id : null} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs">{file.title}</div>
+        <div className="truncate text-[10px] text-muted-foreground">{file.artist}</div>
+      </div>
+      <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+        {formatDuration(file.durationMs)}
+      </span>
+    </div>
+  );
+}
+
+function SortableQueueRow({ queueId, file, isCurrent, start, size, disabled, onPlay }: {
+  queueId: string;
+  file: QueueItem;
+  isCurrent: boolean;
+  start: number;
+  size: number;
+  disabled: boolean;
+  onPlay: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: queueId, disabled });
+  return (
+    <SongCollectionItem itemKey={queueId} fileId={file.id} onPlay={onPlay}>
+      <div
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        className={`touch-none cursor-grab active:cursor-grabbing absolute left-0 flex w-full items-center gap-2 rounded-lg px-3 text-left hover:bg-muted/50 ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
+        style={{ top: start, height: size, transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+      >
+        <QueueRowContent file={file} />
+      </div>
+    </SongCollectionItem>
   );
 }

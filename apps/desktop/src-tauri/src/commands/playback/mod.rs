@@ -22,3 +22,5 @@ pub mod lyrics_preview;
 pub mod equalizer;
 
 pub mod remove_queue_entries;
+
+pub mod reorder_queue;

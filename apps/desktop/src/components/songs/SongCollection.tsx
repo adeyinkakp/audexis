@@ -1,3 +1,4 @@
+import { songSelectionMenu } from "../../utils/songSelectionMenu";
 import {
   createContext,
   useContext,
@@ -33,7 +34,6 @@ export function SongCollection({
   items,
   children,
   label = "Songs",
-  hasMore = false,
   className,
   disabled = false,
   onRemoveSelected,
@@ -86,6 +86,17 @@ export function SongCollection({
   const selectAll = () => {
     if (!disabled) setKeys(new Set(available.map((item) => item.key)));
   };
+  const selectAllRef = useRef(selectAll);
+  selectAllRef.current = selectAll;
+  const activateCollection = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => {
+    const registration = songSelectionMenu.register(() => selectAllRef.current());
+    activateCollection.current = registration.activate;
+    return () => {
+      registration.unregister();
+      activateCollection.current = undefined;
+    };
+  }, []);
   return (
     <SelectionContext.Provider
       value={{
@@ -102,6 +113,8 @@ export function SongCollection({
         className={className}
         role="group"
         aria-label={label}
+        onFocusCapture={() => activateCollection.current?.()}
+        onPointerDownCapture={() => activateCollection.current?.()}
         onKeyDown={(event) => {
           const target = event.target as HTMLElement;
           if (
@@ -125,35 +138,6 @@ export function SongCollection({
           }
         }}
       >
-        {available.length > 0 && (
-          <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border/60 px-2 py-2 text-xs">
-            <button
-              disabled={disabled}
-              className="rounded px-2 py-1 hover:bg-muted"
-              onClick={selectAll}
-            >
-              {hasMore ? "Select all loaded" : "Select all"}
-            </button>
-            <span role="status" className="text-muted-foreground">
-              {selected.length
-                ? `${selected.length} selected`
-                : hasMore
-                  ? "Load more songs to include them."
-                  : `${available.length} songs`}
-            </span>
-            {selected.length > 0 && (
-              <>
-                <button
-                  disabled={disabled}
-                  className="rounded px-2 py-1 hover:bg-muted"
-                  onClick={() => setKeys(new Set())}
-                >
-                  Clear selection
-                </button>
-              </>
-            )}
-          </div>
-        )}
         {children}
       </div>
     </SelectionContext.Provider>
@@ -212,6 +196,8 @@ export function SongCollectionItem({
     },
     onKeyDown: (event) => {
       if (selection?.disabled || event.target !== event.currentTarget) return;
+      children.props.onKeyDown?.(event);
+      if (event.defaultPrevented) return;
       if (event.key === " ") {
         event.preventDefault();
         selection?.select(
@@ -222,7 +208,7 @@ export function SongCollectionItem({
       } else if (event.key === "Enter" && onPlay) {
         event.preventDefault();
         onPlay();
-      } else children.props.onKeyDown?.(event);
+      }
     },
   });
   return (

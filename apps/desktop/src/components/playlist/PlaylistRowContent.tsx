@@ -1,5 +1,3 @@
-import type { DraggableAttributes } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
 import type { PlaylistTrack } from "../../hooks/usePlaylists";
 import { formatDuration } from "../../utils/duration";
 import { cn } from "../../utils";
@@ -10,21 +8,17 @@ export function PlaylistRowContent({
   metadata,
   isCurrent,
   isDragging,
-  dragHandleAttributes,
-  dragHandleListeners,
 }: {
   track: PlaylistTrack;
   index: number;
   metadata: { key: string; value: string }[] | undefined;
   isCurrent: boolean;
   isDragging?: boolean;
-  dragHandleAttributes?: DraggableAttributes;
-  dragHandleListeners?: Record<string, unknown> | undefined;
 }) {
   return (
     <div
       className={cn(
-        "grid grid-cols-[32px_minmax(0,1fr)_64px] items-center gap-3 px-5 py-3 transition-[background-color,box-shadow,transform,opacity] duration-150",
+        "grid grid-cols-[minmax(0,1fr)_64px] items-center gap-3 px-5 py-3 transition-[background-color,box-shadow,transform,opacity] duration-150",
         isDragging
           ? "rounded-xl bg-card shadow-xl ring-1 ring-primary/20 opacity-95"
           : isCurrent
@@ -32,17 +26,6 @@ export function PlaylistRowContent({
             : "hover:bg-muted/35",
       )}
     >
-      <button
-        data-song-drag-handle
-        type="button"
-        aria-label="Reorder track"
-        className="flex cursor-grab justify-center text-muted-foreground active:cursor-grabbing touch-none"
-        {...dragHandleAttributes}
-        {...dragHandleListeners}
-      >
-        <GripVertical size={16} />
-      </button>
-
       <div className="min-w-0 w-full flex-1 text-left">
         <div
           className={cn(

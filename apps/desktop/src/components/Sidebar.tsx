@@ -65,7 +65,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
       className="fixed inset-y-0 left-0 z-40 top-14 pt-0 select-none"
       style={{ width }}
     >
-      <div className="h-full overflow-hidden  bg-popover/80 backdrop-blur">
+      <div className="h-full overflow-hidden border-r border-border bg-background">
         <div className="h-[calc(100%-4rem)] overflow-auto px-2 pb-4">
           {links.map(({ label, children }) => (
             <div key={label || "primary"} className="py-4">

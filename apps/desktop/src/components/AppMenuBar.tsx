@@ -1,3 +1,4 @@
+import { songSelectionMenu } from "../utils/songSelectionMenu";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
@@ -121,6 +122,10 @@ export default function AppMenuBar() {
             ]
           : []),
       ],
+    },
+    {
+      text: "Edit",
+      items: [{ text: "Select All", action: () => songSelectionMenu.selectAll() }],
     },
     { text: "Song", disabled: player.fileId <= 0, items: songItems() },
     {

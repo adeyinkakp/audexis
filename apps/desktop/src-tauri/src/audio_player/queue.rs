@@ -103,6 +103,25 @@ impl Queue {
             .collect()
     }
 
+    pub fn reorder(&mut self, queue_id: &str, target_id: &str) -> Result<(), String> {
+        let ids = self.queue_ids();
+        let from = ids.iter().position(|id| id == queue_id)
+            .ok_or("Queue entry is no longer available")?;
+        let to = ids.iter().position(|id| id == target_id)
+            .ok_or("Target queue entry is no longer available")?;
+        let current = self.current_queue_id();
+        let track = self.tracks.remove(from);
+        self.tracks.insert(to, track);
+        if let Some(current) = current {
+            self.index = self.queue_ids().iter().position(|id| id == &current).unwrap() as i32;
+        }
+        if !self.shuffled {
+            self.original_order = self.paths();
+            self.original_queue_ids = self.queue_ids();
+        }
+        Ok(())
+    }
+
     pub fn remove_queue_entries(&mut self, ids: &[String]) -> Result<bool, String> {
         let ids: std::collections::HashSet<_> = ids.iter().collect();
 

@@ -106,16 +106,10 @@ function MissingFilesPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (
-                      window.confirm(
-                        `Permanently delete the library record for ${file.title || file.file_name}?`,
-                      )
-                    ) {
-                      remove.mutate(file.id);
-                    }
+                    remove.mutate(file.id);
                   }}
                   disabled={relink.isPending || remove.isPending}
-                  className="flex h-9 items-center gap-2 rounded-lg border border-destructive/40 px-3 text-sm text-destructive disabled:opacity-50"
+                  className="flex h-9 items-center gap-2 rounded-lg border border-destructive/40 hover:bg-destructive hover:text-destructive-foreground  px-3 text-sm text-destructive disabled:opacity-50"
                 >
                   <Trash2 size={15} />
                   Delete Record

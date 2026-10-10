@@ -32,41 +32,41 @@ html:not([data-theme="dark"]) {
     --heading: #1a1614;
 }
 [data-theme="dark"] {
-    --heading: #fffaf8;
-    --background: #12100f;
-    --foreground: #eee8e6;
+    --heading: #f1f1f1;
+    --background: #0f0f0f;
+    --foreground: #f1f1f1;
 
-    --card: #1a1716;
-    --card-foreground: #f5efed;
+    --card: #181818;
+    --card-foreground: #f1f1f1;
 
-    --popover: #211d1b;
-    --popover-foreground: #f5efed;
+    --popover: #212121;
+    --popover-foreground: #f1f1f1;
 
-    --hover: #2b2523;
-    --hover-foreground: #fffaf8;
-    --active: #352d2a;
+    --hover: #272727;
+    --hover-foreground: #f1f1f1;
+    --active: #3f3f3f;
 
     --primary: #e06464;
     --primary-foreground: #ffffff;
 
-    --secondary: #292321;
-    --secondary-foreground: #eee8e6;
+    --secondary: #272727;
+    --secondary-foreground: #f1f1f1;
 
-    --muted: #241f1d;
-    --muted-foreground: #aaa09d;
+    --muted: #212121;
+    --muted-foreground: #aaaaaa;
 
     --destructive: #f05248;
     --destructive-foreground: #ffffff;
 
-    --border: #3a312f;
-    --input: #3a312f;
+    --border: #303030;
+    --input: #303030;
 
     --accent: #f07878;
     --accent-foreground: #1b1110;
     --ring: #f07878;
 
-    --scrollbar-track: #1a1716;
-    --scrollbar-thumb: #b84d4d;
+    --scrollbar-track: #0f0f0f;
+    --scrollbar-thumb: #717171;
 
     --primary-washed: #e064641f;
     --accent-washed: #f078781f;
