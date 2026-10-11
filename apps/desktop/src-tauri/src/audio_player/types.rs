@@ -22,7 +22,6 @@ pub enum PlayerCmd {
     SeekMilliseconds {
         milliseconds: u64,
     },
-    Preload,
     UpdateControlsMetadata {
         metadata: PartialMetadata,
     },

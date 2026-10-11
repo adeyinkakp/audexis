@@ -1,7 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use symphonia::core::formats::probe::Hint;
-use symphonia::core::io::MediaSourceStream;
 use uuid::Uuid;
 
 use crate::audio_player::{
@@ -56,7 +54,7 @@ impl Queue {
         if self.tracks.len() == 1 {
             let _ = self.cmd_tx.send(PlayerCmd::Play { resuming: false });
         }
-        self.preload()
+        Ok(())
     }
 
     pub fn insert_next(&mut self, item: UnresolvedTrack) {
@@ -527,95 +525,6 @@ impl Queue {
             current_path_changed,
             current_path: self.current_path(),
         }
-    }
-
-    pub fn preload(&mut self) -> Result<(), AudioPlayerError> {
-        let next_index = self.index as usize + 1;
-        let track_to_preload = self.tracks.get(next_index);
-
-        if track_to_preload.is_none() {
-            return Ok(());
-        }
-
-        let mut track_to_preload = track_to_preload
-            .ok_or_else(|| AudioPlayerError::MissingTrack {
-                path: "queue".to_string(),
-            })?
-            .lock()
-            .map_err(|_| AudioPlayerError::MissingTrack {
-                path: "queue".to_string(),
-            })?;
-        let file_path = track_to_preload.path.clone();
-
-        let src = crate::utils::library_files::open(&file_path).map_err(|source| {
-            AudioPlayerError::FileOpen {
-                path: file_path.clone(),
-                source,
-            }
-        })?;
-
-        let mss = MediaSourceStream::new(Box::new(src), Default::default());
-        let mut hint = Hint::new();
-        if let Some(ext) = std::path::Path::new(&file_path)
-            .extension()
-            .and_then(|e| e.to_str())
-        {
-            hint.with_extension(ext);
-        }
-
-        let probed = symphonia::default::get_probe()
-            .probe(&hint, mss, Default::default(), Default::default())
-            .map_err(|error| AudioPlayerError::Probe {
-                path: file_path.clone(),
-                message: error.to_string(),
-            })?;
-
-        let track = probed
-            .default_track(symphonia::core::formats::TrackType::Audio)
-            .ok_or_else(|| AudioPlayerError::MissingTrack {
-                path: file_path.clone(),
-            })?;
-
-        track_to_preload.track_id = track.id;
-
-        let audio_codec_params = track
-            .codec_params
-            .as_ref()
-            .ok_or_else(|| AudioPlayerError::MissingTrack {
-                path: file_path.clone(),
-            })?
-            .audio()
-            .ok_or_else(|| AudioPlayerError::MissingTrack {
-                path: file_path.clone(),
-            })?;
-
-        track_to_preload.source_sample_rate =
-            audio_codec_params
-                .sample_rate
-                .ok_or_else(|| AudioPlayerError::MissingSampleRate {
-                    path: file_path.clone(),
-                })?;
-        track_to_preload.channels_uz = audio_codec_params
-            .channels
-            .as_ref()
-            .ok_or_else(|| AudioPlayerError::MissingChannels {
-                path: file_path.clone(),
-            })?
-            .count();
-
-        track_to_preload.decoder = Some(
-            symphonia::default::get_codecs()
-                .make_audio_decoder(audio_codec_params, &Default::default())
-                .map_err(|error| AudioPlayerError::Decoder {
-                    path: file_path.clone(),
-                    message: error.to_string(),
-                })?,
-        );
-
-        track_to_preload.format = Some(probed);
-        track_to_preload.resampler = None;
-        track_to_preload.is_preloaded = true;
-        Ok(())
     }
 
     fn unload_all_tracks(&mut self) {

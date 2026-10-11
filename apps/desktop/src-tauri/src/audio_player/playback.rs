@@ -64,7 +64,19 @@ impl AudioPlayer {
 
         let cmd_tx_media = cmd_tx.clone();
         let cmd_tx_controls = cmd_tx.clone();
-        let rb = HeapRb::<f32>::new(192000 * 2 * 2);
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or(AudioPlayerError::NoOutputDevice)?;
+        let output =
+            device
+                .default_output_config()
+                .map_err(|error| AudioPlayerError::DeviceConfig {
+                    message: error.to_string(),
+                })?;
+        let rb = HeapRb::<f32>::new(worker::output_buffer_samples(
+            output.sample_rate(),
+            output.channels() as usize,
+        ));
         let (producer, consumer) = rb.split();
         let queue = Arc::new(Mutex::new(Queue::new(cmd_tx.clone())));
         let consumer = Arc::new(Mutex::new(consumer));

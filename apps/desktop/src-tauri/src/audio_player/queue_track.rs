@@ -21,7 +21,6 @@ pub struct QueueTrack {
     pub source_sample_rate: u32,
     pub channels_uz: usize,
     pub target_sample_rate: u32,
-    pub is_preloaded: bool,
     pub resampler: Option<Async<f32>>,
     pub indata: Vec<f32>,
     pub outdata: Vec<f32>,
@@ -46,7 +45,6 @@ impl QueueTrack {
             playlist_ord: unresolved_track.occurrence,
             format: None,
             decoder: None,
-            is_preloaded: false,
             track_id: 0,
             source_sample_rate: 44100,
             channels_uz: 2usize,
@@ -67,7 +65,6 @@ impl QueueTrack {
     pub fn unload(&mut self) {
         self.format = None;
         self.decoder = None;
-        self.is_preloaded = false;
         self.track_id = 0;
         self.source_sample_rate = 44100;
         self.channels_uz = 2usize;

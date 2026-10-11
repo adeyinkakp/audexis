@@ -18,7 +18,6 @@ pub fn toggle_shuffle(
         .lock()
         .map_err(|_| "Audio queue is unavailable".to_string())?;
     queue.toggle_shuffle();
-    let _ = queue.preload();
     drop(queue);
     drop(player);
     emit_queue_changed(&app, &state)?;

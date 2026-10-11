@@ -111,10 +111,24 @@ pub fn flush_pending_audio<P>(ctx: &mut WorkerContext<P>, state: &mut WorkerStat
 where
     P: Producer<Item = f32> + Observer + Send,
 {
-    let written = ctx
-        .producer
-        .push_slice(&state.outdata[state.pending_output.clone()]);
+    let limit = super::output_buffer_samples(state.target_sample_rate, state.output_channels);
+    let written = push_with_limit(
+        &mut ctx.producer,
+        &state.outdata[state.pending_output.clone()],
+        limit,
+    );
     ctx.produced_samples += written as u64;
     state.pending_output.start += written;
     state.pending_output.is_empty()
+}
+
+fn push_with_limit<P: Producer<Item = f32> + Observer>(
+    producer: &mut P,
+    samples: &[f32],
+    limit: usize,
+) -> usize {
+    let count = samples
+        .len()
+        .min(limit.saturating_sub(producer.occupied_len()));
+    producer.push_slice(&samples[..count])
 }

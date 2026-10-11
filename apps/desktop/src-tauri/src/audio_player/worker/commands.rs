@@ -146,7 +146,6 @@ where
             state.output_channels = output_channels;
             state.resampler = None;
         }
-        PlayerCmd::Preload => {}
         PlayerCmd::UpdateControlsMetadata { metadata } => update_controls_metadata(ctx, metadata),
     }
 }

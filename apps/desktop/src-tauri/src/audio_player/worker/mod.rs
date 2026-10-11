@@ -18,6 +18,13 @@ use super::queue::Queue;
 use super::types::PlayerCmd;
 use state::WorkerState;
 
+pub(super) fn output_buffer_samples(sample_rate: u32, channels: usize) -> usize {
+    (sample_rate as usize)
+        .saturating_mul(channels)
+        .saturating_mul(2)
+        .max(1)
+}
+
 pub struct WorkerContext<P>
 where
     P: Producer<Item = f32> + Observer + Send,
