@@ -1,3 +1,4 @@
+import { ModalActions, useModalChanges } from "../Modal";
 import { invoke } from "@tauri-apps/api/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -185,6 +186,7 @@ function DetailsForm({ files }: { files: FilesResponse }) {
     onError: (error) =>
       toast.error(`Could not update metadata: ${String(error)}`),
   });
+  useModalChanges(dirtyKeys.size > 0, mutation.isPending || importing);
 
   const updateField = (key: MetadataKey, value: string[]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -215,135 +217,136 @@ function DetailsForm({ files }: { files: FilesResponse }) {
   };
 
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="px-6 pt-5">
-        <button
-          type="button"
-          onClick={() => openSettings("metadata")}
-          className="mb-3 rounded-lg border border-border px-3 py-2 text-sm"
-        >
-          Choose Details fields…
-        </button>
-        {lookupOpen ? (
-          <ItunesLookup
-            title={
-              (draft.title ?? getSharedValue(files, "title").value)[0] ?? ""
-            }
-            artist={
-              (draft.artist ?? getSharedValue(files, "artist").value)[0] ?? ""
-            }
-            disabled={mutation.isPending || importing}
-            onClose={() => setLookupOpen(false)}
-            onBusyChange={setImporting}
-            onMetadata={async (match, image) => {
-              const imported = metadataFromItunes(match);
-              const changes: Record<MetadataKey, TagChange> = {};
-              for (const [key, value] of Object.entries(imported)) {
-                changes[key as MetadataKey] = {
-                  operation: "replace",
-                  values: [{ type: "Text", value }],
-                };
-              }
-              const result = await mutation.mutateAsync({ changes, image });
-              if (result.failures.length)
-                throw new Error(result.failures[0].message);
-            }}
-          />
-        ) : (
+    <>
+      <div className="flex min-h-full flex-col ">
+        <div className="px-6 pt-5">
           <button
             type="button"
-            disabled={mutation.isPending || importing}
-            onClick={() => setLookupOpen(true)}
-            className="h-9 rounded-lg border border-border px-3 text-sm"
+            onClick={() => openSettings("metadata")}
+            className="mb-3 rounded-lg border border-border px-3 py-2 text-sm"
           >
-            Find metadata online
+            Choose Details fields…
           </button>
-        )}
-      </div>
-      <div className="grid grid-cols-1 gap-x-5 gap-y-4 p-6 md:grid-cols-2">
-        {metadataFields.map(({ key, storageKey, label, multiValue }) => {
-          const field = getSharedValue(files, storageKey);
-          const values = draft[key] ?? initialDraft[key] ?? [];
-          const inputs = values.length ? values : [""];
-          return (
-            <fieldset
-              key={key}
+          {lookupOpen ? (
+            <ItunesLookup
+              title={
+                (draft.title ?? getSharedValue(files, "title").value)[0] ?? ""
+              }
+              artist={
+                (draft.artist ?? getSharedValue(files, "artist").value)[0] ?? ""
+              }
               disabled={mutation.isPending || importing}
-              className="flex min-w-0 flex-col gap-1.5"
+              onClose={() => setLookupOpen(false)}
+              onBusyChange={setImporting}
+              onMetadata={async (match, image) => {
+                const imported = metadataFromItunes(match);
+                const changes: Record<MetadataKey, TagChange> = {};
+                for (const [key, value] of Object.entries(imported)) {
+                  changes[key as MetadataKey] = {
+                    operation: "replace",
+                    values: [{ type: "Text", value }],
+                  };
+                }
+                const result = await mutation.mutateAsync({ changes, image });
+                if (result.failures.length)
+                  throw new Error(result.failures[0].message);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              disabled={mutation.isPending || importing}
+              onClick={() => setLookupOpen(true)}
+              className="h-9 rounded-lg border border-border px-3 text-sm"
             >
-              <legend className="mb-1.5 text-xs font-medium text-muted-foreground">
-                {label}
-              </legend>
-              {inputs.map((value, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    aria-label={
-                      index === 0 ? label : `${label} value ${index + 1}`
-                    }
-                    value={value}
-                    placeholder={field.mixed ? "Mixed" : "Not set"}
-                    onChange={(event) => {
-                      const next = [...inputs];
-                      next[index] = event.target.value;
-                      updateField(key, next);
-                    }}
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
-                  />
-                  {(multiValue || inputs.length > 1) && (
-                    <button
-                      type="button"
-                      aria-label={`Remove ${label} value ${index + 1}`}
-                      onClick={() =>
-                        updateField(
-                          key,
-                          inputs.filter((_, i) => i !== index),
-                        )
+              Find metadata online
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 p-6 md:grid-cols-2">
+          {metadataFields.map(({ key, storageKey, label, multiValue }) => {
+            const field = getSharedValue(files, storageKey);
+            const values = draft[key] ?? initialDraft[key] ?? [];
+            const inputs = values.length ? values : [""];
+            return (
+              <fieldset
+                key={key}
+                disabled={mutation.isPending || importing}
+                className="flex min-w-0 flex-col gap-1.5"
+              >
+                <legend className="mb-1.5 text-xs font-medium text-muted-foreground">
+                  {label}
+                </legend>
+                {inputs.map((value, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      aria-label={
+                        index === 0 ? label : `${label} value ${index + 1}`
                       }
-                      className="rounded-lg border border-border px-2 py-2 text-xs"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              {multiValue && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      [key]: [...inputs, ""],
-                    }))
-                  }
-                  className="self-start rounded-lg border border-border px-3 py-1.5 text-xs"
-                >
-                  Add value
-                </button>
-              )}
-            </fieldset>
-          );
-        })}
+                      value={value}
+                      placeholder={field.mixed ? "Mixed" : "Not set"}
+                      onChange={(event) => {
+                        const next = [...inputs];
+                        next[index] = event.target.value;
+                        updateField(key, next);
+                      }}
+                      className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+                    />
+                    {(multiValue || inputs.length > 1) && (
+                      <button
+                        type="button"
+                        aria-label={`Remove ${label} value ${index + 1}`}
+                        onClick={() =>
+                          updateField(
+                            key,
+                            inputs.filter((_, i) => i !== index),
+                          )
+                        }
+                        className="rounded-lg border border-border px-2 py-2 text-xs"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {multiValue && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        [key]: [...inputs, ""],
+                      }))
+                    }
+                    className="self-start rounded-lg border border-border px-3 py-1.5 text-xs"
+                  >
+                    Add value
+                  </button>
+                )}
+              </fieldset>
+            );
+          })}
 
-        <div className="md:col-span-2 mt-1 rounded-xl border border-border bg-muted/30 p-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            {files.files.length === 1 ? "File" : "Selected files"}
-          </p>
-          <p className="mt-1 truncate text-sm text-foreground">
-            {files.files.length === 1
-              ? files.files[0].path
-              : `${files.files.length} tracks selected`}
-          </p>
+          <div className="md:col-span-2 mt-1 rounded-xl border border-border bg-muted/30 p-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              {files.files.length === 1 ? "File" : "Selected files"}
+            </p>
+            <p className="mt-1 truncate text-sm text-foreground">
+              {files.files.length === 1
+                ? files.files[0].path
+                : `${files.files.length} tracks selected`}
+            </p>
+          </div>
         </div>
       </div>
-
-      <div className="sticky bottom-0 mt-auto flex items-center justify-end gap-2 border-t border-border bg-background/95 px-6 py-4 backdrop-blur-sm">
+      <ModalActions>
         <button
           type="button"
           onClick={reset}
           disabled={!dirtyKeys.size || mutation.isPending || importing}
           className="h-9 rounded-lg px-4 text-sm text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Reset
+          Discard changes
         </button>
         <button
           type="button"
@@ -353,7 +356,7 @@ function DetailsForm({ files }: { files: FilesResponse }) {
         >
           {mutation.isPending ? "Saving…" : "Save Changes"}
         </button>
-      </div>
-    </div>
+      </ModalActions>
+    </>
   );
 }

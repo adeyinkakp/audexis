@@ -73,6 +73,14 @@ export function useSettingsDraft() {
     folders,
     setFolders,
     foldersChanged,
+    hasChanges:
+      foldersChanged ||
+      JSON.stringify(appearance) !== JSON.stringify(preferences),
+    discard: () => {
+      setAppearance(preferences);
+      setFolders([...originalFolders.current]);
+      setError(null);
+    },
     loaded,
     busy,
     error,

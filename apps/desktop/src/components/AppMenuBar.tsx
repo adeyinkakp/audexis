@@ -1,4 +1,7 @@
-import { editTextForTarget, selectAllForTarget } from "../utils/textEditingMenu";
+import {
+  editTextForTarget,
+  selectAllForTarget,
+} from "../utils/textEditingMenu";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
@@ -22,6 +25,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "./Dropdown";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export default function AppMenuBar() {
   const { openSettings, openLibrarySettings, openLogs } = useStore();
@@ -35,9 +39,10 @@ export default function AppMenuBar() {
   const [libraryBusy, setLibraryBusy] = useState(false);
   const busy = useRef(false);
   const editTarget = useRef<HTMLElement | null>(null);
-  const currentEditTarget = () => isMac && !nativeFailed
-    ? document.activeElement as HTMLElement | null
-    : editTarget.current;
+  const currentEditTarget = () =>
+    isMac && !nativeFailed
+      ? (document.activeElement as HTMLElement | null)
+      : editTarget.current;
 
   useEffect(
     () =>
@@ -143,8 +148,10 @@ export default function AppMenuBar() {
         {
           text: "Paste",
           nativeRole: "Paste",
-          action: () => editTextForTarget("paste", currentEditTarget())
-            .catch((error) => { toast.error(`Could not paste: ${String(error)}`); }),
+          action: () =>
+            editTextForTarget("paste", currentEditTarget()).catch((error) => {
+              toast.error(`Could not paste: ${String(error)}`);
+            }),
         },
         separator,
         {
@@ -193,7 +200,16 @@ export default function AppMenuBar() {
         action("Open Mini Player", "mini-player"),
       ],
     },
-    { text: "Help", items: [{ text: "View Logs…", action: openLogs }] },
+    {
+      text: "Help",
+      items: [
+        {
+          text: "Report an Issue",
+          action: () => openUrl("https://github.com/adeyinkakp/audexis/issues"),
+        },
+        { text: "View Logs…", action: openLogs },
+      ],
+    },
   ];
 
   useEffect(() => {
@@ -210,8 +226,11 @@ export default function AppMenuBar() {
           aria-label="Application menus"
           onFocusCapture={(event) => {
             const previous = event.relatedTarget;
-            if (previous instanceof HTMLElement && !event.currentTarget.contains(previous)
-              && !previous.closest('[role="menu"]')) {
+            if (
+              previous instanceof HTMLElement &&
+              !event.currentTarget.contains(previous) &&
+              !previous.closest('[role="menu"]')
+            ) {
               editTarget.current = previous;
             }
           }}

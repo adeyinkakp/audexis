@@ -1,3 +1,4 @@
+import { ModalActions, useModalChanges } from "../Modal";
 import { invoke } from "@tauri-apps/api/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -140,6 +141,7 @@ function LyricsEditor({
         duration: 7000,
       }),
   });
+  useModalChanges(dirty, mutation.isPending);
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -242,7 +244,7 @@ function LyricsEditor({
             : `${files.files.length} tracks selected`}
         </p>
       </div>
-      <div className="sticky bottom-0 mt-auto flex justify-end gap-2 border-t border-border bg-background/95 px-6 py-4">
+      <ModalActions>
         <button
           type="button"
           onClick={() => setDraft("")}
@@ -257,7 +259,7 @@ function LyricsEditor({
           disabled={draft === null || mutation.isPending}
           className="h-9 rounded-lg px-4 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40"
         >
-          Reset
+          Discard changes
         </button>
         <button
           type="button"
@@ -267,7 +269,7 @@ function LyricsEditor({
         >
           {mutation.isPending ? "Saving…" : "Save Lyrics"}
         </button>
-      </div>
+      </ModalActions>
     </div>
   );
 }

@@ -229,10 +229,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             initialCustomField={initialCustomField}
             open
             onClose={() => setSettingsOpen(false)}
-            onOpenLogs={() => {
-              setSettingsOpen(false);
-              setLogsOpen(true);
-            }}
+            onOpenLogs={() => setLogsOpen(true)}
           />
         )}
         {logsOpen && <LogsModal open onClose={() => setLogsOpen(false)} />}

@@ -1,3 +1,4 @@
+import { ModalActions, useModalChanges } from "../Modal";
 import { invoke } from "@tauri-apps/api/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -124,6 +125,7 @@ function CustomFieldsForm({
     onError: (error) =>
       toast.error(`Could not save custom fields: ${String(error)}`),
   });
+  useModalChanges(draft !== null, save.isPending);
 
   if (fields.isPending)
     return <p className="text-sm">Loading custom fields…</p>;
@@ -280,7 +282,7 @@ function CustomFieldsForm({
           {error}
         </p>
       )}
-      <div className="flex items-center gap-2">
+      <ModalActions>
         <button
           type="button"
           className={buttonClass}
@@ -301,7 +303,7 @@ function CustomFieldsForm({
           disabled={!draft || save.isPending}
           onClick={reset}
         >
-          Reset
+          Discard changes
         </button>
         <button
           type="button"
@@ -311,7 +313,7 @@ function CustomFieldsForm({
         >
           {save.isPending ? "Saving…" : "Save Song Values"}
         </button>
-      </div>
+      </ModalActions>
     </div>
   );
 }

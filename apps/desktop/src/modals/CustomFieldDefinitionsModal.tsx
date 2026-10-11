@@ -1,6 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { Modal } from "../components/Modal";
+import { Modal, ModalActions, useModalChanges } from "../components/Modal";
 import { useCustomFieldDefinitions } from "../hooks/useCustomFieldDefinitions";
 import {
   validateDefinitions,
@@ -64,7 +64,6 @@ function DefinitionsForm({
   initial,
   definitions,
   save,
-  onClose,
 }: {
   initial?: NewFieldDefinition;
   definitions: CustomFieldDefinition[];
@@ -85,6 +84,10 @@ function DefinitionsForm({
       : definitions,
   );
   const [saving, setSaving] = useState(false);
+  useModalChanges(
+    JSON.stringify(draft) !== JSON.stringify(definitions),
+    saving,
+  );
   const error = validateDefinitions(draft);
   const update = (id: string, change: Partial<CustomFieldDefinition>) =>
     setDraft((current) =>
@@ -171,9 +174,13 @@ function DefinitionsForm({
           {error}
         </p>
       )}
-      <div className="flex justify-end gap-2">
-        <button className={buttonClass} disabled={saving} onClick={onClose}>
-          Cancel
+      <ModalActions>
+        <button
+          className={buttonClass}
+          disabled={saving}
+          onClick={() => setDraft(definitions)}
+        >
+          Discard changes
         </button>
         <button
           className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-40"
@@ -183,7 +190,6 @@ function DefinitionsForm({
             try {
               await save(draft);
               toast.success("Field definitions saved");
-              onClose();
             } catch (error) {
               toast.error(String(error));
             } finally {
@@ -193,7 +199,7 @@ function DefinitionsForm({
         >
           {saving ? "Saving…" : "Save Fields"}
         </button>
-      </div>
+      </ModalActions>
     </div>
   );
 }

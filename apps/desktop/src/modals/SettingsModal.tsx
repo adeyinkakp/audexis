@@ -6,7 +6,12 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { Modal } from "../components/Modal";
+import {
+  Modal,
+  ModalActions,
+  ModalCloseButton,
+  ModalSection,
+} from "../components/Modal";
 import { AppearanceOptions } from "../components/settings/AppearanceOptions";
 import { LibraryFolders } from "../components/settings/LibraryFolders";
 import { useSettingsDraft } from "../hooks/useSettingsDraft";
@@ -41,6 +46,8 @@ export function SettingsModal({
   return (
     <Modal
       open={open}
+      hasChanges={draft.hasChanges}
+      busy={draft.busy}
       onClose={close}
       title="Settings"
       header={null}
@@ -54,15 +61,14 @@ export function SettingsModal({
           <Settings2 size={20} className="text-primary" />
           <h1 className="text-lg font-semibold">Settings</h1>
         </div>
-        <button
+        <ModalCloseButton
           type="button"
           disabled={draft.busy}
-          onClick={close}
           aria-label="Close settings"
           className="rounded-full p-2 text-muted-foreground hover:bg-muted"
         >
           <X size={18} />
-        </button>
+        </ModalCloseButton>
       </div>
       <div className="grid sm:grid-cols-[180px_minmax(0,1fr)]">
         <nav
@@ -127,12 +133,13 @@ export function SettingsModal({
             }
             className="min-w-0 disabled:opacity-60"
           >
-            {tab === "customFields" ? (
+            <ModalSection active={tab === "customFields"}>
               <CustomFieldSettings
                 initial={initialCustomField}
-                onClose={close}
+                onClose={() => {}}
               />
-            ) : tab === "metadata" ? (
+            </ModalSection>
+            {tab === "customFields" ? null : tab === "metadata" ? (
               <MetadataFields />
             ) : tab === "appearance" ? (
               <AppearanceOptions
@@ -225,7 +232,7 @@ export function SettingsModal({
         </section>
       </div>
       {tab !== "customFields" && (
-        <div className="flex items-center justify-between gap-4 border-t border-border px-7 py-5">
+        <ModalActions>
           <p className="text-xs text-muted-foreground">
             {tab === "metadata"
               ? "Field selections are saved automatically."
@@ -239,23 +246,23 @@ export function SettingsModal({
             <button
               type="button"
               disabled={draft.busy}
-              onClick={close}
+              onClick={draft.discard}
               className="rounded-full px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              {tab === "logs" || tab === "metadata" ? "Close" : "Cancel"}
+              Discard changes
             </button>
-            {tab !== "logs" && tab !== "metadata" && (
+            {
               <button
                 type="button"
                 disabled={draft.busy || !draft.loaded}
-                onClick={() => void draft.save(onClose)}
+                onClick={() => void draft.save(() => {})}
                 className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {draft.busy ? "Saving…" : "Save changes"}
               </button>
-            )}
+            }
           </div>
-        </div>
+        </ModalActions>
       )}
     </Modal>
   );

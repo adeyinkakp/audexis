@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Modal } from "../components/Modal";
+import { Modal, ModalCloseButton, ModalSection } from "../components/Modal";
 import DetailsTab from "../components/info/DetailsTab";
 import LyricsTab from "../components/info/LyricsTab";
 import CustomFieldsTab from "../components/info/CustomFieldsTab";
@@ -46,23 +46,22 @@ export default function TrackInfoModal({
       header={null}
       sizeMax
       panelClassName="max-w-5xl h-[80vh] rounded-3xl bg-background"
-      bodyClassName="p-0"
+      bodyClassName="p-0 flex flex-col"
     >
-      <div className="flex items-center justify-between border-b border-border px-7 py-5">
+      <div className="shrink-0 flex items-center justify-between border-b border-border px-7 py-5">
         <div className="flex items-center gap-2.5">
           <h1 className="text-lg font-semibold">
             Track Info ({fileIds.length})
           </h1>
         </div>
-        <button
+        <ModalCloseButton
           type="button"
 
-          onClick={onClose}
           aria-label="Close track info"
           className="rounded-full p-2 text-muted-foreground hover:bg-muted"
         >
           <X size={18} />
-        </button>
+        </ModalCloseButton>
       </div>
       <div className="flex min-h-0 flex-1 flex-col px-2 pt-2">
         <div className="flex h-9 shrink-0 gap-2 overflow-x-auto rounded px-1">
@@ -91,34 +90,27 @@ export default function TrackInfoModal({
               Track information could not be loaded.
             </div>
           )}
-          {f.data && currentTabId === "details" && (
-            <DetailsTab files={f.data} />
-          )}
-          {f.data && open && (
-            <div
-              key={`${fileIds.join(",")}-custom`}
-              hidden={currentTabId !== "custom"}
-            >
-              <CustomFieldsTab files={f.data} />
-            </div>
-          )}
-          {f.data && currentTabId === "artwork" && (
-            <ArtworkTab files={f.data} />
-          )}
           {f.data &&
             open &&
-            ["lyrics", "synced"].map((tab) => (
-              <div
-                key={`${fileIds.join(",")}-${tab}`}
-                hidden={currentTabId !== tab}
-                className="min-h-full"
+            tabs.map((tab) => (
+              <ModalSection
+                key={`${fileIds.join(",")}-${tab.id}`}
+                active={currentTabId === tab.id}
               >
-                <LyricsTab
-                  files={f.data}
-                  synchronized={tab === "synced"}
-                  active={currentTabId === tab}
-                />
-              </div>
+                {tab.id === "details" ? (
+                  <DetailsTab files={f.data} />
+                ) : tab.id === "custom" ? (
+                  <CustomFieldsTab files={f.data} />
+                ) : tab.id === "artwork" ? (
+                  <ArtworkTab files={f.data} />
+                ) : (
+                  <LyricsTab
+                    files={f.data}
+                    synchronized={tab.id === "synced"}
+                    active={currentTabId === tab.id}
+                  />
+                )}
+              </ModalSection>
             ))}
         </div>
       </div>

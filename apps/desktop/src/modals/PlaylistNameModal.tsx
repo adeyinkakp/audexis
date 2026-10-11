@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ListMusic } from "lucide-react";
-import { Modal } from "../components/Modal";
+import { Modal, ModalActions } from "../components/Modal";
 export function PlaylistNameModal({
   initialName = "",
   editing = false,
@@ -12,6 +12,7 @@ export function PlaylistNameModal({
   onSave: (name: string) => Promise<unknown>;
   onClose: () => void;
 }) {
+  const formId = useId();
   const [name, setName] = useState(initialName);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,8 @@ export function PlaylistNameModal({
   return (
     <Modal
       open
+      hasChanges={name !== initialName}
+      busy={busy}
       onClose={close}
       title={editing ? "Edit Playlist" : "New Playlist"}
       description="Give your playlist a name."
@@ -32,6 +35,7 @@ export function PlaylistNameModal({
       closeOnOverlayClick={!busy}
     >
       <form
+        id={formId}
         className="p-6"
         onSubmit={async (event) => {
           event.preventDefault();
@@ -75,23 +79,24 @@ export function PlaylistNameModal({
             {error}
           </p>
         )}
-        <div className="mt-7 flex justify-end gap-3">
+        <ModalActions>
           <button
             type="button"
             onClick={close}
             disabled={busy}
             className="rounded-full px-5 py-2.5 text-sm hover:bg-muted disabled:opacity-50"
           >
-            Cancel
+            Discard changes
           </button>
           <button
             type="submit"
+            form={formId}
             disabled={busy || !name.trim()}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {busy ? "Saving…" : editing ? "Save Changes" : "Create Playlist"}
           </button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

@@ -1,3 +1,4 @@
+import { ModalActions, useModalChanges } from "../Modal";
 import { invoke } from "@tauri-apps/api/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image as ImageIcon } from "lucide-react";
@@ -166,6 +167,7 @@ export default function ArtworkTab({
     },
     onError: () => toast.error(`Could not update artwork`),
   });
+  useModalChanges(dirty, mutation.isPending);
 
   const apply = (next: ArtworkItem[], nextIndex = selectedIndex) => {
     setItems(next);
@@ -380,7 +382,7 @@ export default function ArtworkTab({
         </aside>
       </fieldset>
 
-      <div className="sticky bottom-0 mt-auto flex items-center justify-end gap-2 border-t border-border bg-background/95 px-6 py-4 backdrop-blur-sm">
+      <ModalActions>
         <button
           type="button"
           onClick={() => {
@@ -391,7 +393,7 @@ export default function ArtworkTab({
           disabled={!dirty || mutation.isPending}
           className="h-9 rounded-lg px-4 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40"
         >
-          Reset
+          Discard changes
         </button>
         <button
           type="button"
@@ -401,7 +403,7 @@ export default function ArtworkTab({
         >
           {mutation.isPending ? "Saving…" : "Save Artwork"}
         </button>
-      </div>
+      </ModalActions>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Power, RotateCcw } from "lucide-react";
-import { Modal } from "../components/Modal";
+import { Modal, ModalCloseButton } from "../components/Modal";
 import {
   activeCurve,
   customizePreset,
@@ -36,6 +36,8 @@ export default function EqualizerModal({
   return (
     <Modal
       open={open}
+      hasChanges={!!config && !!error}
+      busy={saving}
       onClose={onClose}
       title="Equalizer"
       panelClassName="max-w-3xl"
@@ -50,13 +52,32 @@ export default function EqualizerModal({
                   ? "Settings saved automatically"
                   : "Loading…"}
           </span>
-          <button
+          {config && error && (
+            <>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void reload()}
+                className="rounded-lg px-4 py-2 text-sm"
+              >
+                Discard changes
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => update(config.settings)}
+                className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground"
+              >
+                Save changes
+              </button>
+            </>
+          )}
+          <ModalCloseButton
             type="button"
-            onClick={onClose}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Done
-          </button>
+          </ModalCloseButton>
         </>
       }
     >

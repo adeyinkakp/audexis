@@ -1,3 +1,4 @@
+import { useModalChanges } from "../Modal";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useDetailsFields } from "../../hooks/useDetailsFields";
@@ -7,6 +8,7 @@ export function MetadataFields() {
   const selected = useDetailsFields();
   const catalog = useMetadataFieldCatalog();
   const [search, setSearch] = useState("");
+  useModalChanges(false, selected.saving);
   if (selected.isPending || catalog.isPending) return <p>Loading fields…</p>;
   if (selected.isError || catalog.isError)
     return (

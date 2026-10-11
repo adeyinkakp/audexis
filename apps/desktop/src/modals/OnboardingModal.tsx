@@ -8,7 +8,7 @@ import {
   Library,
   Palette,
 } from "lucide-react";
-import { Modal } from "../components/Modal";
+import { Modal, ModalActions } from "../components/Modal";
 import { AppearanceOptions } from "../components/settings/AppearanceOptions";
 import { LibraryFolders } from "../components/settings/LibraryFolders";
 import { useSettingsDraft } from "../hooks/useSettingsDraft";
@@ -30,6 +30,8 @@ export function OnboardingModal({
   return (
     <Modal
       open={open}
+      hasChanges={draft.hasChanges}
+      busy={draft.busy}
       onClose={() => {}}
       title="Welcome to Audexis"
       header={null}
@@ -126,7 +128,7 @@ export function OnboardingModal({
               {draft.error}
             </p>
           )}
-          <div className="mt-8 flex items-center justify-between gap-3 border-t border-border/60 pt-5">
+          <ModalActions>
             <button
               type="button"
               disabled={step === 0 || draft.busy}
@@ -153,7 +155,7 @@ export function OnboardingModal({
                     : "Continue"}
               {!draft.busy && <ArrowRight size={16} />}
             </button>
-          </div>
+          </ModalActions>
         </section>
       </div>
     </Modal>
