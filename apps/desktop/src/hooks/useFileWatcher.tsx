@@ -38,7 +38,7 @@ export interface NormalizedMediaFiles {
 export function useFileWatcher(search = "") {
   const [debounced, setDebounced] = useState(search.trim());
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(search.trim()), 250);
+    const timer = setTimeout(() => setDebounced(search.trim()), 100);
     return () => clearTimeout(timer);
   }, [search]);
   const queryKey = debounced

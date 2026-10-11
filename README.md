@@ -48,7 +48,7 @@ From the repository root:
 
 ```sh
 pnpm install
-pnpm --filter desktop tauri dev
+pnpm dev
 ```
 
 On the first run, choose the folders that contain your music. Audexis will scan

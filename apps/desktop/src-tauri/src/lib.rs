@@ -162,7 +162,11 @@ fn initialize(app: &mut tauri::App) -> Result<(), startup::StartupError> {
     .map_err(|error| {
         StartupError::new("Audexis could not initialize system media controls.", error)
     })?;
-    let db_path = app_path.join("audexis_main.db");
+    let db_name = match std::env::var("AUDEXIS_ENV").as_deref() {
+        Ok("development") => "audexis_test.db",
+        _ => "audexis_main.db",
+    };
+    let db_path = app_path.join(db_name);
     let db = async_runtime::block_on(Database::init(&db_path)).map_err(|error| {
         StartupError::new("Audexis could not open its library database.", error)
     })?;

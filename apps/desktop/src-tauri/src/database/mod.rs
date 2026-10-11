@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 use tauri_plugin_log::log::LevelFilter;
+pub(crate) mod search;
 pub mod types;
 #[derive(Clone, Debug)]
 pub struct Database {
@@ -41,6 +42,7 @@ impl Database {
             .await?;
 
         sqlx::migrate!("./migrations").run(&pool).await?;
+        search::refresh_pending(&pool).await?;
         println!("migrations ran");
         Ok(Self { pool })
     }

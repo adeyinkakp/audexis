@@ -55,7 +55,7 @@ export function useSearchMedia(
   });
   const [debounced, setDebounced] = useState(input);
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(input), 250);
+    const timer = setTimeout(() => setDebounced(input), 100);
     return () => clearTimeout(timer);
   }, [input]);
   const hasCriteria =

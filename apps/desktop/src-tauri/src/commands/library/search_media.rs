@@ -1,4 +1,5 @@
 use super::get_files::FilesResponse;
+use crate::database::search::prefix_terms;
 use crate::{
     database::types::{DatabaseMediaFile, DatabaseMediaMetadata},
     AppState,
@@ -24,8 +25,6 @@ pub struct SearchInput {
     offset: i64,
 }
 
-const TAG_SEP: char = '\u{1f}';
-
 fn escape_like(value: &str) -> String {
     value
         .trim()
@@ -38,10 +37,6 @@ fn pattern(value: &str) -> String {
     format!("%{}%", escape_like(value))
 }
 
-fn exact_pattern(value: &str) -> String {
-    format!("%{TAG_SEP}{}{TAG_SEP}%", escape_like(value))
-}
-
 fn contains(query: &mut QueryBuilder<'_, Sqlite>, expression: &str, value: &str) {
     query
         .push(expression)
@@ -49,18 +44,6 @@ fn contains(query: &mut QueryBuilder<'_, Sqlite>, expression: &str, value: &str)
         .push_bind(pattern(value))
         .push(" ESCAPE '\\'");
 }
-fn tag_match(query: &mut QueryBuilder<'_, Sqlite>, key: Option<&str>, value: &str) {
-    query.push("EXISTS (SELECT 1 FROM metadata_texts m WHERE m.file_id = f.id AND ");
-    if let Some(key) = key {
-        query
-            .push("m.key = ")
-            .push_bind(key.to_owned())
-            .push(" AND ");
-    }
-    contains(query, "m.value", value);
-    query.push(")");
-}
-
 #[tauri::command]
 pub async fn search_media(
     state: tauri::State<'_, AppState>,
@@ -102,20 +85,40 @@ async fn search_media_with_pool(
     {
         return Err("Collection name is too long".into());
     }
-    let mut query = QueryBuilder::<Sqlite>::new("SELECT f.* FROM files f");
-
+    let mut matches = Vec::new();
     if !terms.is_empty() {
-        query.push(format!(
-            " LEFT JOIN (SELECT file_id, \
-             GROUP_CONCAT(CASE WHEN key = 'title' THEN value END, char({sep})) AS title, \
-             GROUP_CONCAT(CASE WHEN key = 'artist' THEN value END, char({sep})) AS artist, \
-             GROUP_CONCAT(CASE WHEN key = 'album' THEN value END, char({sep})) AS album \
-             FROM metadata_texts WHERE key IN ('title', 'artist', 'album') \
-             GROUP BY file_id) s ON s.file_id = f.id",
-            sep = TAG_SEP as u32
+        matches.push(format!(
+            "{{title album_artist artist album lyrics}} : ({})",
+            prefix_terms(&input.query)
         ));
     }
+    for (column, value) in [
+        ("title", &input.title),
+        ("artist", &input.artist),
+        ("album", &input.album),
+        ("genre", &input.genre),
+        ("file_name", &input.file_name),
+    ] {
+        if !value.trim().is_empty() {
+            matches.push(format!("{column} : ({})", prefix_terms(value)));
+        }
+    }
+    let has_match = !matches.is_empty();
+    if has_match {
+        crate::database::search::refresh_pending(pool)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    let mut query = QueryBuilder::<Sqlite>::new("SELECT f.* FROM files f");
+    if has_match {
+        query.push(" JOIN media_search ON media_search.rowid = f.id");
+    }
     query.push(" WHERE f.missing_since IS NULL");
+    if has_match {
+        query
+            .push(" AND media_search MATCH ")
+            .push_bind(matches.join(" AND "));
+    }
     if input.favorites_only {
         query.push(
             " AND EXISTS (SELECT 1 FROM media_info i WHERE i.file_id = f.id AND i.loved = 1)",
@@ -135,33 +138,7 @@ async fn search_media_with_pool(
             query.push(" AND EXISTS (SELECT 1 FROM metadata_texts m WHERE m.file_id=f.id AND m.key IN ('artist','albumArtist') AND m.value = ").push_bind(artist.clone()).push(" COLLATE METADATA_NOCASE)");
         }
     }
-    for term in &terms {
-        query.push(" AND (");
-        contains(&mut query, "f.file_name", term);
-        query.push(" OR ");
-        contains(&mut query, "f.path", term);
-        query.push(" OR ");
-        contains(&mut query, "f.format", term);
-        query.push(" OR ");
-        tag_match(&mut query, None, term);
-        query.push(")");
-    }
-    for (key, value) in [
-        ("title", &input.title),
-        ("artist", &input.artist),
-        ("album", &input.album),
-        ("genre", &input.genre),
-    ] {
-        if !value.trim().is_empty() {
-            query.push(" AND ");
-            tag_match(&mut query, Some(key), value);
-        }
-    }
-    for (expression, value) in [
-        ("f.file_name", &input.file_name),
-        ("f.format", &input.format),
-        ("f.path", &input.folder),
-    ] {
+    for (expression, value) in [("f.format", &input.format), ("f.path", &input.folder)] {
         if !value.trim().is_empty() {
             query.push(" AND ");
             contains(&mut query, expression, value);
@@ -173,38 +150,12 @@ async fn search_media_with_pool(
     if let Some(max) = input.max_duration_ms {
         query.push(" AND f.duration_ms <= ").push_bind(max);
     }
-    query.push(" ORDER BY (");
-
-    query.push_bind(0_i64);
-
-    for term in &terms {
-        let partial = pattern(term);
-        let exact = exact_pattern(term);
-        for (column, weight) in [("s.title", 100), ("s.artist", 90), ("s.album", 70)] {
-            query
-                .push(" + CASE WHEN char(31) || ")
-                .push(column)
-                .push(" || char(31) LIKE ")
-                .push_bind(exact.clone())
-                .push(" ESCAPE '\\' THEN ")
-                .push_bind(weight * 3)
-                .push(" WHEN ")
-                .push(column)
-                .push(" LIKE ")
-                .push_bind(partial.clone())
-                .push(" ESCAPE '\\' THEN ")
-                .push_bind(weight)
-                .push(" ELSE 0 END");
-        }
-        query
-            .push(" + CASE WHEN f.file_name = ")
-            .push_bind(term.to_string())
-            .push(" COLLATE NOCASE THEN 240 WHEN ");
-        contains(&mut query, "f.file_name", term);
-        query.push(" THEN 80 ELSE 0 END");
+    query.push(" ORDER BY ");
+    if has_match {
+        query.push("bm25(media_search, 10.0, 8.0, 8.0, 6.0, 1.0, 2.0, 2.0), ");
     }
     query
-        .push(") DESC, f.file_name COLLATE NOCASE, f.id LIMIT 51 OFFSET ")
+        .push("f.file_name COLLATE NOCASE, f.id LIMIT 51 OFFSET ")
         .push_bind(input.offset);
     let mut tx = pool.begin().await.map_err(|error| error.to_string())?;
     let mut files = query
@@ -368,9 +319,26 @@ mod tests {
             let filter_sort_sql =
                 format!("SELECT f.* {FILTER} ORDER BY f.file_name COLLATE NOCASE, f.id LIMIT 51");
 
-            let _ = search_media_with_pool(pool, search_input())
+            let started = Instant::now();
+            let first = search_media_with_pool(pool, search_input())
                 .await
-                .expect("warm-up search should succeed");
+                .expect("initial indexing and search should succeed");
+            eprintln!("Initial indexing + search: {:?}", started.elapsed());
+            let second = search_media_with_pool(
+                pool,
+                SearchInput {
+                    offset: 50,
+                    ..search_input()
+                },
+            )
+            .await
+            .expect("second page should succeed");
+            assert_eq!(second.files.len(), 50);
+            assert_eq!(second.next_cursor, Some(100));
+            assert!(second
+                .files
+                .iter()
+                .all(|file| !first.files.iter().any(|previous| previous.id == file.id)));
 
             let mut filter_only = Vec::with_capacity(BENCHMARK_RUNS);
             for _ in 0..BENCHMARK_RUNS {

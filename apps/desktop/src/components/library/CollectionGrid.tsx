@@ -67,7 +67,7 @@ export function CollectionGrid({
 }) {
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
-    const timeout = setTimeout(() => setDebounced(query), 250);
+    const timeout = setTimeout(() => setDebounced(query), 100);
     return () => clearTimeout(timeout);
   }, [query]);
   const result = useInfiniteQuery({

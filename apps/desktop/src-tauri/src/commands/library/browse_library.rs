@@ -1,5 +1,6 @@
+use crate::database::search::{prefix_terms, refresh_pending};
 use crate::AppState;
-use sqlx::{QueryBuilder, Sqlite};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -31,6 +32,16 @@ pub async fn browse_library(
     artist: Option<String>,
     offset: i64,
 ) -> Result<CollectionPage, String> {
+    browse_library_with_pool(&state.db.pool, kind, query, artist, offset).await
+}
+
+async fn browse_library_with_pool(
+    pool: &SqlitePool,
+    kind: CollectionKind,
+    query: String,
+    artist: Option<String>,
+    offset: i64,
+) -> Result<CollectionPage, String> {
     if query.len() > 500
         || query.split_whitespace().count() > 12
         || offset < 0
@@ -44,20 +55,48 @@ pub async fn browse_library(
         CollectionKind::Artists => "SELECT m.value AS name, '' AS artist, f.id AS file_id, NULL AS playlist_id FROM files f JOIN metadata_texts m ON m.file_id=f.id WHERE f.missing_since IS NULL AND m.key IN ('artist','albumArtist') AND TRIM(m.value) <> '' UNION ALL SELECT '' AS name, '' AS artist, f.id AS file_id, NULL AS playlist_id FROM files f WHERE f.missing_since IS NULL AND NOT EXISTS (SELECT 1 FROM metadata_texts m WHERE m.file_id=f.id AND m.key IN ('artist','albumArtist') AND TRIM(m.value) <> '')",
         CollectionKind::Playlists => "SELECT p.name, '' AS artist, CASE WHEN f.id IS NOT NULL THEN pt.file_id END AS file_id, p.id AS playlist_id FROM playlists p LEFT JOIN playlist_tracks pt ON pt.playlist_id=p.id LEFT JOIN files f ON f.id=pt.file_id AND f.missing_since IS NULL",
     };
+    let indexed_kind = match kind {
+        CollectionKind::Albums => Some("album"),
+        CollectionKind::Artists => Some("artist"),
+        CollectionKind::Playlists => None,
+    }
+    .filter(|_| !query.trim().is_empty());
     let mut sql = QueryBuilder::<Sqlite>::new("WITH entries AS (");
-    sql.push(source).push(") SELECT name, artist, MIN(file_id) AS file_id, playlist_id, COUNT(DISTINCT file_id) AS track_count FROM entries WHERE 1=1");
-    for term in query.split_whitespace() {
-        let escaped = format!(
-            "%{}%",
-            term.replace('\\', "\\\\")
-                .replace('%', "\\%")
-                .replace('_', "\\_")
-        );
-        sql.push(" AND (CASE WHEN name = '' THEN 'Uncategorized' ELSE name END LIKE ")
-            .push_bind(escaped.clone())
-            .push(" ESCAPE '\\' OR artist LIKE ")
-            .push_bind(escaped)
-            .push(" ESCAPE '\\')");
+    if let Some(kind) = indexed_kind {
+        refresh_pending(pool).await.map_err(|e| e.to_string())?;
+        sql.push("SELECT d.name, d.artist, d.file_id, NULL AS playlist_id \
+            FROM collection_search JOIN collection_search_documents d ON d.id=collection_search.rowid \
+            JOIN files f ON f.id=d.file_id WHERE f.missing_since IS NULL AND d.kind=")
+            .push_bind(kind)
+            .push(" AND collection_search MATCH ").push_bind(prefix_terms(&query));
+
+        if query
+            .split_whitespace()
+            .all(|term| "uncategorized".starts_with(&term.to_lowercase()))
+        {
+            sql.push(" UNION ALL SELECT d.name,d.artist,d.file_id,NULL FROM collection_search_documents d \
+                JOIN files f ON f.id=d.file_id WHERE f.missing_since IS NULL AND d.name='' AND d.kind=")
+                .push_bind(kind);
+        }
+    } else {
+        sql.push(source);
+    }
+    sql.push(") SELECT name, artist, MIN(file_id) AS file_id, playlist_id, COUNT(DISTINCT file_id) AS track_count FROM entries WHERE 1=1");
+
+    if indexed_kind.is_none() {
+        for term in query.split_whitespace() {
+            let escaped = format!(
+                "%{}%",
+                term.replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            );
+            sql.push(" AND (CASE WHEN name = '' THEN 'Uncategorized' ELSE name END LIKE ")
+                .push_bind(escaped.clone())
+                .push(" ESCAPE '\\' OR artist LIKE ")
+                .push_bind(escaped)
+                .push(" ESCAPE '\\')");
+        }
     }
     if let Some(artist) = artist {
         if artist.is_empty() {
@@ -69,7 +108,7 @@ pub async fn browse_library(
     sql.push(" GROUP BY name COLLATE NOCASE, artist COLLATE NOCASE, playlist_id ORDER BY CASE WHEN name = ").push_bind(query.trim().to_owned()).push(" COLLATE NOCASE THEN 0 ELSE 1 END, name COLLATE NOCASE, artist COLLATE NOCASE, playlist_id LIMIT 25 OFFSET ").push_bind(offset);
     let mut items = sql
         .build_query_as::<Collection>()
-        .fetch_all(&state.db.pool)
+        .fetch_all(pool)
         .await
         .map_err(|e| e.to_string())?;
     let next_cursor = (items.len() > 24).then_some(offset + 24);

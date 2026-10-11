@@ -69,7 +69,7 @@ function SearchPage() {
             Find songs, albums, artists, and playlists.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Title, artist, file name, and album matches come first.
+            Search titles, album artists, artists, albums, and lyrics. Use filters for genre and file name.
           </p>
         </div>
       ) : (
