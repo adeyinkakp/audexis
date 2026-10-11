@@ -92,7 +92,13 @@ audexis/
 
 - Expand automated test coverage
 - Continue expanding metadata and codec compatibility
-- Gapless Playback
+- Implement smart playlists
+- Genre page
+- Normalize tags
+- Custom playlist images
+- Custom artist images
+- Ability to organize file/folder structure based on tags
+- Pin album, songs & playlists
 
 ## License
 
