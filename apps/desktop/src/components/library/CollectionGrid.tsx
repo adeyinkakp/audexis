@@ -1,3 +1,4 @@
+import { InfiniteScroll } from "../InfiniteScroll";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
@@ -109,7 +110,7 @@ export function CollectionGrid({
           kind
         )}
       </h2>
-      {result.isError ? (
+      {result.isError && !result.data ? (
         <button
           className="text-destructive"
           onClick={() => void result.refetch()}
@@ -178,15 +179,14 @@ export function CollectionGrid({
           })}
         </div>
       )}
-      {!preview && result.hasNextPage && (
-        <button
-          disabled={result.isFetchingNextPage}
-          onClick={() => void result.fetchNextPage()}
-          className="mt-5 rounded-full border border-border px-5 py-2 text-sm"
-        >
-          {result.isFetchingNextPage ? "Loading…" : `More ${kind}`}
-        </button>
-      )}
+      <InfiniteScroll
+        enabled={!preview && enabled && query === debounced}
+        hasMore={!!result.hasNextPage}
+        fetching={result.isFetching}
+        error={result.isError}
+        itemCount={allItems.length}
+        loadMore={result.fetchNextPage}
+      />
     </section>
   );
 }

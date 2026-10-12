@@ -1,3 +1,4 @@
+import { InfiniteScroll } from "../InfiniteScroll";
 import { Fragment } from "react";
 import { SongCollection } from "../songs/SongCollection";
 import { SongItem } from "../songs/SongItem";
@@ -77,7 +78,7 @@ export function CollectionSongs({
       </h2>
       {result.invalidDuration ? (
         <p role="alert">Enter a valid duration range.</p>
-      ) : result.isError ? (
+      ) : result.isError && !result.data ? (
         <button
           className="text-destructive"
           onClick={() => void result.refetch()}
@@ -141,15 +142,14 @@ export function CollectionSongs({
           </div>
         </SongCollection>
       )}
-      {!preview && result.hasNextPage && (
-        <button
-          disabled={result.isFetchingNextPage}
-          onClick={() => void result.fetchNextPage()}
-          className="mt-5 rounded-full border border-border px-5 py-2 text-sm"
-        >
-          {result.isFetchingNextPage ? "Loading…" : "More songs"}
-        </button>
-      )}
+      <InfiniteScroll
+        enabled={!preview && !result.isDebouncing && !result.invalidDuration}
+        hasMore={!!result.hasNextPage}
+        fetching={result.isFetching}
+        error={result.isError}
+        itemCount={files.length}
+        loadMore={result.fetchNextPage}
+      />
     </section>
   );
 }
