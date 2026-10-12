@@ -1,6 +1,7 @@
+import { Fragment } from "react";
 import { SongCollection } from "../songs/SongCollection";
 import { SongItem } from "../songs/SongItem";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Disc2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
 import toast from "react-hot-toast";
@@ -32,11 +33,16 @@ export function CollectionSongs({
     ).values(),
   ];
   const tags = new Map<number, Record<string, string>>();
+  const discs = new Map<number, number>();
   for (const page of result.data?.pages ?? [])
     for (const tag of page.metadata) {
       const entry = tags.get(tag.file_id) ?? {};
       entry[tag.key] ??= tag.value;
       tags.set(tag.file_id, entry);
+      if (tag.key === "discnumber" || tag.key === "discNumber") {
+        const disc = Number.parseInt(tag.value, 10);
+        if (disc > 0 && !discs.has(tag.file_id)) discs.set(tag.file_id, disc);
+      }
     }
   async function play(index: number) {
     const queue = files.map((file) => ({
@@ -100,18 +106,36 @@ export function CollectionSongs({
           >
             {(preview ? files.slice(0, 5) : files).map((file, index) => {
               const tag = tags.get(file.id) ?? {};
+              const disc = discs.get(file.id);
+              const trackNumber = Number.parseInt(tag.trackNumber ?? "", 10);
+              const startsDisc =
+                filters.exactAlbum !== undefined &&
+                disc !== undefined &&
+                (index === 0 || discs.get(files[index - 1].id) !== disc);
               return (
-                <SongItem
-                  key={file.id}
-                  itemKey={String(file.id)}
-                  fileId={file.id}
-                  title={tag.title || file.file_name}
-                  artist={tag.artist}
-                  detail={formatDuration(file.duration_ms)}
-                  current={currentTrackId === file.id}
-                  favorite
-                  onPlay={() => void play(index)}
-                />
+                <Fragment key={file.id}>
+                  {startsDisc && (
+                    <h3 className="mb-2 mt-6 flex items-center gap-2 border-b border-border/60 px-3 pb-3 text-sm font-semibold text-muted-foreground first:mt-0">
+                      <Disc2 size={17} aria-hidden="true" />
+                      Disc {disc}
+                    </h3>
+                  )}
+                  <SongItem
+                    itemKey={String(file.id)}
+                    fileId={file.id}
+                    title={tag.title || file.file_name}
+                    artist={tag.artist}
+                    trackNumber={
+                      filters.exactAlbum !== undefined && trackNumber > 0
+                        ? trackNumber
+                        : undefined
+                    }
+                    detail={formatDuration(file.duration_ms)}
+                    current={currentTrackId === file.id}
+                    favorite
+                    onPlay={() => void play(index)}
+                  />
+                </Fragment>
               );
             })}
           </div>

@@ -10,6 +10,7 @@ export function SongItem({
   title,
   artist,
   detail,
+  trackNumber,
   onPlay,
   current = false,
   disabled = false,
@@ -21,6 +22,7 @@ export function SongItem({
   title: string;
   artist?: string;
   detail?: ReactNode;
+  trackNumber?: number;
   onPlay: () => void;
   current?: boolean;
   disabled?: boolean;
@@ -38,6 +40,14 @@ export function SongItem({
       <div
         className={`relative min-w-0 rounded ${variant === "row" ? "flex items-center gap-3 border-b border-border/60 px-2 py-3" : "p-1"} ${current ? "bg-active text-primary" : ""}`}
       >
+        {trackNumber !== undefined && (
+          <span
+            aria-label={`Track ${trackNumber}`}
+            className="w-8 shrink-0 text-center text-sm tabular-nums text-muted-foreground"
+          >
+            {trackNumber}
+          </span>
+        )}
         <div className={variant === "row" ? "w-12 shrink-0" : "block w-full"}>
           <Artwork id={fileId} />
         </div>

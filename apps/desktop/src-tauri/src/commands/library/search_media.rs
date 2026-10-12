@@ -109,7 +109,18 @@ async fn search_media_with_pool(
             .await
             .map_err(|error| error.to_string())?;
     }
-    let mut query = QueryBuilder::<Sqlite>::new("SELECT f.* FROM files f");
+    let mut query = QueryBuilder::<Sqlite>::new("SELECT f.*");
+    if input.exact_album.is_some() {
+        query.push(
+            ", (SELECT CAST(m.value AS INTEGER) FROM metadata_texts m \
+             WHERE m.file_id=f.id AND m.key IN ('discnumber','discNumber') \
+             AND CAST(m.value AS INTEGER)>0 ORDER BY m.ord, m.key LIMIT 1) AS album_disc, \
+             (SELECT CAST(m.value AS INTEGER) FROM metadata_texts m \
+             WHERE m.file_id=f.id AND m.key='trackNumber' \
+             AND CAST(m.value AS INTEGER)>0 ORDER BY m.ord LIMIT 1) AS album_track",
+        );
+    }
+    query.push(" FROM files f");
     if has_match {
         query.push(" JOIN media_search ON media_search.rowid = f.id");
     }
@@ -151,7 +162,9 @@ async fn search_media_with_pool(
         query.push(" AND f.duration_ms <= ").push_bind(max);
     }
     query.push(" ORDER BY ");
-    if has_match {
+    if input.exact_album.is_some() {
+        query.push("COALESCE(album_disc, 0), album_track IS NULL, album_track, ");
+    } else if has_match {
         query.push("bm25(media_search, 10.0, 8.0, 8.0, 6.0, 1.0, 2.0, 2.0), ");
     }
     query
