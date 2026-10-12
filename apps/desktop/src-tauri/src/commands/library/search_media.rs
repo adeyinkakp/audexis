@@ -6,7 +6,7 @@ use crate::{
 };
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
-#[derive(Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct SearchInput {
     query: String,
@@ -23,6 +23,44 @@ pub struct SearchInput {
     min_duration_ms: Option<i64>,
     max_duration_ms: Option<i64>,
     offset: i64,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PlaybackSource {
+    pub search: SearchInput,
+    pub library_order: bool,
+    pub sort: Vec<PlaybackSort>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackSort {
+    column: String,
+    metadata_keys: Option<Vec<String>>,
+    desc: bool,
+}
+
+pub(crate) async fn playback_queue(
+    pool: &SqlitePool,
+    source: PlaybackSource,
+) -> Result<Vec<crate::audio_player::queue_track::UnresolvedTrack>, String> {
+    let mut query = build_search_query(pool, &source.search, Some(&source)).await?;
+    let rows: Vec<(i64, String)> = query
+        .build_query_as()
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(rows
+        .into_iter()
+        .map(
+            |(id, path)| crate::audio_player::queue_track::UnresolvedTrack {
+                id,
+                path,
+                occurrence: None,
+            },
+        )
+        .collect())
 }
 
 fn escape_like(value: &str) -> String {
@@ -56,6 +94,44 @@ async fn search_media_with_pool(
     pool: &SqlitePool,
     input: SearchInput,
 ) -> Result<FilesResponse, String> {
+    let mut query = build_search_query(pool, &input, None).await?;
+    let mut tx = pool.begin().await.map_err(|error| error.to_string())?;
+    let mut files = query
+        .build_query_as::<DatabaseMediaFile>()
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|error| error.to_string())?;
+    let next_cursor = (files.len() > 50).then_some(input.offset + 50);
+    files.truncate(50);
+    let mut metadata = Vec::new();
+    if !files.is_empty() {
+        let mut tags = QueryBuilder::<Sqlite>::new(
+            "SELECT file_id, key, value, ord FROM metadata_texts WHERE file_id IN (",
+        );
+        let mut separated = tags.separated(",");
+        for file in &files {
+            separated.push_bind(file.id);
+        }
+        tags.push(") ORDER BY file_id, ord");
+        metadata = tags
+            .build_query_as::<DatabaseMediaMetadata>()
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    tx.commit().await.map_err(|error| error.to_string())?;
+    Ok(FilesResponse {
+        files,
+        metadata,
+        next_cursor,
+    })
+}
+
+async fn build_search_query(
+    pool: &SqlitePool,
+    input: &SearchInput,
+    playback: Option<&PlaybackSource>,
+) -> Result<QueryBuilder<'static, Sqlite>, String> {
     let terms: Vec<_> = input.query.split_whitespace().collect();
     if terms.len() > 12
         || [
@@ -109,7 +185,11 @@ async fn search_media_with_pool(
             .await
             .map_err(|error| error.to_string())?;
     }
-    let mut query = QueryBuilder::<Sqlite>::new("SELECT f.*");
+    let mut query = QueryBuilder::<Sqlite>::new(if playback.is_some() {
+        "SELECT f.id, f.path"
+    } else {
+        "SELECT f.*"
+    });
     if input.exact_album.is_some() {
         query.push(
             ", (SELECT CAST(m.value AS INTEGER) FROM metadata_texts m \
@@ -162,44 +242,51 @@ async fn search_media_with_pool(
         query.push(" AND f.duration_ms <= ").push_bind(max);
     }
     query.push(" ORDER BY ");
+    if let Some(source) = playback {
+        if source.sort.len() > 32 {
+            return Err("Too many sorting fields".into());
+        }
+        for sort in &source.sort {
+            if let Some(keys) = &sort.metadata_keys {
+                if keys.is_empty() || keys.len() > 4 || keys.iter().any(|key| key.len() > 500) {
+                    return Err("Invalid metadata sort field".into());
+                }
+                query.push("COALESCE((SELECT GROUP_CONCAT(value, '; ') FROM (SELECT value FROM metadata_texts WHERE file_id=f.id AND key IN (");
+                let mut separated = query.separated(",");
+                for key in keys {
+                    separated.push_bind(key.clone());
+                }
+                query.push(") ORDER BY ord)), '') COLLATE NOCASE");
+            } else {
+                let column = match sort.column.as_str() {
+                    "id" => "f.id",
+                    "file_name" => "f.file_name COLLATE NOCASE",
+                    "path" => "f.path COLLATE NOCASE",
+                    "duration_ms" => "f.duration_ms",
+                    "format" => "f.format COLLATE NOCASE",
+                    "size" => "f.size",
+                    "modified_at" => "f.modified_at",
+                    "last_validated" => "f.last_validated",
+                    _ => return Err("Invalid playback sort field".into()),
+                };
+                query.push(column);
+            }
+            query.push(if sort.desc { " DESC, " } else { " ASC, " });
+        }
+        if source.library_order {
+            query.push("f.id, ");
+        }
+    }
     if input.exact_album.is_some() {
         query.push("COALESCE(album_disc, 0), album_track IS NULL, album_track, ");
     } else if has_match {
         query.push("bm25(media_search, 10.0, 8.0, 8.0, 6.0, 1.0, 2.0, 2.0), ");
     }
-    query
-        .push("f.file_name COLLATE NOCASE, f.id LIMIT 51 OFFSET ")
-        .push_bind(input.offset);
-    let mut tx = pool.begin().await.map_err(|error| error.to_string())?;
-    let mut files = query
-        .build_query_as::<DatabaseMediaFile>()
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|error| error.to_string())?;
-    let next_cursor = (files.len() > 50).then_some(input.offset + 50);
-    files.truncate(50);
-    let mut metadata = Vec::new();
-    if !files.is_empty() {
-        let mut tags = QueryBuilder::<Sqlite>::new(
-            "SELECT file_id, key, value, ord FROM metadata_texts WHERE file_id IN (",
-        );
-        let mut separated = tags.separated(",");
-        for file in &files {
-            separated.push_bind(file.id);
-        }
-        tags.push(") ORDER BY file_id, ord");
-        metadata = tags
-            .build_query_as::<DatabaseMediaMetadata>()
-            .fetch_all(&mut *tx)
-            .await
-            .map_err(|error| error.to_string())?;
+    query.push("f.file_name COLLATE NOCASE, f.id");
+    if playback.is_none() {
+        query.push(" LIMIT 51 OFFSET ").push_bind(input.offset);
     }
-    tx.commit().await.map_err(|error| error.to_string())?;
-    Ok(FilesResponse {
-        files,
-        metadata,
-        next_cursor,
-    })
+    Ok(query)
 }
 
 #[cfg(test)]

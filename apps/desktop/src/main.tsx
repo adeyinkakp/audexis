@@ -1,3 +1,4 @@
+import { inactiveQueryGcTime } from "./utils/queryCachePolicy";
 import React from "react";
 import { useLibraryEvents } from "./hooks/useLibraryEvents";
 import ReactDOM from "react-dom/client";
@@ -19,7 +20,9 @@ import { AppUpdater } from "./components/AppUpdater";
 
 import MiniPlayer from "./components/MiniPlayer";
 
-const isMiniPlayer = new URLSearchParams(window.location.search).has("mini-player");
+const isMiniPlayer = new URLSearchParams(window.location.search).has(
+  "mini-player",
+);
 
 installErrorLogging();
 
@@ -38,7 +41,7 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: Infinity,
-      gcTime: Infinity,
+      gcTime: inactiveQueryGcTime,
     },
   },
 });

@@ -33,6 +33,8 @@ pub struct QueueInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayBackInfo {
     pub curr: UnresolvedTrack,
+    #[serde(default)]
+    pub source: Option<crate::commands::library::search_media::PlaybackSource>,
     pub queue: Vec<UnresolvedTrack>,
     #[serde(alias = "currentIndex")]
     pub current_index: Option<usize>,

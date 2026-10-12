@@ -95,5 +95,5 @@ export function useFileWatcher(search = "") {
     refetchOnMount: "always",
   });
 
-  return query;
+  return { ...query, playbackQuery: debounced };
 }

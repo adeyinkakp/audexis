@@ -32,7 +32,7 @@ import { useFileWatcher } from "../../hooks/useFileWatcher";
 import { useNowPlayingState } from "../../hooks/useNowPlayingState";
 import { useStore } from "../../hooks/useStore";
 import { useCustomFieldDefinitions } from "../../hooks/useCustomFieldDefinitions";
-import { customColumnValue } from "../../utils/customFields";
+import { customColumnValue, fieldStorageKey } from "../../utils/customFields";
 import { useMetadataFieldCatalog } from "../../hooks/useMetadataFieldCatalog";
 import {
   discoveredCustomFields,
@@ -66,6 +66,7 @@ function SongsPage() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
+    playbackQuery,
   } = useFileWatcher(q);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentTrackId, song } = useNowPlayingState();
@@ -394,20 +395,43 @@ function SongsPage() {
                       fileId={row.original.id}
                       key={row.id}
                       onPlay={() => {
-                        const sortedRows = table.getRowModel().rows;
-                        const queue = sortedRows.map(({ original }) => ({
-                          path: original.path,
-                          id: original.id,
-                          occurrence: null,
-                        }));
-                        const currentIndex = sortedRows.findIndex(
-                          (item) => item.original.id === row.original.id,
-                        );
+                        const sort = table.state.sorting.map(({ id, desc }) => {
+                          const regular = regularFields.find(
+                            (field) => `frame-${field.key}` === id,
+                          );
+                          const custom = customFields.find(
+                            (field) => `custom-field-${field.id}` === id,
+                          );
+                          const metadataKeys = custom
+                            ? [
+                                ...new Set(
+                                  [undefined, "FLAC", "Ogg", "Itunes"].map(
+                                    (format) => fieldStorageKey(custom, format),
+                                  ),
+                                ),
+                              ]
+                            : regular
+                              ? [regular.storageKey]
+                              : ["title", "artist", "album", "genre"].includes(
+                                    id,
+                                  )
+                                ? [id]
+                                : undefined;
+                          return { column: id, desc, metadataKeys };
+                        });
                         void invoke("play_song", {
                           playbackInfo: {
-                            curr: queue[currentIndex],
-                            queue,
-                            currentIndex,
+                            curr: {
+                              id: row.original.id,
+                              path: row.original.path,
+                              occurrence: null,
+                            },
+                            queue: [],
+                            source: {
+                              search: { query: playbackQuery },
+                              libraryOrder: !playbackQuery,
+                              sort,
+                            },
                           },
                         }).catch((error) =>
                           console.error("Could not play song", error),

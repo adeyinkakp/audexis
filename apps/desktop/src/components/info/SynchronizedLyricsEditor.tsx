@@ -1,7 +1,6 @@
+import { useArtwork } from "../../hooks/useArtwork";
 import LyricsGap from "./LyricsGap";
 import LyricsPreview from "./LyricsPreview";
-import { invoke } from "@tauri-apps/api/core";
-import { useQuery } from "@tanstack/react-query";
 // i love framer motion
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -68,10 +67,7 @@ export default function SynchronizedLyricsEditor({
     seek,
     stamp,
   } = preview;
-  const artwork = useQuery({
-    queryKey: ["libraryArtwork", fileId],
-    queryFn: () => invoke<string | null>("get_artwork", { fileId }),
-  });
+  const artwork = useArtwork(active ? fileId : null);
   const parsed = useMemo(() => parseLyrics(value), [value]);
 
   const draft = useRef<{ value: string; rows: EditorRow[] }>({
@@ -164,7 +160,9 @@ export default function SynchronizedLyricsEditor({
               onClick={() => setMode(id)}
               className={cn(
                 "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-foreground",
-                mode === id ? "text-foreground" : "text-foreground/50 hover:text-foreground",
+                mode === id
+                  ? "text-foreground"
+                  : "text-foreground/50 hover:text-foreground",
               )}
             >
               {mode === id && (

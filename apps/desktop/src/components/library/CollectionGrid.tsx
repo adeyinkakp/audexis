@@ -1,5 +1,6 @@
+import { useArtwork } from "../../hooks/useArtwork";
 import { InfiniteScroll } from "../InfiniteScroll";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Disc2, Music2 } from "lucide-react";
@@ -32,19 +33,14 @@ export function Artwork({
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
-  const art = useQuery({
-    queryKey: ["libraryArtwork", id],
-    queryFn: () => invoke<string | null>("get_artwork", { fileId: id }),
-    enabled: visible && id !== null,
-    gcTime: 0,
-  });
+
   return (
     <div
       ref={ref}
       className={`flex aspect-square w-full items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary/20 ${round ? "rounded-full" : "rounded-xl"}`}
     >
-      {visible && art.data ? (
-        <img src={art.data} alt="" className="h-full w-full object-cover" />
+      {visible && id !== null ? (
+        <VisibleArtwork id={id} isAlbum={isAlbum} />
       ) : isAlbum ? (
         <Disc2 className="h-1/3 w-1/3 text-muted-foreground/50" />
       ) : (
@@ -53,6 +49,17 @@ export function Artwork({
     </div>
   );
 }
+function VisibleArtwork({ id, isAlbum }: { id: number; isAlbum: boolean }) {
+  const art = useArtwork(id);
+  return art.data ? (
+    <img src={art.data} alt="" className="h-full w-full object-cover" />
+  ) : isAlbum ? (
+    <Disc2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+  ) : (
+    <Music2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+  );
+}
+
 export function CollectionGrid({
   kind,
   query = "",

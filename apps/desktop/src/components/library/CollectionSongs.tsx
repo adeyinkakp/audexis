@@ -46,14 +46,14 @@ export function CollectionSongs({
       }
     }
   async function play(index: number) {
-    const queue = files.map((file) => ({
-      id: file.id,
-      path: file.path,
-      occurrence: null,
-    }));
+    const file = files[index];
     try {
       await invoke("play_song", {
-        playbackInfo: { curr: queue[index], queue, currentIndex: index },
+        playbackInfo: {
+          curr: { id: file.id, path: file.path, occurrence: null },
+          queue: [],
+          source: result.playbackSource,
+        },
       });
     } catch (error) {
       toast.error(String(error));

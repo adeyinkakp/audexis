@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useQuery } from "@tanstack/react-query";
+import { useArtwork } from "./useArtwork";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaFiles } from "./useMediaFiles";
 
@@ -29,12 +29,7 @@ export function useNowPlayingState() {
   const [duration, setDuration] = useState(0);
   const [currentTrackId, setCurrentTrackId] = useState(0);
   const { data } = useMediaFiles(currentTrackId ? [currentTrackId] : []);
-  const artwork = useQuery({
-    queryKey: ["libraryArtwork", currentTrackId],
-    queryFn: () =>
-      invoke<string | null>("get_artwork", { fileId: currentTrackId }),
-    enabled: currentTrackId > 0,
-  });
+  const artwork = useArtwork(currentTrackId || null);
   const lastControlsTrackId = useRef(0);
   const lastControlsTitle = useRef("");
   const lastControlsDuration = useRef(0);

@@ -82,6 +82,7 @@ export function useSearchMedia(
   });
   return {
     ...results,
+    playbackSource: { search: JSON.parse(debounced) },
     hasCriteria,
     invalidDuration,
     isDebouncing: input !== debounced,

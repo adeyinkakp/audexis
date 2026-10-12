@@ -10,7 +10,38 @@ pub async fn play_song(
     state: tauri::State<'_, AppState>,
     playback_info: PlayBackInfo,
 ) -> Result<(), String> {
-    let info = load_now_playing(&state, &playback_info.curr.path).await?;
+    let (mut queue_paths, clicked_position) = if let Some(source) = playback_info.source {
+        let tracks =
+            crate::commands::library::search_media::playback_queue(&state.db.pool, source).await?;
+        let index = tracks
+            .iter()
+            .position(|track| track.id == playback_info.curr.id)
+            .ok_or("This song is no longer in the selected collection")?;
+        (tracks, index)
+    } else {
+        let tracks = playback_info.queue;
+        let index = playback_info.current_index.unwrap_or_else(|| {
+            tracks
+                .iter()
+                .position(|item| {
+                    item.id == playback_info.curr.id
+                        && item.path == playback_info.curr.path
+                        && item.occurrence == playback_info.curr.occurrence
+                })
+                .or_else(|| {
+                    tracks.iter().position(|item| {
+                        item.id == playback_info.curr.id && item.path == playback_info.curr.path
+                    })
+                })
+                .unwrap_or(0)
+        });
+        (tracks, index)
+    };
+    let path = queue_paths
+        .get(clicked_position)
+        .map(|track| track.path.as_str())
+        .unwrap_or(&playback_info.curr.path);
+    let info = load_now_playing(&state, path).await?;
     let player = state
         .audio_player
         .lock()
@@ -19,23 +50,6 @@ pub async fn play_song(
         .queue
         .lock()
         .map_err(|_| "Audio queue is unavailable".to_string())?;
-
-    let mut queue_paths = playback_info.queue;
-    let clicked_position = playback_info.current_index.unwrap_or_else(|| {
-        queue_paths
-            .iter()
-            .position(|item| {
-                item.id == playback_info.curr.id
-                    && item.path == playback_info.curr.path
-                    && item.occurrence == playback_info.curr.occurrence
-            })
-            .or_else(|| {
-                queue_paths.iter().position(|item| {
-                    item.id == playback_info.curr.id && item.path == playback_info.curr.path
-                })
-            })
-            .unwrap_or(0)
-    });
 
     if queue_paths.get(clicked_position).is_none() {
         queue_paths = vec![playback_info.curr.clone()];
