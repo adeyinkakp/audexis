@@ -54,7 +54,7 @@ export function PlaylistNameModal({
           }
         }}
       >
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-linear-to-br from-primary/25 to-muted text-primary">
+        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-linear-to-br from-primary-soft to-muted text-primary">
           <ListMusic size={42} />
         </div>
         <label
@@ -72,7 +72,7 @@ export function PlaylistNameModal({
           required
           maxLength={500}
           placeholder="My playlist"
-          className="h-12 w-full rounded-xl border border-border bg-muted/20 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          className="h-12 w-full rounded-xl border border-border bg-surface-subtle px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft"
         />
         {error && (
           <p role="alert" className="mt-3 text-sm text-destructive">

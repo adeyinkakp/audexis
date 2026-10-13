@@ -295,7 +295,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
       >
         <div
           className={cn(
-            "absolute inset-0 bg-background/70 backdrop-blur-sm border-t border-border animate-in fade-in",
+            "absolute inset-0 bg-surface-overlay backdrop-blur-sm border-t border-border animate-in fade-in",
             overlayClassName,
           )}
           onClick={closeOnOverlayClick ? requestClose : undefined}
@@ -305,7 +305,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
           ref={mergedRef}
           data-audexis-modal
           className={cn(
-            "relative w-full max-w-4xl rounded-lg border border-border bg-linear-to-b from-background/95 to-background/80 shadow-xl ring-1 ring-border/50 overflow-hidden",
+            "relative w-full max-w-4xl rounded-lg border border-border bg-linear-to-b from-surface-panel to-surface-overlay shadow-xl ring-1 ring-border-subtle overflow-hidden",
             "flex flex-col max-h-full",
             sizeMax ? "h-[85vh] w-full" : "",
             "animate-in duration-150",
@@ -327,12 +327,12 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
           {header !== undefined ? (
             header
           ) : (
-            <div className="shrink-0 flex items-center gap-4 py-2 px-6 h-14 border-b border-border/60 bg-background/70 backdrop-blur-sm">
+            <div className="shrink-0 flex items-center gap-4 py-2 px-6 h-14 border-b border-border-subtle bg-surface-overlay backdrop-blur-sm">
               <div className="min-w-0">
                 {title && (
                   <h2
                     id={titleId}
-                    className="text-sm font-semibold tracking-wide uppercase text-foreground/70"
+                    className="text-sm font-semibold tracking-wide uppercase text-content-secondary"
                   >
                     {title}
                   </h2>
@@ -340,7 +340,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
                 {description && (
                   <div
                     id={descId}
-                    className="text-[11px] text-foreground/50 font-medium"
+                    className="text-[11px] text-content-faint font-medium"
                   >
                     {description}
                   </div>
@@ -350,10 +350,10 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={requestClose}
-                    className="group h-8 w-8 rounded-md border border-border/60 bg-background/40 hover:bg-destructive/10 hover:border-destructive/50 transition-all duration-200 flex items-center justify-center"
+                    className="group h-8 w-8 rounded-md border border-border-subtle bg-surface-glass hover:bg-danger-soft hover:border-danger-border transition-all duration-200 flex items-center justify-center"
                     aria-label="Close"
                   >
-                    <span className="text-foreground/60 group-hover:text-destructive text-lg leading-none transition-colors">
+                    <span className="text-content-secondary group-hover:text-destructive text-lg leading-none transition-colors">
                       ×
                     </span>
                   </button>
@@ -388,7 +388,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(
           {footer && (
             <div
               className={cn(
-                "shrink-0 flex items-center justify-end gap-2 px-6 min-h-14 border-t border-border/60 bg-background/70 backdrop-blur-sm",
+                "shrink-0 flex items-center justify-end gap-2 px-6 min-h-14 border-t border-border-subtle bg-surface-overlay backdrop-blur-sm",
                 footerClassName,
               )}
             >

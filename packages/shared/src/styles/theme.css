@@ -108,3 +108,77 @@ html:not([data-theme="dark"]) {
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
 }
+
+@theme static inline {
+    --color-surface-subtle: color-mix(in oklab, var(--muted) 25%, transparent);
+    --color-surface-hover: color-mix(in oklab, var(--muted) 60%, transparent);
+    --color-surface-glass: color-mix(
+        in oklab,
+        var(--background) 30%,
+        transparent
+    );
+    --color-surface-overlay: color-mix(
+        in oklab,
+        var(--background) 75%,
+        transparent
+    );
+    --color-surface-panel: color-mix(
+        in oklab,
+        var(--background) 95%,
+        transparent
+    );
+    --color-surface-popover: color-mix(
+        in oklab,
+        var(--popover) 90%,
+        transparent
+    );
+    --color-border-subtle: color-mix(in oklab, var(--border) 50%, transparent);
+    --color-content-secondary: color-mix(
+        in oklab,
+        var(--foreground) 70%,
+        transparent
+    );
+    --color-content-faint: color-mix(
+        in oklab,
+        var(--foreground) 40%,
+        transparent
+    );
+    --color-control-fill: color-mix(
+        in oklab,
+        var(--foreground) 15%,
+        transparent
+    );
+    --color-primary-soft: color-mix(in oklab, var(--primary) 20%, transparent);
+    --color-primary-border: color-mix(
+        in oklab,
+        var(--primary) 40%,
+        transparent
+    );
+    --color-danger-soft: color-mix(
+        in oklab,
+        var(--destructive) 10%,
+        transparent
+    );
+    --color-danger-border: color-mix(
+        in oklab,
+        var(--destructive) 40%,
+        transparent
+    );
+    --color-warning-soft: color-mix(
+        in oklab,
+        var(--color-amber-500) 10%,
+        transparent
+    );
+    --color-warning-border: color-mix(
+        in oklab,
+        var(--color-amber-500) 30%,
+        transparent
+    );
+    --color-shade: color-mix(in oklab, var(--color-black) 20%, transparent);
+    --color-highlight: color-mix(in oklab, var(--color-white) 10%, transparent);
+    --color-focus-light: color-mix(
+        in oklab,
+        var(--color-white) 50%,
+        transparent
+    );
+}

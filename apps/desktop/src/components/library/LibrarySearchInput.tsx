@@ -21,7 +21,7 @@ export function LibrarySearchInput({
         maxLength={500}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full rounded-full border border-border bg-muted/20 pl-9 pr-9 text-sm outline-none focus:border-primary"
+        className="h-10 w-full rounded-full border border-border bg-surface-subtle pl-9 pr-9 text-sm outline-none focus:border-primary"
       />
       {value && (
         <button

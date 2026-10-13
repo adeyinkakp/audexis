@@ -187,7 +187,7 @@ export default function SeekBar({
         }}
       />
       {showTimes && (
-        <div className="flex justify-between text-[10px] font-medium tabular-nums text-foreground/50">
+        <div className="flex justify-between text-[10px] font-medium tabular-nums text-content-faint">
           <span>{formatSeekTime(value)}</span>
           <span>{formatSeekTime(maximum)}</span>
         </div>

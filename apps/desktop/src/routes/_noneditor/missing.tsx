@@ -64,7 +64,7 @@ function MissingFilesPage() {
       {query.isPending ? (
         <p className="text-sm text-muted-foreground">Loading missing files…</p>
       ) : files.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-muted/20 p-10 text-center">
+        <div className="rounded-2xl border border-border bg-surface-subtle p-10 text-center">
           <p className="font-medium">No missing files</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Every indexed track is currently available.
@@ -75,7 +75,7 @@ function MissingFilesPage() {
           {files.map((file) => (
             <article
               key={file.id}
-              className="flex flex-col gap-4 rounded-2xl border border-border bg-background/70 p-4 md:flex-row md:items-center"
+              className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-overlay p-4 md:flex-row md:items-center"
             >
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-medium">
@@ -87,7 +87,7 @@ function MissingFilesPage() {
                   </p>
                 )}
                 <p
-                  className="mt-1 truncate text-xs text-muted-foreground/70"
+                  className="mt-1 truncate text-xs text-content-faint"
                   title={file.path}
                 >
                   {file.path}
@@ -109,7 +109,7 @@ function MissingFilesPage() {
                     remove.mutate(file.id);
                   }}
                   disabled={relink.isPending || remove.isPending}
-                  className="flex h-9 items-center gap-2 rounded-lg border border-destructive/40 hover:bg-destructive hover:text-destructive-foreground  px-3 text-sm text-destructive disabled:opacity-50"
+                  className="flex h-9 items-center gap-2 rounded-lg border border-danger-border hover:bg-destructive hover:text-destructive-foreground  px-3 text-sm text-destructive disabled:opacity-50"
                 >
                   <Trash2 size={15} />
                   Delete Record

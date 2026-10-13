@@ -172,7 +172,7 @@ export function Select<V extends string = string>({
           data-state={open ? "open" : "closed"}
           onKeyDown={onTriggerKeyDown}
           className={cn(
-            "group inline-flex items-center justify-between rounded border border-border bg-muted/20 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 disabled:cursor-not-allowed",
+            "group inline-flex items-center justify-between rounded border border-border bg-surface-subtle text-foreground focus:outline-none focus:ring-2 focus:ring-primary-border disabled:opacity-60 disabled:cursor-not-allowed",
             sizeClasses(size),
             fullWidth ? "w-full" : "",
             className,
@@ -211,7 +211,7 @@ export function Select<V extends string = string>({
               }}
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                isSelected && "bg-primary/10 text-primary",
+                isSelected && "bg-primary-washed text-primary",
               )}
             >
               <span className={cn("inline-flex items-center gap-2")}>

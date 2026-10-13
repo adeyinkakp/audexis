@@ -59,16 +59,29 @@ export default function QueuePanel({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
+      keyboardCodes: {
+        start: ["Space"],
+        cancel: ["Escape"],
+        end: ["Space", "Enter"],
+      },
     }),
   );
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveItem(null);
-    if (sortingRef.current || removingRef.current || !over || active.id === over.id) return;
+    if (
+      sortingRef.current ||
+      removingRef.current ||
+      !over ||
+      active.id === over.id
+    )
+      return;
     sortingRef.current = true;
     setSorting(true);
     try {
-      await invoke("reorder_queue", { queueId: String(active.id), targetId: String(over.id) });
+      await invoke("reorder_queue", {
+        queueId: String(active.id),
+        targetId: String(over.id),
+      });
     } catch (error) {
       toast.error(`Could not reorder queue: ${String(error)}`);
     } finally {
@@ -152,74 +165,80 @@ export default function QueuePanel({
       collisionDetection={closestCenter}
       onDragStart={({ active }) => {
         if (!sortingRef.current && !removingRef.current) {
-          setActiveItem(queueItems[queueInfo.queue_ids.indexOf(String(active.id))] ?? null);
+          setActiveItem(
+            queueItems[queueInfo.queue_ids.indexOf(String(active.id))] ?? null,
+          );
         }
       }}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveItem(null)}
     >
-    <SongCollection
-      key={JSON.stringify([...queueInfo.queue_ids].sort())}
-      label="Queue"
-      disabled={removing || sorting}
-      contextMenuItems={(entries) => [
-        {
-          text: "Remove from Queue",
-          disabled: removing || sorting || activeItem !== null,
-          action: async () => {
-            if (removingRef.current || sortingRef.current || activeItem) return;
-            removingRef.current = true;
-            setRemoving(true);
-            try {
-              await invoke("remove_queue_entries", {
-                queueIds: entries.map((entry) => entry.key),
-              });
-            } catch (error) {
-              toast.error(
-                `Could not remove songs from queue: ${String(error)}`,
-              );
-            } finally {
-              removingRef.current = false;
-              setRemoving(false);
-            }
+      <SongCollection
+        key={JSON.stringify([...queueInfo.queue_ids].sort())}
+        label="Queue"
+        disabled={removing || sorting}
+        contextMenuItems={(entries) => [
+          {
+            text: "Remove from Queue",
+            disabled: removing || sorting || activeItem !== null,
+            action: async () => {
+              if (removingRef.current || sortingRef.current || activeItem)
+                return;
+              removingRef.current = true;
+              setRemoving(true);
+              try {
+                await invoke("remove_queue_entries", {
+                  queueIds: entries.map((entry) => entry.key),
+                });
+              } catch (error) {
+                toast.error(
+                  `Could not remove songs from queue: ${String(error)}`,
+                );
+              } finally {
+                removingRef.current = false;
+                setRemoving(false);
+              }
+            },
           },
-        },
-      ]}
-      items={queueItems.map((file, index) => ({
-        key: queueInfo.queue_ids[index],
-        fileId: file.id,
-      }))}
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-        <div
-          className="relative"
-          style={{ height: `${virtualizer.getTotalSize()}px` }}
-        >
-          <SortableContext items={queueInfo.queue_ids} strategy={verticalListSortingStrategy}>
-            {visibleRows.map((item) => (
-              <SortableQueueRow
-                key={queueInfo.queue_ids[item.index]}
-                queueId={queueInfo.queue_ids[item.index]}
-                file={queueItems[item.index]}
-                isCurrent={item.index === queueInfo.current_index}
-                start={item.start}
-                size={item.size}
-                disabled={removing || sorting}
-                onPlay={() => onPlay(item.index)}
-              />
-            ))}
-          </SortableContext>
+        ]}
+        items={queueItems.map((file, index) => ({
+          key: queueInfo.queue_ids[index],
+          fileId: file.id,
+        }))}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+          <div
+            className="relative"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+          >
+            <SortableContext
+              items={queueInfo.queue_ids}
+              strategy={verticalListSortingStrategy}
+            >
+              {visibleRows.map((item) => (
+                <SortableQueueRow
+                  key={queueInfo.queue_ids[item.index]}
+                  queueId={queueInfo.queue_ids[item.index]}
+                  file={queueItems[item.index]}
+                  isCurrent={item.index === queueInfo.current_index}
+                  start={item.start}
+                  size={item.size}
+                  disabled={removing || sorting}
+                  onPlay={() => onPlay(item.index)}
+                />
+              ))}
+            </SortableContext>
+          </div>
         </div>
-      </div>
-    </SongCollection>
-    <DragOverlay dropAnimation={null}>
-      {activeItem ? (
-        <div className="flex h-[52px] items-center gap-2 rounded-lg border border-border bg-popover px-3 shadow-xl">
-          <QueueRowContent file={activeItem} />
-        </div>
-      ) : null}
-    </DragOverlay>
+      </SongCollection>
+      <DragOverlay dropAnimation={null}>
+        {activeItem ? (
+          <div className="flex h-[52px] items-center gap-2 rounded-lg border border-border bg-popover px-3 shadow-xl">
+            <QueueRowContent file={activeItem} />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
@@ -232,7 +251,9 @@ function QueueRowContent({ file }: { file: QueueItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs">{file.title}</div>
-        <div className="truncate text-[10px] text-muted-foreground">{file.artist}</div>
+        <div className="truncate text-[10px] text-muted-foreground">
+          {file.artist}
+        </div>
       </div>
       <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
         {formatDuration(file.durationMs)}
@@ -241,7 +262,15 @@ function QueueRowContent({ file }: { file: QueueItem }) {
   );
 }
 
-function SortableQueueRow({ queueId, file, isCurrent, start, size, disabled, onPlay }: {
+function SortableQueueRow({
+  queueId,
+  file,
+  isCurrent,
+  start,
+  size,
+  disabled,
+  onPlay,
+}: {
   queueId: string;
   file: QueueItem;
   isCurrent: boolean;
@@ -250,15 +279,28 @@ function SortableQueueRow({ queueId, file, isCurrent, start, size, disabled, onP
   disabled: boolean;
   onPlay: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: queueId, disabled });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: queueId, disabled });
   return (
     <SongCollectionItem itemKey={queueId} fileId={file.id} onPlay={onPlay}>
       <div
         ref={setNodeRef}
         {...attributes}
         {...listeners}
-        className={`touch-none cursor-grab active:cursor-grabbing absolute left-0 flex w-full items-center gap-2 rounded-lg px-3 text-left hover:bg-muted/50 ${isCurrent ? "bg-muted/60 text-primary" : ""}`}
-        style={{ top: start, height: size, transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+        className={`touch-none cursor-grab active:cursor-grabbing absolute left-0 flex w-full items-center gap-2 rounded-lg px-3 text-left hover:bg-surface-hover ${isCurrent ? "bg-surface-hover text-primary" : ""}`}
+        style={{
+          top: start,
+          height: size,
+          transform: CSS.Transform.toString(transform),
+          transition,
+          opacity: isDragging ? 0 : 1,
+        }}
       >
         <QueueRowContent file={file} />
       </div>

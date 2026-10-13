@@ -38,7 +38,7 @@ export function SongItem({
       }}
     >
       <div
-        className={`relative min-w-0 rounded ${variant === "row" ? "flex items-center gap-3 border-b border-border/60 px-2 py-3" : "p-1"} ${current ? "bg-active text-primary" : ""}`}
+        className={`relative min-w-0 rounded ${variant === "row" ? "flex items-center gap-3 border-b border-border-subtle px-2 py-3" : "p-1"} ${current ? "bg-active text-primary" : ""}`}
       >
         {trackNumber !== undefined && (
           <span

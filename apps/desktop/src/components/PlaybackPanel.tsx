@@ -192,7 +192,7 @@ function SidebarLyrics({
         <button
           type="button"
           onClick={() => openTrackInfo([fileId])}
-          className="mx-6 mb-5 mt-auto shrink-0 rounded-full bg-foreground/10 px-4 py-2 text-xs font-medium text-foreground/70 hover:bg-foreground/20"
+          className="mx-6 mb-5 mt-auto shrink-0 rounded-full bg-control-fill px-4 py-2 text-xs font-medium text-content-secondary hover:bg-control-fill"
         >
           Edit lyrics in Track Info
         </button>

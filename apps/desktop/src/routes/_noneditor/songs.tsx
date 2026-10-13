@@ -274,7 +274,7 @@ function SongsPage() {
                   return (
                     <div
                       key={row.original.id}
-                      className="absolute left-0 flex w-full items-center justify-center gap-2 border-b border-border/70"
+                      className="absolute left-0 flex w-full items-center justify-center gap-2 border-b border-border-subtle"
                       style={{
                         height: virtualRow.size,
                         transform: `translateY(${virtualRow.start - 40}px)`,
@@ -440,7 +440,7 @@ function SongsPage() {
                     >
                       <div
                         role="row"
-                        className={`absolute left-0 grid min-w-full border-b border-border/70 transition-colors hover:bg-muted/30 ${isCurrent ? "bg-primary/8 text-primary" : ""}`}
+                        className={`absolute left-0 grid min-w-full border-b border-border-subtle transition-colors hover:bg-surface-subtle ${isCurrent ? "bg-primary-washed text-primary" : ""}`}
                         style={{
                           gridTemplateColumns,
                           height: virtualRow.size,

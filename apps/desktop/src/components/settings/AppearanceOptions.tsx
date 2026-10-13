@@ -42,8 +42,8 @@ export function AppearanceOptions({
               className={cn(
                 "rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                 value.theme === id
-                  ? "border-primary bg-primary/5 ring-1 ring-primary"
-                  : "border-border hover:bg-muted/30",
+                  ? "border-primary bg-primary-washed ring-1 ring-primary"
+                  : "border-border hover:bg-surface-subtle",
               )}
             >
               <div
@@ -51,18 +51,18 @@ export function AppearanceOptions({
                 className={cn(
                   "mb-3 flex h-16 gap-2 overflow-hidden rounded-lg border p-2",
                   id === "dark"
-                    ? "border-white/10 bg-zinc-900"
+                    ? "border-highlight bg-zinc-900"
                     : id === "system"
-                      ? "border-black/10 bg-linear-to-r from-stone-100 from-50% to-zinc-900 to-50%"
-                      : "border-black/10 bg-stone-100",
+                      ? "border-shade bg-linear-to-r from-stone-100 from-50% to-zinc-900 to-50%"
+                      : "border-shade bg-stone-100",
                 )}
               >
-                <div className="w-4 rounded-sm bg-primary/25" />
+                <div className="w-4 rounded-sm bg-primary-soft" />
                 <div className="flex flex-1 flex-col gap-1.5 pt-1">
-                  <div className="h-1.5 w-2/3 rounded bg-primary/60" />
-                  <div className="h-1 rounded bg-stone-400/40" />
-                  <div className="h-1 rounded bg-stone-400/40" />
-                  <div className="h-1 w-3/4 rounded bg-stone-400/40" />
+                  <div className="h-1.5 w-2/3 rounded bg-primary" />
+                  <div className="h-1 rounded bg-content-faint" />
+                  <div className="h-1 rounded bg-content-faint" />
+                  <div className="h-1 w-3/4 rounded bg-content-faint" />
                 </div>
               </div>
               <span className="flex items-center gap-1.5 text-xs font-medium">
@@ -81,7 +81,7 @@ export function AppearanceOptions({
       </fieldset>
       <fieldset>
         <legend className="mb-3 text-sm font-semibold">Song row spacing</legend>
-        <div className="flex rounded-xl border border-border bg-muted/20 p-1">
+        <div className="flex rounded-xl border border-border bg-surface-subtle p-1">
           {(
             [
               { id: "compact", label: "Compact" },

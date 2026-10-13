@@ -138,7 +138,7 @@ export default function Titlebar() {
         <div className="ml-auto pr-4">
           <span
             data-tauri-drag-region
-            className="flex-1 ml-auto text-[10px] font-semibold tracking-[0.18em] text-foreground/50"
+            className="flex-1 ml-auto text-[10px] font-semibold tracking-[0.18em] text-content-faint"
           >
             AUDEXIS
           </span>

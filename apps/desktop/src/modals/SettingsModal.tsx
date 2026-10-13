@@ -73,7 +73,7 @@ export function SettingsModal({
       <div className="grid sm:grid-cols-[180px_minmax(0,1fr)]">
         <nav
           aria-label="Settings sections"
-          className="flex gap-2 border-b border-border bg-muted/15 p-4 sm:flex-col sm:border-b-0 sm:border-r"
+          className="flex gap-2 border-b border-border bg-surface-subtle p-4 sm:flex-col sm:border-b-0 sm:border-r"
         >
           {(
             [
@@ -92,8 +92,8 @@ export function SettingsModal({
               className={cn(
                 "flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm",
                 tab === id
-                  ? "bg-primary/10 font-medium text-primary"
-                  : "text-muted-foreground hover:bg-muted/50",
+                  ? "bg-primary-washed font-medium text-primary"
+                  : "text-muted-foreground hover:bg-surface-hover",
               )}
             >
               <Icon size={16} />
@@ -185,7 +185,7 @@ export function SettingsModal({
                 )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-border bg-muted/20 p-5">
+              <div className="rounded-2xl border border-border bg-surface-subtle p-5">
                 <div className="flex items-start gap-3">
                   <FileWarning
                     size={18}
@@ -224,7 +224,7 @@ export function SettingsModal({
             draft.error && (
               <p
                 role="alert"
-                className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+                className="mt-4 rounded-xl bg-danger-soft p-3 text-sm text-destructive"
               >
                 {draft.error}
               </p>

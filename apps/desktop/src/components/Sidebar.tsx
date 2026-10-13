@@ -79,7 +79,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
                     <Link
                       key={child.path}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                        "rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-surface-hover hover:text-foreground",
                         isActive && "bg-active text-primary",
                       )}
                       to={child.path}
@@ -115,7 +115,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
                 <Link
                   to="/playlists"
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-surface-hover hover:text-foreground",
                     router.location.pathname === "/playlists" &&
                       "bg-active text-primary",
                     isPlaylistSectionActive &&
@@ -136,7 +136,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
                       to="/playlists/$playlistId"
                       params={{ playlistId: String(playlist.id) }}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-muted/60 hover:text-foreground",
+                        "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium transition-colors hover:bg-surface-hover hover:text-foreground",
                         isActive && "bg-active text-primary",
                         isPlaylistSectionActive &&
                           !isActive &&
@@ -156,11 +156,11 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
             )}
           </div>
         </div>
-        <div className="border-t border-border/60 p-3">
+        <div className="border-t border-border-subtle p-3">
           <button
             type="button"
             onClick={() => openSettings("appearance")}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
           >
             <Settings2 size={16} />
             Settings
@@ -193,7 +193,7 @@ export default function Sidebar({ width, onWidthChange }: SidebarProps) {
           window.addEventListener("pointermove", handleMove);
           window.addEventListener("pointerup", handleUp, { once: true });
         }}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/50"
+        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary-border"
       />
     </aside>
   );

@@ -13,7 +13,8 @@ const content = {
   startup: {
     mainMessage: "Unable to start",
     title: "Audexis could not start.",
-    description: "A required service could not be initialized. Relaunch Audexis to try again.",
+    description:
+      "A required service could not be initialized. Relaunch Audexis to try again.",
   },
   "not-found": {
     mainMessage: "404 - not found",
@@ -40,7 +41,14 @@ function getErrorMessage(error: unknown) {
   return null;
 }
 
-export function ErrorPage({ kind, error, onRetry, message, retryPending, retryError }: ErrorPageProps) {
+export function ErrorPage({
+  kind,
+  error,
+  onRetry,
+  message,
+  retryPending,
+  retryError,
+}: ErrorPageProps) {
   const copy = content[kind];
   const errorMessage = getErrorMessage(error);
   const isNotFound = kind === "not-found";
@@ -56,17 +64,17 @@ export function ErrorPage({ kind, error, onRetry, message, retryPending, retryEr
         }}
       />
 
-      <section className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-border/70 bg-popover/85 p-7 shadow-2xl shadow-black/10 backdrop-blur-xl sm:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full border border-border/40" />
-        <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-border/50" />
+      <section className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-border-subtle bg-surface-popover p-7 shadow-2xl shadow-shade backdrop-blur-xl sm:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full border border-border-subtle" />
+        <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-border-subtle" />
 
         <div className="relative flex flex-col gap-8 sm:flex-row sm:items-center">
           <div
             aria-hidden="true"
             className="relative flex size-28 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-inner sm:size-36"
           >
-            <div className="absolute inset-3 rounded-full border border-border/70" />
-            <div className="absolute inset-7 rounded-full border border-border/60" />
+            <div className="absolute inset-3 rounded-full border border-border-subtle" />
+            <div className="absolute inset-7 rounded-full border border-border-subtle" />
             <Disc3
               className="size-14 text-primary sm:size-16"
               strokeWidth={1.25}
@@ -85,7 +93,8 @@ export function ErrorPage({ kind, error, onRetry, message, retryPending, retryEr
             </p>
             {kind === "startup" && message && (
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Relaunch Audexis to try again. If the problem continues, use the technical details below to troubleshoot it.
+                Relaunch Audexis to try again. If the problem continues, use the
+                technical details below to troubleshoot it.
               </p>
             )}
 
@@ -98,17 +107,25 @@ export function ErrorPage({ kind, error, onRetry, message, retryPending, retryEr
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <RefreshCw size={16} />
-                  {kind === "startup" ? (retryPending ? "Relaunching…" : "Relaunch Audexis") : kind === "fatal" ? "Reload Audexis" : "Try again"}
+                  {kind === "startup"
+                    ? retryPending
+                      ? "Relaunching…"
+                      : "Relaunch Audexis"
+                    : kind === "fatal"
+                      ? "Reload Audexis"
+                      : "Try again"}
                 </button>
               )}
-              {kind !== "startup" && <button
-                type="button"
-                onClick={() => window.location.assign("/")}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
-              >
-                <Home size={16} />
-                Go home
-              </button>}
+              {kind !== "startup" && (
+                <button
+                  type="button"
+                  onClick={() => window.location.assign("/")}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-overlay px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
+                >
+                  <Home size={16} />
+                  Go home
+                </button>
+              )}
               {isNotFound && (
                 <button
                   type="button"
@@ -120,16 +137,20 @@ export function ErrorPage({ kind, error, onRetry, message, retryPending, retryEr
                 </button>
               )}
             </div>
-            {retryError && <p role="alert" className="mt-3 text-sm text-destructive">{retryError}</p>}
+            {retryError && (
+              <p role="alert" className="mt-3 text-sm text-destructive">
+                {retryError}
+              </p>
+            )}
           </div>
         </div>
 
         {errorMessage && (
-          <details className="relative mt-8 border-t border-border/60 pt-5">
+          <details className="relative mt-8 border-t border-border-subtle pt-5">
             <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
               Show technical details
             </summary>
-            <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap wrap-break-word rounded-xl bg-background/70 p-4 text-xs leading-5 text-muted-foreground">
+            <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap wrap-break-word rounded-xl bg-surface-overlay p-4 text-xs leading-5 text-muted-foreground">
               {errorMessage}
             </pre>
           </details>

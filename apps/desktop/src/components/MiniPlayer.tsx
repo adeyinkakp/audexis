@@ -102,7 +102,7 @@ export default function MiniPlayer({
     );
   }
   const button =
-    "flex size-8 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30";
+    "flex size-8 items-center justify-center rounded-full text-content-secondary transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-30";
   const artwork = song?.artwork_url;
 
   return (
@@ -129,14 +129,14 @@ export default function MiniPlayer({
         <span
           data-tauri-drag-region
           className={cn(
-            "flex-1 text-[10px] font-semibold tracking-[0.18em] text-foreground/50",
+            "flex-1 text-[10px] font-semibold tracking-[0.18em] text-content-faint",
             expanded && "ml-24",
           )}
         >
           AUDEXIS
         </span>
         {expanded && (
-          <div className="bg-muted/60 py-1 flex px-2 rounded-xl">
+          <div className="bg-surface-hover py-1 flex px-2 rounded-xl">
             <button
               ref={lyricsToggle}
               className={button}
@@ -235,7 +235,7 @@ export default function MiniPlayer({
             }
           >
             <div
-              className={`flex shrink-0 items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary/20 shadow-lg ${fullscreen ? "size-[min(40vh,380px)] rounded-3xl shadow-2xl" : "size-17 rounded-xl"}`}
+              className={`flex shrink-0 items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary-soft shadow-lg ${fullscreen ? "size-[min(40vh,380px)] rounded-3xl shadow-2xl" : "size-17 rounded-xl"}`}
             >
               {artwork && artwork !== failedArtwork ? (
                 <img
@@ -247,7 +247,7 @@ export default function MiniPlayer({
               ) : (
                 <Music2
                   size={fullscreen ? 80 : 26}
-                  className="text-foreground/60"
+                  className="text-content-secondary"
                 />
               )}
             </div>
@@ -260,7 +260,7 @@ export default function MiniPlayer({
               </h1>
               <p
                 title={song?.artist}
-                className={`mt-1 truncate text-foreground/60 ${fullscreen ? "text-lg" : "text-xs"}`}
+                className={`mt-1 truncate text-content-secondary ${fullscreen ? "text-lg" : "text-xs"}`}
               >
                 {song
                   ? song.artist || "Unknown artist"
@@ -268,7 +268,7 @@ export default function MiniPlayer({
               </p>
               {song?.album && (
                 <p
-                  className={`mt-1 truncate text-foreground/40 ${fullscreen ? "text-sm" : "text-[11px]"}`}
+                  className={`mt-1 truncate text-content-faint ${fullscreen ? "text-sm" : "text-[11px]"}`}
                 >
                   {song.album}
                 </p>
@@ -294,7 +294,7 @@ export default function MiniPlayer({
             }
           >
             <button
-              className={`${button} ${modes.shuffled ? "bg-primary/10" : ""}`}
+              className={`${button} ${modes.shuffled ? "bg-primary-washed" : ""}`}
               aria-label={modes.shuffled ? "Disable shuffle" : "Enable shuffle"}
               title={modes.shuffled ? "Disable shuffle" : "Enable shuffle"}
               aria-pressed={modes.shuffled}
@@ -337,7 +337,7 @@ export default function MiniPlayer({
               <SkipForward size={19} fill="currentColor" />
             </button>
             <button
-              className={`${button} ${modes.repeat_mode !== "off" ? "bg-primary/10" : ""}`}
+              className={`${button} ${modes.repeat_mode !== "off" ? "bg-primary-washed" : ""}`}
               aria-label={repeatLabel}
               title={repeatLabel}
               aria-pressed={modes.repeat_mode !== "off"}

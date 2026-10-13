@@ -58,7 +58,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               toast.dismiss(current.id);
               setLogsOpen(true);
             }}
-            className="max-w-md rounded-xl border border-destructive/30 bg-background px-4 py-3 text-left shadow-lg"
+            className="max-w-md rounded-xl border border-danger-border bg-background px-4 py-3 text-left shadow-lg"
           >
             <span className="block text-sm font-semibold text-destructive">
               {payload.kind}

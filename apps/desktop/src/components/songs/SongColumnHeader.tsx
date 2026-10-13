@@ -54,7 +54,7 @@ export function SongColumnHeader({
         disabled={!ready}
         {...attributes}
         {...listeners}
-        className="ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
+        className="ml-1 shrink-0 cursor-grab touch-none rounded p-1 text-content-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
       >
         <GripVertical size={12} />
       </button>
@@ -76,7 +76,7 @@ export function SongColumnHeader({
         aria-valuemin={MIN_COLUMN_WIDTH}
         aria-valuemax={MAX_COLUMN_WIDTH}
         aria-valuenow={Math.round(width)}
-        className="absolute inset-y-0 -right-1 z-30 w-2 cursor-col-resize touch-none hover:bg-primary/30 focus-visible:bg-primary/40 focus-visible:outline-none"
+        className="absolute inset-y-0 -right-1 z-30 w-2 cursor-col-resize touch-none hover:bg-primary-border focus-visible:bg-primary-border focus-visible:outline-none"
         onPointerDown={(event) => {
           if (!ready || event.button !== 0) return;
           event.preventDefault();

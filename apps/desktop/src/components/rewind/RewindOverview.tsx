@@ -107,7 +107,7 @@ export function RewindOverview() {
         <button
           aria-pressed={month === null}
           onClick={() => setMonth(null)}
-          className={`shrink-0 rounded-full px-4 py-2 text-sm ${month === null ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-muted"}`}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm ${month === null ? "bg-primary text-primary-foreground" : "bg-surface-subtle hover:bg-muted"}`}
         >
           Full Year
         </button>
@@ -116,7 +116,7 @@ export function RewindOverview() {
             key={label}
             aria-pressed={month === index + 1}
             onClick={() => setMonth(index + 1)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm ${month === index + 1 ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-muted"}`}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm ${month === index + 1 ? "bg-primary text-primary-foreground" : "bg-surface-subtle hover:bg-muted"}`}
           >
             {label}
           </button>
@@ -136,8 +136,8 @@ export function RewindOverview() {
       ) : (
         data && (
           <>
-            <section className="mb-5 flex items-center gap-5 rounded-3xl border border-primary/15 bg-primary/5 p-7">
-              <div className="rounded-2xl bg-primary/10 p-4 text-primary">
+            <section className="mb-5 flex items-center gap-5 rounded-3xl border border-primary-soft bg-primary-washed p-7">
+              <div className="rounded-2xl bg-primary-washed p-4 text-primary">
                 <Headphones size={32} />
               </div>
               <div>

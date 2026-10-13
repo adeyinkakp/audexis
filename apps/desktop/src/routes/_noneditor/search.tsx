@@ -19,7 +19,7 @@ function SearchPage() {
       className="h-full overflow-auto px-7 pb-10"
       aria-label="Search library"
     >
-      <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/95 py-5 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center gap-3 bg-surface-panel py-5 backdrop-blur">
         <div className="relative flex-1">
           <Search
             size={20}
@@ -33,7 +33,7 @@ function SearchPage() {
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder="Search your library"
-            className="h-12 w-full rounded-full border border-border bg-muted/20 pl-12 pr-4 outline-none focus:border-primary"
+            className="h-12 w-full rounded-full border border-border bg-surface-subtle pl-12 pr-4 outline-none focus:border-primary"
           />
         </div>
         <button
@@ -69,7 +69,8 @@ function SearchPage() {
             Find songs, albums, artists, and playlists.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Search titles, album artists, artists, albums, and lyrics. Use filters for genre and file name.
+            Search titles, album artists, artists, albums, and lyrics. Use
+            filters for genre and file name.
           </p>
         </div>
       ) : (

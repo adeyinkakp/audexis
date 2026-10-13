@@ -87,7 +87,7 @@ export function OnboardingModal({
             )}
             {step === 2 && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-muted/20 p-5">
+                <div className="rounded-2xl border border-border bg-surface-subtle p-5">
                   <div className="flex items-center gap-3">
                     <Library size={20} className="text-primary" />
                     <div>
@@ -123,7 +123,7 @@ export function OnboardingModal({
           {draft.error && (
             <p
               role="alert"
-              className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+              className="mt-4 rounded-xl bg-danger-soft p-3 text-sm text-destructive"
             >
               {draft.error}
             </p>

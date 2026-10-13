@@ -26,7 +26,7 @@ export function AdvancedSearch({
   return (
     <div
       id="advanced-search"
-      className="rounded-2xl border border-border bg-muted/15 p-5"
+      className="rounded-2xl border border-border bg-surface-subtle p-5"
     >
       <p className="mb-4 text-xs text-muted-foreground">
         All filled fields must match. These filters also narrow the main search.

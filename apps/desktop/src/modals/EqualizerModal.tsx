@@ -85,7 +85,7 @@ export default function EqualizerModal({
         {error && (
           <div
             role="alert"
-            className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+            className="flex items-center justify-between gap-4 rounded-lg border border-danger-border bg-danger-soft p-3 text-sm"
           >
             <span>
               {config
@@ -127,7 +127,7 @@ export default function EqualizerModal({
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   settings.enabled
-                    ? "border-primary/30 bg-primary/10 text-primary"
+                    ? "border-primary-border bg-primary-washed text-primary"
                     : "bg-muted text-muted-foreground",
                 )}
               >
@@ -191,7 +191,7 @@ export default function EqualizerModal({
               )}
             </div>
 
-            <div className="rounded-xl border border-border bg-muted/15 px-3 py-4 sm:px-5">
+            <div className="rounded-xl border border-border bg-surface-subtle px-3 py-4 sm:px-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-medium">
@@ -203,7 +203,7 @@ export default function EqualizerModal({
                   <button
                     type="button"
                     onClick={() => update(customizePreset(settings, preset))}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium hover:border-primary/50"
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium hover:border-primary-border"
                   >
                     Customize this preset
                   </button>

@@ -265,7 +265,7 @@ export function HomeDiscovery({
           {data.watched_folders.map((folder) => (
             <div
               key={folder.path}
-              className="min-w-0 rounded-2xl border border-border/60 bg-card/40 p-4"
+              className="min-w-0 rounded-2xl border border-border-subtle bg-surface-subtle p-4"
             >
               <p className="truncate font-medium" title={folder.path}>
                 {folder.path}

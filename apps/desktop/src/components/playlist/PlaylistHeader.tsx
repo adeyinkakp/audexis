@@ -63,7 +63,7 @@ export function PlaylistHeader({
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full bg-muted px-5 py-2.5 text-sm font-medium transition-colors hover:bg-muted/80 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-muted px-5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover disabled:opacity-50"
               disabled={playlist.tracks.length === 0}
               onClick={() => onPlay(true)}
             >
@@ -79,7 +79,7 @@ export function PlaylistHeader({
             </button>
             <button
               type="button"
-              className="rounded-full border border-destructive/30 px-4 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+              className="rounded-full border border-danger-border px-4 py-2 text-sm text-destructive transition-colors hover:bg-danger-soft"
               onClick={() => {
                 onDelete();
               }}

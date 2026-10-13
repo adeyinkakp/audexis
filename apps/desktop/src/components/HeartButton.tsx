@@ -23,7 +23,7 @@ export function HeartButton({ fileId }: { fileId: number }) {
         event.stopPropagation();
         favorites.setLoved({ fileId, loved: !loved });
       }}
-      className={`shrink-0 rounded-full p-2 transition-colors hover:bg-primary/10 disabled:opacity-40 ${loved ? "text-primary" : "text-muted-foreground"}`}
+      className={`shrink-0 rounded-full p-2 transition-colors hover:bg-primary-washed disabled:opacity-40 ${loved ? "text-primary" : "text-muted-foreground"}`}
     >
       <Heart size={17} fill={loved ? "currentColor" : "none"} />
     </button>

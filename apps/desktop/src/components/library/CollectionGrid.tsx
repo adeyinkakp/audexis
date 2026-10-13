@@ -37,14 +37,14 @@ export function Artwork({
   return (
     <div
       ref={ref}
-      className={`flex aspect-square w-full items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary/20 ${round ? "rounded-full" : "rounded-xl"}`}
+      className={`flex aspect-square w-full items-center justify-center overflow-hidden bg-linear-to-br from-muted to-primary-soft ${round ? "rounded-full" : "rounded-xl"}`}
     >
       {visible && id !== null ? (
         <VisibleArtwork id={id} isAlbum={isAlbum} />
       ) : isAlbum ? (
-        <Disc2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+        <Disc2 className="h-1/3 w-1/3 text-content-faint" />
       ) : (
-        <Music2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+        <Music2 className="h-1/3 w-1/3 text-content-faint" />
       )}
     </div>
   );
@@ -54,9 +54,9 @@ function VisibleArtwork({ id, isAlbum }: { id: number; isAlbum: boolean }) {
   return art.data ? (
     <img src={art.data} alt="" className="h-full w-full object-cover" />
   ) : isAlbum ? (
-    <Disc2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+    <Disc2 className="h-1/3 w-1/3 text-content-faint" />
   ) : (
-    <Music2 className="h-1/3 w-1/3 text-muted-foreground/50" />
+    <Music2 className="h-1/3 w-1/3 text-content-faint" />
   );
 }
 

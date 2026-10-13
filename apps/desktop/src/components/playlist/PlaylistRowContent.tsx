@@ -20,10 +20,10 @@ export function PlaylistRowContent({
       className={cn(
         "grid grid-cols-[minmax(0,1fr)_64px] items-center gap-3 px-5 py-3 transition-[background-color,box-shadow,transform,opacity] duration-150",
         isDragging
-          ? "rounded-xl bg-card shadow-xl ring-1 ring-primary/20 opacity-95"
+          ? "rounded-xl bg-card shadow-xl ring-1 ring-primary-soft opacity-95"
           : isCurrent
-            ? "bg-primary/8 text-primary hover:bg-primary/10"
-            : "hover:bg-muted/35",
+            ? "bg-primary-washed text-primary hover:bg-primary-washed"
+            : "hover:bg-surface-subtle",
       )}
     >
       <div className="min-w-0 w-full flex-1 text-left">
@@ -38,7 +38,7 @@ export function PlaylistRowContent({
         <div
           className={cn(
             "truncate text-xs",
-            isCurrent ? "text-primary/75" : "text-muted-foreground",
+            isCurrent ? "text-primary" : "text-muted-foreground",
           )}
         >
           {subtitleFor(metadata) || track.file_name}

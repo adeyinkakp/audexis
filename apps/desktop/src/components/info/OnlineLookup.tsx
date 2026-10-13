@@ -42,7 +42,7 @@ export default function OnlineLookup<T>({
   return (
     <section
       aria-label={heading}
-      className="rounded-xl border border-border bg-muted/30 p-4"
+      className="rounded-xl border border-border bg-surface-subtle p-4"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
@@ -134,7 +134,7 @@ export default function OnlineLookup<T>({
                 className={cn(
                   "block w-full rounded-md p-3 text-left hover:bg-muted",
                   selectedId === getId(result) &&
-                    "bg-muted ring-1 ring-inset ring-primary/40",
+                    "bg-muted ring-1 ring-inset ring-primary-border",
                 )}
               >
                 {renderResult(result)}

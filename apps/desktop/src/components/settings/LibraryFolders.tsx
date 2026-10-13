@@ -29,9 +29,9 @@ export function LibraryFolders({
         type="button"
         disabled={disabled || picking}
         onClick={() => void choose()}
-        className="flex w-full items-center gap-4 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10 disabled:opacity-50"
+        className="flex w-full items-center gap-4 rounded-2xl border border-dashed border-primary-border bg-primary-washed p-5 text-left transition-colors hover:bg-primary-washed disabled:opacity-50"
       >
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-washed text-primary">
           <FolderPlus size={23} />
         </span>
         <span>
@@ -47,7 +47,7 @@ export function LibraryFolders({
         {folders.map((folder) => (
           <div
             key={folder}
-            className="flex items-center gap-3 rounded-xl border border-border bg-muted/15 px-3 py-3"
+            className="flex items-center gap-3 rounded-xl border border-border bg-surface-subtle px-3 py-3"
           >
             <Folder size={17} className="shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
@@ -68,7 +68,7 @@ export function LibraryFolders({
               onClick={() =>
                 onChange(folders.filter((item) => item !== folder))
               }
-              className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-destructive"
             >
               <X size={15} />
             </button>

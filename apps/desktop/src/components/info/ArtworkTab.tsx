@@ -230,7 +230,7 @@ export default function ArtworkTab({
   return (
     <div className="flex min-h-full flex-col">
       {mixed && (
-        <div className="mx-6 mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-foreground/80">
+        <div className="mx-6 mt-5 rounded-xl border border-warning-border bg-warning-soft px-4 py-3 text-xs text-foreground">
           The selected tracks have different artwork. This shows the first
           track’s images; saving will apply this artwork to all selected tracks.
         </div>
@@ -277,7 +277,7 @@ export default function ArtworkTab({
             </label>
           </div>
 
-          <div className="flex min-h-72 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/30 p-5">
+          <div className="flex min-h-72 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface-subtle p-5">
             {selected ? (
               <img
                 src={`data:${selected.mime};base64,${selected.data_base64}`}
@@ -320,10 +320,10 @@ export default function ArtworkTab({
           </div>
         </section>
 
-        <aside className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/20 p-3">
+        <aside className="flex min-h-0 flex-col rounded-2xl border border-border bg-surface-subtle p-3">
           <div className="flex items-center justify-between px-1 pb-3">
             <h3 className="text-sm font-semibold text-foreground">Images</h3>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <span className="rounded-full bg-primary-washed px-2 py-0.5 text-xs font-medium text-primary">
               {items.length}
             </span>
           </div>
@@ -336,7 +336,8 @@ export default function ArtworkTab({
                 onClick={() => setSelectedIndex(index)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition-colors hover:bg-active",
-                  selectedIndex === index && "border-primary/30 bg-primary/8",
+                  selectedIndex === index &&
+                    "border-primary-border bg-primary-washed",
                 )}
               >
                 <img

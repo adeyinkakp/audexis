@@ -116,7 +116,7 @@ export function CollectionSongs({
               return (
                 <Fragment key={file.id}>
                   {startsDisc && (
-                    <h3 className="mb-2 mt-6 flex items-center gap-2 border-b border-border/60 px-3 pb-3 text-sm font-semibold text-muted-foreground first:mt-0">
+                    <h3 className="mb-2 mt-6 flex items-center gap-2 border-b border-border-subtle px-3 pb-3 text-sm font-semibold text-muted-foreground first:mt-0">
                       <Disc2 size={17} aria-hidden="true" />
                       Disc {disc}
                     </h3>

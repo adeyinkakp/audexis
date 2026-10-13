@@ -60,16 +60,16 @@ body {
 
 .table-scroll-fade:before {
     left: 0;
-    background: linear-gradient(to right, var(--background), rgba(0, 0, 0, 0));
+    background: linear-gradient(to right, var(--background), transparent);
 }
 
 .table-scroll-fade:after {
     right: 0;
-    background: linear-gradient(to left, var(--background), rgba(0, 0, 0, 0));
+    background: linear-gradient(to left, var(--background), transparent);
 }
 
 .player-seek {
-    --seek-track: color-mix(in srgb, var(--foreground) 12%, transparent);
+    --seek-track: var(--color-control-fill);
     display: block;
     width: 100%;
     height: 24px;
@@ -116,7 +116,7 @@ body {
     border: 2px solid var(--background);
     border-radius: 50%;
     background: var(--primary);
-    box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+    box-shadow: 0 1px 4px var(--color-shade);
     transform: scale(0.65);
     opacity: 0;
     transition:
@@ -131,7 +131,7 @@ body {
     border: 2px solid var(--background);
     border-radius: 50%;
     background: var(--primary);
-    box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+    box-shadow: 0 1px 4px var(--color-shade);
     transform: scale(0.65);
     opacity: 0;
     transition:
@@ -153,13 +153,13 @@ body {
 }
 .player-seek:is(:focus-visible, :active):not(:disabled)::-webkit-slider-thumb {
     box-shadow:
-        0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent),
-        0 1px 4px rgb(0 0 0 / 20%);
+        0 0 0 4px var(--color-primary-soft),
+        0 1px 4px var(--color-shade);
 }
 .player-seek:is(:focus-visible, :active):not(:disabled)::-moz-range-thumb {
     box-shadow:
-        0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent),
-        0 1px 4px rgb(0 0 0 / 20%);
+        0 0 0 4px var(--color-primary-soft),
+        0 1px 4px var(--color-shade);
 }
 .player-seek:disabled {
     opacity: 0.35;

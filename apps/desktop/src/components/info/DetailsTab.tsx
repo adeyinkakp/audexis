@@ -290,7 +290,7 @@ function DetailsForm({ files }: { files: FilesResponse }) {
                         next[index] = event.target.value;
                         updateField(key, next);
                       }}
-                      className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+                      className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-content-faint focus:border-primary"
                     />
                     {(multiValue || inputs.length > 1) && (
                       <button
@@ -327,7 +327,7 @@ function DetailsForm({ files }: { files: FilesResponse }) {
             );
           })}
 
-          <div className="md:col-span-2 mt-1 rounded-xl border border-border bg-muted/30 p-4">
+          <div className="md:col-span-2 mt-1 rounded-xl border border-border bg-surface-subtle p-4">
             <p className="text-xs font-medium text-muted-foreground">
               {files.files.length === 1 ? "File" : "Selected files"}
             </p>

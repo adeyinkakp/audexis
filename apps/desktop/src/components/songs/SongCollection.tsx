@@ -90,7 +90,9 @@ export function SongCollection({
   selectAllRef.current = selectAll;
   const activateCollection = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
-    const registration = songSelectionMenu.register(() => selectAllRef.current());
+    const registration = songSelectionMenu.register(() =>
+      selectAllRef.current(),
+    );
     activateCollection.current = registration.activate;
     return () => {
       registration.unregister();
@@ -172,7 +174,7 @@ export function SongCollectionItem({
     "aria-description": selected
       ? "Selected song. Double-click or press Enter to play."
       : "Click to select. Double-click or press Enter to play.",
-    className: `${children.props.className ?? ""} select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : ""}`,
+    className: `${children.props.className ?? ""} select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? "bg-primary-washed ring-1 ring-inset ring-primary-border" : ""}`,
     onClick: (event) => {
       if (isControl(event.target, event.currentTarget) || event.detail > 1)
         return;

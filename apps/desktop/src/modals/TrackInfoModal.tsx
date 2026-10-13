@@ -72,7 +72,7 @@ export default function TrackInfoModal({
               onClick={() => setCurrentTabId(tab.id)}
               className={cn(
                 "rounded-lg px-2 text-muted-foreground  transition-colors hover:bg-active",
-                currentTabId === tab.id && "bg-primary/8 text-primary",
+                currentTabId === tab.id && "bg-primary-washed text-primary",
               )}
             >
               {tab.title}

@@ -25,7 +25,7 @@ function PlaylistsIndexPage() {
   const [creating, setCreating] = useState(false);
   return (
     <main className="h-full overflow-auto px-8 pb-10 pt-7">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-5 border-b border-border/60 pb-6">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-5 border-b border-border-subtle pb-6">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Your library
@@ -50,7 +50,7 @@ function PlaylistsIndexPage() {
           onClick={() => setCreating(true)}
           className="group min-w-0 text-left focus-visible:outline-primary"
         >
-          <div className="flex aspect-square items-center justify-center rounded-xl border border-border bg-muted/30 transition-colors group-hover:border-primary/50 group-hover:bg-primary/10">
+          <div className="flex aspect-square items-center justify-center rounded-xl border border-border bg-surface-subtle transition-colors group-hover:border-primary-border group-hover:bg-primary-washed">
             <Plus
               size={64}
               strokeWidth={1.3}

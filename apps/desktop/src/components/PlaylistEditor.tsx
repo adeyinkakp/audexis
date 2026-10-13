@@ -50,7 +50,7 @@ export default function PlaylistEditor({
   if (!playlist) {
     return (
       <div className="space-y-6">
-        <section className="rounded-3xl border border-border/60 bg-card/40 p-6">
+        <section className="rounded-3xl border border-border-subtle bg-surface-subtle p-6">
           <div className="text-sm text-muted-foreground">
             Playlist not found.
           </div>
@@ -77,7 +77,7 @@ export default function PlaylistEditor({
         }}
       />
       {playlistError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-xl border border-danger-border bg-danger-soft px-3 py-2 text-sm text-destructive">
           {playlistError}
         </div>
       )}

@@ -253,7 +253,7 @@ export default function NowPlaying() {
               )}
               <div
                 className={cn(
-                  "pointer-events-none absolute inset-0 flex items-center justify-between rounded-lg border border-white/10 bg-background/10 px-2 text-[10px] font-medium tabular-nums text-foreground/90 backdrop-blur-[3px] transition-opacity duration-150 sm:px-3 sm:text-[11px]",
+                  "pointer-events-none absolute inset-0 flex items-center justify-between rounded-lg border border-highlight bg-surface-glass px-2 text-[10px] font-medium tabular-nums text-foreground backdrop-blur-[3px] transition-opacity duration-150 sm:px-3 sm:text-[11px]",
                   showSeekOverlay ? "opacity-100" : "opacity-0",
                 )}
               >

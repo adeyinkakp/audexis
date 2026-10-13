@@ -89,7 +89,7 @@ export function LogsModal({
         {loadError ? (
           <div
             role="alert"
-            className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive"
+            className="rounded-xl bg-danger-soft p-4 text-sm text-destructive"
           >
             {loadError}
           </div>
@@ -98,7 +98,7 @@ export function LogsModal({
             No logs have been recorded yet.
           </div>
         ) : (
-          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap wrap-break-word rounded-xl border border-border bg-muted/20 p-4 font-mono text-xs leading-relaxed text-foreground/80">
+          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap wrap-break-word rounded-xl border border-border bg-surface-subtle p-4 font-mono text-xs leading-relaxed text-foreground">
             {allLogs}
           </pre>
         )}

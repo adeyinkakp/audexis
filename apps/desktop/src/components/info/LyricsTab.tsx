@@ -162,7 +162,7 @@ function LyricsEditor({
           </div>
         )}
         {files.files.length > 1 && (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
+          <p className="rounded-lg border border-warning-border bg-warning-soft p-3 text-xs">
             {mixed
               ? "These tracks have different lyrics. Showing the first track. "
               : ""}
@@ -235,7 +235,7 @@ function LyricsEditor({
                 ? "[00:12.500]First line\n[00:17.250]Next line"
                 : "Enter lyrics…"
             }
-            className={`min-h-72 flex-1 resize-y rounded-xl border border-border bg-background p-4 text-sm leading-7 outline-none focus:border-primary/60 disabled:opacity-50 ${synchronized ? "font-mono" : ""}`}
+            className={`min-h-72 flex-1 resize-y rounded-xl border border-border bg-background p-4 text-sm leading-7 outline-none focus:border-primary disabled:opacity-50 ${synchronized ? "font-mono" : ""}`}
           />
         )}
         <p className="truncate text-xs text-muted-foreground">
