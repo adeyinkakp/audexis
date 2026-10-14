@@ -1,0 +1,30 @@
+[package]
+name = "audexis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+default = []
+hotreload = ["freya/hotreload"]
+
+[dependencies]
+uuid.workspace = true
+audexis_core.workspace = true
+audexis_audio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+freya.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+souvlaki.workspace = true
+rfd.workspace = true
+directories = "6.0.0"
+
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+muda = { version = "0.19.3", default-features = false }
+raw-window-handle = "0.6"

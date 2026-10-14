@@ -1,26 +1,51 @@
 # Audexis
 
+I want audexis to use least amount of memeory as possible so i'b remaking it
+in freya
+
 Audexis is a local-first desktop music player for people who want to keep their
-library on their own computer. It uses react for the frontend and rust for the
-backend.
+library on their own computer. It uses freya for ui
 
 ## Features
 
 - Scan and monitor one or more local music folders
 - Browse music by song, album, or artist
 - Search and filter the local library
-- Create, rename, reorder, and delete playlists
-- Mark songs as favorites
 - Manage the playback queue
 - Shuffle and repeat playback modes
-- View listening history and statistics in Rewind
-- Read embedded metadata and artwork from common audio formats
 - Control playback through native system media controls
 - Keep library data locally in SQLite
 - Synced and unsynced lyrics
-- 10 band equalizer
 - Batch Editing up to 200 Songs
 - Custom Metadata fields
+
+- Read embedded metadata and artwork from common audio formats
+
+## Todo
+
+- Create, rename, reorder, and delete playlists
+- Mark songs as favorites
+- Shuffle and repeat playback modes
+- View listening history and statistics in Rewind
+- 10 band equalizer window
+- settings window
+- logs page
+- missing files page
+- albums page
+- artists page
+- favorites page
+- search page
+- metadta editing window
+
+- Expand automated test coverage
+- Continue expanding metadata and codec compatibility
+- Implement smart playlists
+- Genre page
+- Normalize tags
+- Custom playlist images
+- Custom artist images
+- Ability to organize file/folder structure based on tags
+- Pin album, songs & playlists
 
 Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA,
 SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the codec
@@ -36,34 +61,30 @@ still being improved before a stable release.
 
 ### Prerequisites
 
+- [Rust & cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+
+- [Just](https://github.com/casey/just)
+
+For website
+
 - [Node.js](https://nodejs.org/) 22.18 or newer
 - [pnpm](https://pnpm.io/) 9
-- A stable [Rust toolchain](https://www.rust-lang.org/tools/install)
-- The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/)
-  for your operating system
 
 ### Run locally
 
 From the repository root:
 
 ```sh
-pnpm install
-pnpm dev
+just dev
 ```
 
 On the first run, choose the folders that contain your music. Audexis will scan
 them and build a local library database.
 
-### Build the frontend
-
-```sh
-pnpm --filter desktop build
-```
-
 ### Build the desktop application
 
 ```sh
-pnpm --filter desktop tauri build
+just build
 ```
 
 ## Project structure
@@ -71,34 +92,21 @@ pnpm --filter desktop tauri build
 ```text
 audexis/
 ├── apps/
-│   ├── dekstop        Desktop App
-│   └── www            Website
-└── packages/
-    └── shared         Shared Styles
+│   ├── dekstop           Desktop App
+│   └── www               Website
+└── crates/
+    ├── audexis_audio     Crate that handles audio play back
+    └── audexis_core      Crate has core modules (user config, db, filewatcher)
 ```
 
 ## Tech Stack
 
-- [Tauri](https://tauri.app/)
-- [React](https://react.dev/) and TypeScript
-- [TanStack Router](https://tanstack.com/router) and TanStack Query
+- [Freya](https://freyaui.dev)
 - [Rust](https://www.rust-lang.org/)
 - [SQLite](https://www.sqlite.org/) through
   [SQLx](https://github.com/transact-rs/sqlx)
 - [Symphonia](https://github.com/pdeljanov/Symphonia) and
   [CPAL](https://github.com/RustAudio/cpal) for audio
-
-## Todo
-
-- Expand automated test coverage
-- Continue expanding metadata and codec compatibility
-- Implement smart playlists
-- Genre page
-- Normalize tags
-- Custom playlist images
-- Custom artist images
-- Ability to organize file/folder structure based on tags
-- Pin album, songs & playlists
 
 ## License
 
