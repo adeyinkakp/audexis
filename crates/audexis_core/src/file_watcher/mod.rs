@@ -151,10 +151,50 @@ impl FileWatcher {
         self.context.files.publish_changed(Vec::new());
         self.rescan()
     }
+
+    pub async fn remove_folder(&self, path: &Path) -> Result<(), WatcherError> {
+        let path = tokio::fs::canonicalize(path)
+            .await
+            .map_err(|e| WatcherError::Unknown(e.to_string()))?;
+        {
+            let mut debouncer = self
+                .debouncer
+                .lock()
+                .map_err(|_| WatcherError::Unknown("Watcher lock poisoned".into()))?;
+            debouncer
+                .watcher()
+                .unwatch(&path)
+                .map_err(|e| WatcherError::Unknown(e.to_string()))?;
+        }
+        remove_library_folder(&self.context.db.pool, &path).await?;
+        self.context.files.publish_changed(Vec::new());
+        self.rescan()
+    }
 }
-pub(super) async fn get_library_roots(
-    pool: &sqlx::SqlitePool,
-) -> Result<Vec<String>, WatcherError> {
+
+async fn remove_library_folder(pool: &sqlx::SqlitePool, path: &Path) -> Result<(), WatcherError> {
+    let path = path.to_string_lossy().to_string();
+    let prefix = format!("{}/", path.trim_end_matches('/'));
+    let mut transaction = pool.begin().await?;
+
+    sqlx::query("DELETE FROM import_roots WHERE path = ?")
+        .bind(&path)
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query(
+        "DELETE FROM files
+         WHERE path = ? OR substr(path, 1, length(?)) = ?",
+    )
+    .bind(&path)
+    .bind(&prefix)
+    .bind(&prefix)
+    .execute(&mut *transaction)
+    .await?;
+
+    transaction.commit().await?;
+    Ok(())
+}
+pub async fn get_library_roots(pool: &sqlx::SqlitePool) -> Result<Vec<String>, WatcherError> {
     Ok(
         sqlx::query_scalar("SELECT path FROM import_roots ORDER BY path")
             .fetch_all(pool)

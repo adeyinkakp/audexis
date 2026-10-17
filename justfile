@@ -4,6 +4,8 @@ default:
 # Run the desktop app.
 dev:
     cargo run -p audexis
+hotreload:
+    dx serve --hot-patch --features hotreload
 
 # run frontend dev server
 frontend:

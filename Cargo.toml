@@ -51,7 +51,8 @@ audioadapter-buffers = "4"
 
 freya = {version = "0.4.3", features = [
     "router",
-    "icons-lucide"
+    "icons-lucide",
+    "winit"
 ]}
 
 souvlaki = "0.8.3"

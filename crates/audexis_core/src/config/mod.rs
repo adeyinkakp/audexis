@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct UserConfig {
     pub songs_table: SongsTableConfig,
     pub custom_field_definitions: Vec<CustomFieldDefinition>,
+    pub metadata_fields: Vec<String>,
     pub theme: ThemePreference,
     pub density: Density,
     pub reduce_motion: bool,
@@ -20,6 +21,14 @@ impl Default for UserConfig {
         Self {
             songs_table: SongsTableConfig::default(),
             custom_field_definitions: Vec::new(),
+            metadata_fields: vec![
+                "title".into(),
+                "artist".into(),
+                "album".into(),
+                "year".into(),
+                "genre".into(),
+                "albumArtist".into(),
+            ],
             theme: ThemePreference::Light,
             density: Density::Default,
             reduce_motion: false,

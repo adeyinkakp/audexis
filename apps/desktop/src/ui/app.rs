@@ -25,12 +25,22 @@ impl App for AudexisApp {
             .expanded()
             .theme_background()
             .theme_color()
+            .content(Content::Flex)
+            .maybe_child(
+                cfg!(target_os = "macos")
+                    .then_some(super::title_bar::TitleBar { title: "Audexis" }),
+            )
             .maybe_child(
                 (!cfg!(any(target_os = "macos", target_os = "windows")))
                     .then(ContextMenuViewer::new),
             )
-            .child(Router::<Route>::new(|| {
-                RouterConfig::default().with_initial_path(Route::Home)
-            }))
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .height(Size::flex(1.0))
+                    .child(Router::<Route>::new(|| {
+                        RouterConfig::default().with_initial_path(Route::Home)
+                    })),
+            )
     }
 }

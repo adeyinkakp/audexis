@@ -1,4 +1,5 @@
 use freya::prelude::*;
+use std::sync::Arc;
 
 use crate::ui::{routes::Route, theme::use_audexis_colors};
 
@@ -8,6 +9,8 @@ pub struct Sidebar;
 impl Component for Sidebar {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
+        let services = use_consume::<Arc<crate::services::AppServices>>();
+        let runtime = use_consume::<tokio::runtime::Handle>();
 
         rect()
             .width(Size::px(220.0))
@@ -44,6 +47,18 @@ impl Component for Sidebar {
                     ),
                 )
                 .exact(true),
+            )
+            .child(
+                SideBarItem::new()
+                    .color(colors.foreground)
+                    .background(colors.background)
+                    .hover_background(colors.hover)
+                    .active_background(colors.active)
+                    .focus_border_fill(colors.ring)
+                    .child(label().text("Settings"))
+                    .on_press(move |_| {
+                        crate::ui::launch_settings(services.clone(), runtime.clone());
+                    }),
             )
     }
 }

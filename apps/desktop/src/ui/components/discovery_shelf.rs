@@ -47,11 +47,16 @@ impl Component for DiscoveryShelf {
                                 layout: MediaLayout::Card,
                                 current: false,
                             })
-                            .on_press(move |_| {
-                                playback.send(PlayerCmd::LoadAt {
-                                    tracks: playlist.as_ref().clone(),
-                                    index,
-                                })
+                            .on_press(move |event: Event<PressEventData>| match event.data() {
+                                PressEventData::Mouse(mouse) => {
+                                    if EventsCombos::pressed(mouse.global_location).is_double() {
+                                        playback.send(PlayerCmd::LoadAt {
+                                            tracks: playlist.as_ref().clone(),
+                                            index,
+                                        })
+                                    }
+                                }
+                                _ => (),
                             }),
                     )
                     .into_element()

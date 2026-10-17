@@ -3,7 +3,7 @@ mod startup;
 mod ui;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
+    // tracing_subscriber::fmt::init();
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

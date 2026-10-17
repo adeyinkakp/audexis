@@ -55,6 +55,7 @@ pub struct AudexisColors {
     pub shade: Color,
     pub highlight: Color,
     pub focus_light: Color,
+    pub transparent: Color,
 }
 
 fn rgb(hex: u32) -> Color {
@@ -115,6 +116,7 @@ pub fn palette(mode: ThemeMode) -> AudexisColors {
             shade: translucent(0x000000, 0.2),
             highlight: translucent(0xffffff, 0.1),
             focus_light: translucent(0xffffff, 0.5),
+            transparent: translucent(0x000000, 0.0),
         },
         ThemeMode::Dark => AudexisColors {
             background: rgb(0x0f0f0f),
@@ -164,6 +166,7 @@ pub fn palette(mode: ThemeMode) -> AudexisColors {
             shade: translucent(0x000000, 0.2),
             highlight: translucent(0xffffff, 0.1),
             focus_light: translucent(0xffffff, 0.5),
+            transparent: translucent(0x000000, 0.0),
         },
     }
 }

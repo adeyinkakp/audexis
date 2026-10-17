@@ -39,6 +39,77 @@ async fn context(dir: &Directory) -> WatcherContext {
         status,
     }
 }
+
+#[tokio::test]
+async fn removing_library_folder_deletes_indexed_tracks_and_cascades_relations() {
+    let dir = Directory::new();
+    let context = context(&dir).await;
+    let music = dir.0.join("music");
+    std::fs::create_dir(&music).unwrap();
+    let song = music.join("song.mp3");
+    let outside = dir.0.join("outside.mp3");
+
+    sqlx::query("INSERT INTO import_roots(path) VALUES (?)")
+        .bind(music.to_str().unwrap())
+        .execute(&context.db.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO files(path,file_name,size) VALUES (?, ?, 0), (?, ?, 0)")
+        .bind(song.to_str().unwrap())
+        .bind("song.mp3")
+        .bind(outside.to_str().unwrap())
+        .bind("outside.mp3")
+        .execute(&context.db.pool)
+        .await
+        .unwrap();
+    let song_id: i64 = sqlx::query_scalar("SELECT id FROM files WHERE path = ?")
+        .bind(song.to_str().unwrap())
+        .fetch_one(&context.db.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO playlists(id,name) VALUES (1,'Saved')")
+        .execute(&context.db.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO playlist_tracks(playlist_id,file_id,ord) VALUES (1,?,0)")
+        .bind(song_id)
+        .execute(&context.db.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO metadata_texts(file_id,key,value) VALUES (?, 'title', 'Song')")
+        .bind(song_id)
+        .execute(&context.db.pool)
+        .await
+        .unwrap();
+
+    remove_library_folder(&context.db.pool, &music)
+        .await
+        .unwrap();
+
+    let indexed_count: i64 = sqlx::query_scalar("SELECT count(*) FROM files")
+        .fetch_one(&context.db.pool)
+        .await
+        .unwrap();
+    let playlist_count: i64 = sqlx::query_scalar("SELECT count(*) FROM playlist_tracks")
+        .fetch_one(&context.db.pool)
+        .await
+        .unwrap();
+    let metadata_count: i64 = sqlx::query_scalar("SELECT count(*) FROM metadata_texts")
+        .fetch_one(&context.db.pool)
+        .await
+        .unwrap();
+    assert_eq!(indexed_count, 1);
+    assert_eq!(playlist_count, 0);
+    assert_eq!(metadata_count, 0);
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM import_roots")
+            .fetch_one(&context.db.pool)
+            .await
+            .unwrap(),
+        0
+    );
+}
+
 fn event(kind: notify::EventKind, paths: &[&Path]) -> DebouncedEvent {
     let mut event = notify::Event::new(kind);
     for path in paths {
