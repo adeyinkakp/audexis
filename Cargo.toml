@@ -1,0 +1,59 @@
+[workspace]
+members = [
+    "crates/audexis_core",
+    "crates/audexis_audio",
+    "apps/desktop",
+]
+default-members = ["apps/desktop"]
+resolver = "3"
+
+[workspace.package]
+version = "0.20.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+
+audexis_core = { path = "crates/audexis_core" }
+audexis_audio = { path = "crates/audexis_audio" }
+
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1.53.2", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+
+notify = "6.1"
+notify-debouncer-full = "0.3"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+walkdir = "2"
+uuid = { version = "1", features = ["v4"] }
+
+
+symphonia = { version = "0.6.0", features = [
+    "all-codecs",
+    "all-formats",
+] }
+cpal = "0.18.1"
+crossbeam-channel = "0.5"
+ringbuf = "0.5"
+rubato = "4"
+audioadapter-buffers = "4"
+
+
+freya = {version = "0.4.3", features = [
+    "router",
+    "icons-lucide",
+    "winit"
+]}
+
+souvlaki = "0.8.3"
+rfd = "0.17"
