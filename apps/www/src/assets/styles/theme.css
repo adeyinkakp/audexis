@@ -73,9 +73,18 @@ html:not([data-theme="dark"]) {
 }
 
 @theme {
-    --font-sans: "JetBrains Mono", monospace;
+    --font-sans:
+        system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+        "Segoe UI", "Noto Sans", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+
     --font-mono: "JetBrains Mono", monospace;
-    --font-serif: "JetBrains Mono", monospace;
+    --font-serif:
+        system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
+        "Segoe UI", "Noto Sans", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
 
     --color-headings: var(--heading);
     --color-active: var(--active);

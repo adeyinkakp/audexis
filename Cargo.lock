@@ -568,6 +568,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "audexis_server"
+version = "0.20.0"
+
+[[package]]
 name = "audio-core"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

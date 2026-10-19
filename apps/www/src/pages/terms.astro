@@ -1,0 +1,166 @@
+---
+import Layout from "../layouts/Layout.astro";
+export const prerender = true;
+---
+
+<Layout>
+    <main class="mx-auto max-w-3xl px-6 py-16 sm:py-24">
+        <a
+            href="/"
+            class="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground no-underline transition-colors"
+        >
+            Back Home
+        </a>
+
+        <header class="mb-12 border-b border-border pb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-headings">
+                Terms of Service
+            </h1>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Effective Date: October 19, 2026
+            </p>
+        </header>
+
+        <div class="space-y-10 text-sm leading-relaxed text-muted-foreground">
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    1. Agreement to Terms
+                </h2>
+                <p>
+                    By downloading the Audexis application, accessing the
+                    Audexis website, or subscribing to Audexis Cloud services,
+                    you agree to be bound by these Terms of Service. If you do
+                    not agree to these terms, you may not use the software or
+                    hosted services.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    2. Description of Service & Infrastructure Role
+                </h2>
+                <p>
+                    Audexis provides a high-performance desktop audio player and
+                    an optional hosted cloud synchronization service ("Audexis
+                    Cloud").
+                    <strong>
+                        Audexis is an infrastructure and playback tool, not a
+                        content provider or music distributor.
+                    </strong>
+                    We do not sell, license, catalog, or distribute music or
+                    audio recordings. You are exclusively responsible for
+                    obtaining and managing the audio files you upload, store,
+                    and stream through the platform.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    3. User Content & Copyright Compliance
+                </h2>
+                <p class="mb-3">
+                    You retain 100% intellectual property ownership of any audio
+                    files, metadata, or artwork you upload to Audexis Cloud. By
+                    uploading files, you represent and warrant that:
+                </p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>
+                        You own the legal rights to the audio content or have
+                        obtained explicit permission or legal fair-use
+                        authorization to store and stream the content privately.
+                    </li>
+                    <li>
+                        Your storage and streaming of the content are strictly
+                        for personal, private, non-commercial use.
+                    </li>
+                    <li>
+                        You will not use Audexis Cloud to publicly distribute,
+                        broadcast, sell, or facilitate copyright infringement.
+                    </li>
+                </ul>
+                <p class="mt-3">
+                    Audexis reserves the right to terminate accounts and delete
+                    stored files associated with repeat copyright infringement
+                    or abuse of service.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    4. Subscriptions, Billing & Cancellations
+                </h2>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>
+                        <strong>Billing Cycle:</strong> Audexis Cloud Standard
+                        is billed on a recurring monthly subscription basis
+                        ($4.99/month) processed through Stripe. Subscriptions
+                        automatically renew unless cancelled prior to the
+                        renewal date.
+                    </li>
+                    <li>
+                        <strong>Cancellations:</strong> You may cancel your
+                        subscription at any time via the Stripe Customer Portal
+                        accessible from your Audexis Dashboard. Upon
+                        cancellation, your account will remain active with full
+                        access until the end of your current paid billing
+                        period.
+                    </li>
+                    <li>
+                        <strong>Storage Quotas:</strong> Audexis Cloud Standard
+                        includes up to 100 GB of personal audio file storage. We
+                        reserve the right to prevent additional uploads if your
+                        library exceeds your tier's allocation.
+                    </li>
+                    <li>
+                        <strong>Refunds:</strong> Because the Audexis client
+                        software is free to test and evaluate locally, cloud
+                        hosting subscriptions are generally non-refundable
+                        except where required by applicable consumer law.
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    5. Disclaimer of Warranties
+                </h2>
+                <p>
+                    The Audexis client software and hosted services are provided
+                    on an "AS IS" and "AS AVAILABLE" basis without warranties of
+                    any kind, whether express or implied. While we employ secure
+                    and redundant cloud infrastructure,{" "}
+                    <strong>
+                        Audexis is not an archival cold-storage backup service
+                    </strong>
+                    . You are solely responsible for maintaining local copies
+                    and backups of your personal audio files.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    6. Limitation of Liability
+                </h2>
+                <p>
+                    To the maximum extent permitted by applicable law, Audexis
+                    and its maintainers shall not be liable for any indirect,
+                    incidental, special, consequential, or punitive damages,
+                    including loss of data, audio files, or profits arising out
+                    of your use of the software or cloud service.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    7. Modifications to Terms
+                </h2>
+                <p>
+                    We reserve the right to revise these terms to reflect
+                    infrastructure updates, legal requirements, or new features.
+                    Material changes will be noted by updating the "Effective
+                    Date" at the top of this document.
+                </p>
+            </section>
+        </div>
+    </main>
+</Layout>

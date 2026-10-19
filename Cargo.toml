@@ -2,7 +2,7 @@
 members = [
     "crates/audexis_core",
     "crates/audexis_audio",
-    "apps/desktop",
+    "apps/desktop", "crates/audexis_server",
 ]
 default-members = ["apps/desktop"]
 resolver = "3"
