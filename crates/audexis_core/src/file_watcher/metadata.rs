@@ -82,15 +82,21 @@ impl FileWatcher {
             .await
             .map_err(DatabaseError::Join)?;
 
-            for (id, _path, result) in parsed {
+            for (id, path, result) in parsed {
                 let metadata = match result {
                     Ok(metadata) => metadata,
                     Err(error) => {
+                        let hash = async_runtime::spawn_blocking(move || {
+                            super::hashing::attempt_file_hash(Path::new(&path))
+                        })
+                        .await
+                        .map_err(DatabaseError::Join)?;
                         sqlx::query(
                             "UPDATE files
-                               SET metadata_status = 'failed' WHERE id = ?1",
+                               SET metadata_status = 'failed', hash = ?2 WHERE id = ?1",
                         )
                         .bind(id)
+                        .bind(hash)
                         .execute(&db.pool)
                         .await
                         .map_err(DatabaseError::Sqlx)?;
@@ -118,9 +124,14 @@ impl FileWatcher {
         metadata: &MetadataFile,
     ) -> Result<(), DatabaseError> {
         let path = metadata.path.clone();
-        let duration_ms = async_runtime::spawn_blocking(move || read_duration_ms(&path))
-            .await
-            .map_err(DatabaseError::Join)?;
+        let (duration_ms, hash) = async_runtime::spawn_blocking(move || {
+            (
+                read_duration_ms(&path),
+                super::hashing::attempt_file_hash(&path),
+            )
+        })
+        .await
+        .map_err(DatabaseError::Join)?;
         let mut tx = pool.begin().await.map_err(DatabaseError::Sqlx)?;
 
         sqlx::query("DELETE FROM metadata_texts WHERE file_id = ?1")
@@ -201,13 +212,14 @@ impl FileWatcher {
 
         sqlx::query(
             "UPDATE files
-               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = ?3
+               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = ?3, hash = ?5
                WHERE id = ?4",
         )
         .bind(metadata.tag_format.to_string())
         .bind(validated_at)
         .bind(duration_ms)
         .bind(file_id)
+        .bind(hash)
         .execute(&mut *tx)
         .await
         .map_err(DatabaseError::Sqlx)?;

@@ -9,7 +9,7 @@ use tokio::task as async_runtime;
 pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<(), DatabaseError> {
     let total = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM files WHERE missing_since IS NULL AND
-         (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = '' OR last_validated = 0 OR size = 0 OR modified_at = 0)",
+         (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = '' OR last_validated = 0 OR size = 0 OR modified_at = 0 OR hash IS NULL OR hash = '')",
     )
     .fetch_one(pool)
     .await
@@ -23,10 +23,10 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<
     let mut processed = 0_u64;
     let mut cursor: i64 = 0;
     loop {
-        let rows: Vec<(i64, String, Option<String>)> = sqlx::query_as(
-            "SELECT id, path, format FROM files WHERE id > ?1 AND missing_since IS NULL AND
+        let rows: Vec<(i64, String, Option<String>, Option<i64>, Option<String>)> = sqlx::query_as(
+            "SELECT id, path, format, duration_ms, hash FROM files WHERE id > ?1 AND missing_since IS NULL AND
              (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = ''
-              OR last_validated = 0 OR size = 0 OR modified_at = 0)
+              OR last_validated = 0 OR size = 0 OR modified_at = 0 OR hash IS NULL OR hash = '')
              ORDER BY id LIMIT 50",
         )
         .bind(cursor)
@@ -37,50 +37,53 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<
             break;
         }
         cursor = rows.last().unwrap().0;
-        let changed_ids: Vec<_> = rows.iter().map(|row| row.0).collect();
-        let values = async_runtime::spawn_blocking(move || {
-            rows.into_iter()
-                .filter_map(|(id, path, format)| {
-                    let path = PathBuf::from(path);
-                    let stat = crate::library_files::metadata(&path).ok()?;
-                    let duration = super::metadata::read_duration_ms(&path);
-                    let format = format.filter(|value| !value.is_empty()).or_else(|| {
-                        DefaultBackend::new()
-                            .read(&path)
-                            .ok()
-                            .map(|metadata| metadata.tag_format.to_string())
-                    });
-                    let modified = stat
-                        .modified()
-                        .ok()?
-                        .duration_since(UNIX_EPOCH)
-                        .ok()?
-                        .as_secs() as i64;
-                    Some((id, duration, format, stat.len() as i64, modified))
-                })
-                .collect::<Vec<_>>()
-        })
-        .await
-        .map_err(DatabaseError::Join)?;
-        for (id, duration, format, size, modified) in values {
-            sqlx::query(
+        for (id, path, format, duration, hash) in rows {
+            let value = async_runtime::spawn_blocking(move || {
+                let path = PathBuf::from(path);
+                let stat = crate::library_files::metadata(&path).ok()?;
+                let duration = duration
+                    .filter(|duration| *duration > 0)
+                    .or_else(|| super::metadata::read_duration_ms(&path));
+                let hash = hash
+                    .filter(|hash| !hash.is_empty())
+                    .or_else(|| super::hashing::attempt_file_hash(&path));
+                let format = format.filter(|value| !value.is_empty()).or_else(|| {
+                    DefaultBackend::new()
+                        .read(&path)
+                        .ok()
+                        .map(|metadata| metadata.tag_format.to_string())
+                });
+                let modified = stat
+                    .modified()
+                    .ok()?
+                    .duration_since(UNIX_EPOCH)
+                    .ok()?
+                    .as_secs() as i64;
+                Some((duration, format, stat.len() as i64, modified, hash))
+            })
+            .await
+            .map_err(DatabaseError::Join)?;
+            processed += 1;
+            if let Some((duration, format, size, modified, hash)) = value {
+                sqlx::query(
                 "UPDATE files SET
                  duration_ms = CASE WHEN duration_ms IS NULL OR duration_ms <= 0 THEN ?1 ELSE duration_ms END,
                  format = COALESCE(NULLIF(format, ''), ?2),
                  size = CASE WHEN size = 0 THEN ?3 ELSE size END,
                  modified_at = CASE WHEN modified_at = 0 THEN ?4 ELSE modified_at END,
+                 hash = ?6,
                  last_validated = CASE WHEN last_validated = 0 AND ?1 IS NOT NULL THEN unixepoch() ELSE last_validated END
                  WHERE id = ?5",
-            ).bind(duration).bind(format).bind(size).bind(modified).bind(id)
+            ).bind(duration).bind(format).bind(size).bind(modified).bind(id).bind(hash)
                 .execute(pool).await.map_err(DatabaseError::Sqlx)?;
+                super::events::emit_changed(app, &[id])?;
+            }
+            task.update(
+                processed,
+                Some(total),
+                Some(format!("{processed} of {total} files")),
+            );
         }
-        super::events::emit_changed(app, &changed_ids)?;
-        processed += changed_ids.len() as u64;
-        task.update(
-            processed,
-            Some(total),
-            Some(format!("{processed} of {total} files")),
-        );
     }
     task.complete(format!("Updated {processed} files"));
     Ok(())

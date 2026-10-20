@@ -1,6 +1,7 @@
 mod backfill;
 mod classification;
 mod events;
+mod hashing;
 mod metadata;
 mod paths;
 mod reconciliation;

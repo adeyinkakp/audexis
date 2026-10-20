@@ -78,7 +78,7 @@ impl FileWatcher {
                     .push_bind(modified)
                     .push_bind("pending");
             });
-            query.push(" ON CONFLICT(path) DO UPDATE SET file_name=excluded.file_name, size=excluded.size, modified_at=excluded.modified_at, status='pending', metadata_status='ok', missing_since=NULL WHERE files.size != excluded.size OR files.modified_at != excluded.modified_at OR files.missing_since IS NOT NULL RETURNING id");
+            query.push(" ON CONFLICT(path) DO UPDATE SET file_name=excluded.file_name, size=excluded.size, modified_at=excluded.modified_at, status='pending', metadata_status='ok', missing_since=NULL, hash=NULL WHERE files.size != excluded.size OR files.modified_at != excluded.modified_at OR files.missing_since IS NOT NULL RETURNING id");
             changed.extend(
                 query
                     .build_query_scalar::<i64>()

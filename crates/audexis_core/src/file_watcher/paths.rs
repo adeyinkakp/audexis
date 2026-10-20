@@ -94,7 +94,7 @@ pub(super) async fn rebase_indexed_directory(
         sqlx::query(
             "UPDATE files
              SET path = ?1, file_name = ?2, size = ?3, modified_at = ?4,
-                 status = 'pending', metadata_status = 'ok', missing_since = NULL
+                 status = 'pending', metadata_status = 'ok', missing_since = NULL, hash = NULL
              WHERE id = ?5",
         )
         .bind(destination_string)

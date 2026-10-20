@@ -107,7 +107,7 @@ impl FileWatcher {
             let id = sqlx::query_scalar::<_, i64>(
                 "UPDATE files
                  SET path = ?1, file_name = ?2, size = ?3, modified_at = ?4,
-                     status = 'pending', metadata_status = 'ok', missing_since = NULL
+                     status = 'pending', metadata_status = 'ok', missing_since = NULL, hash = NULL
                  WHERE path = ?5 RETURNING id",
             )
             .bind(&new_path_string)
@@ -197,7 +197,7 @@ impl FileWatcher {
                  file_name = excluded.file_name,
                  size = excluded.size,
                  modified_at = excluded.modified_at,
-                 status = 'pending', metadata_status = 'ok', missing_since = NULL RETURNING id",
+                 status = 'pending', metadata_status = 'ok', missing_since = NULL, hash = NULL RETURNING id",
             );
             let ids = query_builder
                 .build_query_scalar::<i64>()
