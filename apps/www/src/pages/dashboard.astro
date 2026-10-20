@@ -5,6 +5,7 @@ import { db } from "../db";
 import { user as userTable, apiKey as apiKeyTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import Layout from "../layouts/Layout.astro";
+import { hasCloudSubscription } from "../lib/desktop-auth-protocol";
 
 const sessionUser = Astro.locals.user;
 if (!sessionUser) {
@@ -16,9 +17,7 @@ const [dbUser] = await db
     .from(userTable)
     .where(eq(userTable.id, sessionUser.id));
 
-const isSubscribed =
-    dbUser?.subscriptionStatus === "active" ||
-    dbUser?.subscriptionStatus === "trialing";
+const isSubscribed = hasCloudSubscription(dbUser);
 
 const periodEnd = dbUser?.currentPeriodEnd
     ? new Date(dbUser.currentPeriodEnd).toLocaleDateString()

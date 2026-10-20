@@ -2,8 +2,17 @@ import type { APIRoute } from "astro";
 import { db } from "../../db";
 import { apiKey as apiKeyTable } from "../../db/schema";
 import { and, eq } from "drizzle-orm";
+import {
+  privateHeaders,
+  sameOriginPost,
+} from "../../lib/desktop-auth-protocol";
 
 export const POST: APIRoute = async ({ request, locals }) => {
+  if (!sameOriginPost(request))
+    return Response.json(
+      { error: "Invalid request origin" },
+      { status: 403, headers: privateHeaders },
+    );
   try {
     const sessionUser = locals.user;
     if (!sessionUser) {
@@ -33,7 +42,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
   } catch (err: any) {
     console.error("Revoke Key Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "Could not revoke API key" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

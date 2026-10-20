@@ -5,7 +5,9 @@ use crate::ui::theme::AudexisColors;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Appearance,
+
     Library,
+    Cloud,
     Metadata,
     CustomFields,
     Logs,
@@ -38,6 +40,13 @@ impl Component for Navigation {
                 label: "Library",
                 item: Section::Library,
                 icon: icons::lucide::folder(),
+                section,
+                colors: colors.clone(),
+            })
+            .child(NavigationItem {
+                label: "Cloud",
+                item: Section::Cloud,
+                icon: icons::lucide::cloud(),
                 section,
                 colors: colors.clone(),
             })

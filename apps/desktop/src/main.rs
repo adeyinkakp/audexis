@@ -1,3 +1,4 @@
+mod cloud_auth;
 pub mod services;
 mod startup;
 mod ui;

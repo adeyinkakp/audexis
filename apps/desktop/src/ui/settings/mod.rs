@@ -3,12 +3,14 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 
 use crate::services::AppServices;
+use crate::ui::settings::cloud::CloudPanel;
 use crate::ui::{
     components::song_table::{CustomFieldsEditor, use_table_settings},
     theme::{use_audexis_colors, use_theme_controller},
 };
 
 mod appearance;
+mod cloud;
 mod components;
 mod library;
 mod metadata;
@@ -206,6 +208,11 @@ impl Component for Settings {
                                 .into_element(),
                             })
                             .child(Panel {
+                                section: Section::Cloud,
+                                selected,
+                                child: CloudPanel.into_element(),
+                            })
+                            .child(Panel {
                                 section: Section::Metadata,
                                 selected,
                                 child: MetadataPanel {
@@ -277,6 +284,7 @@ impl Component for Settings {
                                 Section::Metadata => "Field selections are saved automatically.",
                                 Section::CustomFields => "Saved fields apply immediately.",
                                 Section::Logs => "Backend logs",
+                                Section::Cloud => "Connection credentials are stored securely.",
                                 _ => {
                                     if d.busy {
                                         "Updating your preferences…"

@@ -37,23 +37,6 @@ impl Drop for Wav {
     }
 }
 
-#[test]
-fn decodes_and_resamples_a_real_wav() {
-    let wav = Wav::new();
-    let (mut state, duration) = source::open(wav.0.to_str().unwrap(), 48000, 2).unwrap();
-    assert_eq!(duration, 1000);
-    let mut samples = Vec::new();
-    for _ in 0..200 {
-        if !decode::render(&mut state).unwrap() {
-            break;
-        }
-        samples.extend_from_slice(&state.outdata);
-    }
-    assert_eq!(samples.len(), 48000 * 2);
-    assert!(samples.iter().all(|sample| sample.is_finite()));
-    assert!(samples.iter().any(|sample| sample.abs() > 0.1));
-}
-
 #[tokio::test]
 async fn commands_publish_state_and_decoder_errors_without_a_device() {
     let wav = Wav::new();

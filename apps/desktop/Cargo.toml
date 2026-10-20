@@ -29,6 +29,11 @@ rfd.workspace = true
 directories = "6.0.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+keyring = "4.2.0"
+open = "5.4.4"
+base64 = "0.22.1"
+sha2 = "0.10.9"
+getrandom = "0.3.4"
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 muda = { version = "0.19.3", default-features = false }

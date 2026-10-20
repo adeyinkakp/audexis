@@ -38,12 +38,21 @@ const user = Astro.locals.user;
             </a>
 
             {user ? (
-                <a
-                    class="font-medium text-foreground transition-colors hover:text-primary no-underline"
-                    href="/dashboard"
-                >
-                    Dashboard
-                </a>
+                <div class="flex items-center gap-3 sm:gap-7">
+                    <a
+                        class="font-medium text-foreground transition-colors hover:text-primary no-underline"
+                        href="/dashboard"
+                    >
+                        Dashboard
+                    </a>
+                    <button
+                        id="web-logout"
+                        type="button"
+                        class="font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    >
+                        Log out
+                    </button>
+                </div>
             ) : (
                 <a
                     class="font-medium text-muted-foreground transition-colors hover:text-foreground no-underline"
@@ -61,4 +70,36 @@ const user = Astro.locals.user;
             </a>
         </div>
     </nav>
+    <p
+        id="web-logout-error"
+        role="alert"
+        class="mx-auto max-w-7xl px-5 pb-3 text-sm text-destructive sm:px-8 lg:px-12"
+        hidden
+    ></p>
 </header>
+
+<script>
+    import { authClient } from "../lib/auth-client";
+
+    const button = document.getElementById(
+        "web-logout",
+    ) as HTMLButtonElement | null;
+    button?.addEventListener("click", async () => {
+        const error = document.getElementById(
+            "web-logout-error",
+        ) as HTMLParagraphElement;
+        button.disabled = true;
+        button.textContent = "Logging out…";
+        error.hidden = true;
+        try {
+            const result = await authClient.signOut();
+            if (result.error) throw new Error("Logout failed");
+            window.location.assign("/");
+        } catch {
+            error.textContent = "Could not log out. Please try again.";
+            error.hidden = false;
+            button.disabled = false;
+            button.textContent = "Log out";
+        }
+    });
+</script>

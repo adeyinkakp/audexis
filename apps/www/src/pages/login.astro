@@ -1,9 +1,28 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { safeLoginCallback } from "../lib/desktop-auth-protocol";
+const callback = safeLoginCallback(
+    Astro.url.searchParams.get("callback"),
+    Astro.url.origin,
+);
+const isDesktopLogin =
+    new URL(callback, Astro.url.origin).pathname === "/auth/desktop";
+const errorCallback = isDesktopLogin
+    ? `/auth/desktop-error?callback=${encodeURIComponent(callback)}`
+    : Astro.url.pathname + Astro.url.search;
+if (Astro.locals.user) return Astro.redirect(callback);
+Astro.response.headers.set("Cache-Control", "no-store");
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
 ---
 
 <Layout>
-    <main class="w-full px-4 flex flex-col items-center justify-center w min-h-screen">
+    <main
+        data-login-callback={callback}
+        data-error-callback={errorCallback}
+        data-desktop-login={isDesktopLogin ? "true" : "false"}
+        id="login-page"
+        class="w-full px-4 flex flex-col items-center justify-center w min-h-screen"
+    >
         <div class="rounded-xl border w-full md:w-96 border-border bg-card md:p-8 p-2 text-card-foreground shadow-2xl">
             <div class="mb-8 text-center">
                 <h1 class="mb-2 text-3xl font-bold text-headings">Audexis</h1>
@@ -12,6 +31,12 @@ import Layout from "../layouts/Layout.astro";
                 </p>
             </div>
 
+            <p
+                id="login-error"
+                role="alert"
+                class="mb-4 text-sm text-destructive"
+                hidden
+            ></p>
             <div class="mb-6 flex flex-col gap-3">
                 <button
                     id="btn-github"
@@ -64,30 +89,61 @@ import Layout from "../layouts/Layout.astro";
     <script>
         import { authClient } from "../lib/auth-client";
 
-        const emailInput = document.getElementById("email") as HTMLInputElement;
-        const passInput = document.getElementById(
-            "password",
-        ) as HTMLInputElement;
-        const errorMsg = document.getElementById(
-            "error-msg",
-        ) as HTMLParagraphElement;
+        const callbackURL =
+            document.getElementById("login-page")?.dataset.loginCallback ??
+            "/dashboard";
+        const errorCallbackURL =
+            document.getElementById("login-page")?.dataset.errorCallback ??
+            "/login";
+        const isDesktopLogin =
+            document.getElementById("login-page")?.dataset.desktopLogin ===
+            "true";
 
+        async function signIn(provider: "github" | "google") {
+            const error = document.getElementById(
+                "login-error",
+            ) as HTMLParagraphElement;
+            const buttons = document.querySelectorAll<HTMLButtonElement>(
+                "#btn-github, #btn-google",
+            );
+            error.hidden = true;
+            buttons.forEach((button) => {
+                button.disabled = true;
+            });
+            try {
+                const result = await authClient.signIn.social({
+                    provider,
+                    callbackURL,
+                    newUserCallbackURL: callbackURL,
+                    errorCallbackURL,
+                });
+                if (result.error) throw new Error("Sign-in failed");
+            } catch {
+                if (isDesktopLogin) {
+                    window.location.assign(errorCallbackURL);
+                    return;
+                }
+                error.textContent = "Could not sign in. Please try again.";
+                error.hidden = false;
+            } finally {
+                buttons.forEach((button) => {
+                    button.disabled = false;
+                });
+            }
+        }
+        if (new URLSearchParams(window.location.search).has("error")) {
+            const error = document.getElementById(
+                "login-error",
+            ) as HTMLParagraphElement;
+            error.textContent =
+                "Sign-in was cancelled or could not be completed. Please try again.";
+            error.hidden = false;
+        }
         document
             .getElementById("btn-github")
-            ?.addEventListener("click", async () => {
-                await authClient.signIn.social({
-                    provider: "github",
-                    callbackURL: "/",
-                });
-            });
-
+            ?.addEventListener("click", () => signIn("github"));
         document
             .getElementById("btn-google")
-            ?.addEventListener("click", async () => {
-                await authClient.signIn.social({
-                    provider: "google",
-                    callbackURL: "/",
-                });
-            });
+            ?.addEventListener("click", () => signIn("google"));
     </script>
 </Layout>

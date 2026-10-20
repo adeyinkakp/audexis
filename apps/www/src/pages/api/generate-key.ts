@@ -3,14 +3,24 @@ import { randomBytes, createHash } from "node:crypto";
 import { db } from "../../db";
 import { user as userTable, apiKey as apiKeyTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import {
+  hasCloudSubscription,
+  privateHeaders,
+  sameOriginPost,
+} from "../../lib/desktop-auth-protocol";
 
 export const POST: APIRoute = async ({ request, locals }) => {
+  if (!sameOriginPost(request))
+    return Response.json(
+      { error: "Invalid request origin" },
+      { status: 403, headers: privateHeaders },
+    );
   try {
     const sessionUser = locals.user;
     if (!sessionUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...privateHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -26,13 +36,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!dbUser) {
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...privateHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const hasActiveSubscription =
-      dbUser.subscriptionStatus === "active" ||
-      dbUser.subscriptionStatus === "trialing";
+    const hasActiveSubscription = hasCloudSubscription(dbUser);
 
     if (!hasActiveSubscription) {
       return new Response(
@@ -42,7 +50,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }),
         {
           status: 402,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...privateHeaders, "Content-Type": "application/json" },
         },
       );
     }
@@ -67,14 +75,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...privateHeaders, "Content-Type": "application/json" },
       },
     );
   } catch (err: any) {
     console.error("API Key Generation Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Could not generate API key" }),
+      {
+        status: 500,
+        headers: { ...privateHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 };

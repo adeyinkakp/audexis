@@ -4,6 +4,7 @@ import { db } from "../db";
 import * as schema from "../db/schema";
 
 export const auth = betterAuth({
+  baseURL: import.meta.env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -15,22 +16,27 @@ export const auth = betterAuth({
       stripeCustomerId: {
         type: "string",
         required: false,
+        input: false,
       },
       stripeSubscriptionId: {
         type: "string",
         required: false,
+        input: false,
       },
       subscriptionStatus: {
         type: "string",
         required: false,
+        input: false,
       },
       subscriptionTier: {
         type: "string",
         required: false,
+        input: false,
       },
       currentPeriodEnd: {
         type: "date",
         required: false,
+        input: false,
       },
     },
   },

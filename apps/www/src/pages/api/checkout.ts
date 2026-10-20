@@ -1,4 +1,3 @@
-// src/pages/api/checkout.ts
 import type { APIRoute } from "astro";
 import type Stripe from "stripe";
 import { stripe } from "../../lib/stripe";

@@ -14,6 +14,21 @@ pub struct UserConfig {
     pub density: Density,
     pub reduce_motion: bool,
     pub needs_onboarding: bool,
+    pub server: Option<ServerConnection>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ServerKind {
+    Cloud,
+    Custom,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServerConnection {
+    pub kind: ServerKind,
+    pub url: String,
+    pub credential_id: Option<String>,
 }
 
 impl Default for UserConfig {
@@ -33,6 +48,7 @@ impl Default for UserConfig {
             density: Density::Default,
             reduce_motion: false,
             needs_onboarding: true,
+            server: None,
         }
     }
 }

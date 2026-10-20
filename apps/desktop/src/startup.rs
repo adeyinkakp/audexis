@@ -14,6 +14,31 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
     let database_path = dirs.data_local_dir().join("audexis_test.db");
     let user_config_path = dirs.data_local_dir().join("user_config.json");
     let user_config = UserConfig::load_config(&user_config_path);
+    let credential_config = user_config.clone();
+    let mut cloud = match tokio::task::spawn_blocking(move || {
+        crate::services::restore_server(&credential_config)
+    })
+    .await
+    {
+        Ok(Ok(cloud)) => cloud,
+        Ok(Err(error)) => {
+            tracing::warn!(%error, "Server credentials unavailable; sign in again in Settings");
+            None
+        }
+        Err(error) => {
+            tracing::warn!(%error, "Could not load server credentials");
+            None
+        }
+    };
+    if let Some(session) = cloud
+        .as_ref()
+        .filter(|session| session.connection.kind == audexis_core::config::ServerKind::Cloud)
+    {
+        if let Err(error) = crate::cloud_auth::validate_session(&session.api_key).await {
+            tracing::warn!(%error, "Cloud session unavailable");
+            cloud = None;
+        }
+    }
     let db = Database::init(&database_path).await?;
 
     #[cfg(not(target_os = "windows"))]
@@ -75,6 +100,7 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
         watcher_error,
         library_files,
         audio,
+        cloud: Mutex::new(cloud),
         player,
         audio_error,
         artwork: Arc::new(audexis_core::artwork::ArtworkCache::new(db.pool.clone())),
