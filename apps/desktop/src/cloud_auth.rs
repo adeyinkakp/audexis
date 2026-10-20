@@ -187,7 +187,52 @@ fn valid_token(token: &str) -> bool {
     })
 }
 
-pub async fn validate_session(token: &str) -> Result<(), String> {
+#[derive(serde::Deserialize)]
+pub struct SessionIdentity {
+    pub user_id: String,
+}
+
+#[derive(serde::Deserialize)]
+struct SessionResponse {
+    authenticated: bool,
+    user_id: String,
+}
+
+fn session_identity(body: SessionResponse) -> Result<SessionIdentity, String> {
+    if !body.authenticated
+        || body.user_id.trim().is_empty()
+        || body.user_id.len() > 512
+        || body.user_id.chars().any(char::is_control)
+    {
+        return Err("The server did not return a valid account identity.".into());
+    }
+    Ok(SessionIdentity {
+        user_id: body.user_id,
+    })
+}
+
+async fn read_session(response: reqwest::Response) -> Result<SessionIdentity, String> {
+    let body: SessionResponse = response.json().await.map_err(|_| {
+        "The server must return authenticated and user_id in its session response.".to_string()
+    })?;
+    session_identity(body)
+}
+
+pub async fn custom_session(server_url: &str, key: &str) -> Result<SessionIdentity, String> {
+    let url = format!("{}/api/session", server_url.trim_end_matches('/'));
+    let response = http_client()?
+        .get(url)
+        .bearer_auth(key)
+        .send()
+        .await
+        .map_err(|_| "Could not reach your server to verify the account.".to_string())?;
+    if !response.status().is_success() {
+        return Err("Could not verify this account. Your server must support GET /api/session with your API key.".into());
+    }
+    read_session(response).await
+}
+
+pub async fn validate_session(token: &str) -> Result<SessionIdentity, String> {
     if !valid_token(token) {
         return Err("Invalid saved cloud credential. Sign in again.".into());
     }
@@ -198,7 +243,7 @@ pub async fn validate_session(token: &str) -> Result<(), String> {
         .await
         .map_err(|_| "Could not verify your cloud session. Check your connection.")?;
     match response.status().as_u16() {
-        200 => Ok(()),
+        200 => read_session(response).await,
         403 => Err("An active Audexis Cloud subscription is required.".into()),
         401 => Err("Your cloud session has expired or was revoked. Sign in again.".into()),
         _ => Err("Could not verify your cloud session. Please try again.".into()),

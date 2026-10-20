@@ -1,9 +1,6 @@
 use crate::{
     services::AppServices,
-    ui::{
-        routes::Route,
-        theme::{use_app_theme, use_audexis_colors},
-    },
+    ui::{routes::Route, theme::use_app_theme},
 };
 use freya::{prelude::*, router::*};
 use std::sync::Arc;

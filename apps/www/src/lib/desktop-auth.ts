@@ -5,7 +5,7 @@ import { apiKey, user, verification } from "../db/schema";
 import {
   hashSecret,
   hasCloudSubscription,
-  loopbackRedirect,
+  nativeRedirect,
   validChallenge,
   verifyPkce,
 } from "./desktop-auth-protocol";
@@ -45,7 +45,7 @@ export async function redeemDesktopCode(
   if (
     typeof code !== "string" ||
     !validChallenge(code) ||
-    !loopbackRedirect(redirect)
+    !nativeRedirect(redirect)
   )
     return null;
   return db.transaction(async (tx) => {

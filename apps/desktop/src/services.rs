@@ -47,22 +47,41 @@ impl AppServices {
         }))
     }
 
-    pub fn save_server(
-        &self,
+    pub async fn save_server(
+        self: &Arc<Self>,
         kind: ServerKind,
         url: &str,
         api_key: &str,
     ) -> Result<ServerConnection, String> {
         let url = normalize_server_url(url)?;
-        let api_key = api_key.trim();
+        let api_key = api_key.trim().to_owned();
         if api_key.is_empty() {
             return Err("Enter an API key.".into());
         }
-        let mut connection = ServerConnection {
+        let identity = server_identity(kind, &url, &api_key).await?;
+        let id = self
+            .db
+            .connection_id(&url, &identity.user_id)
+            .await
+            .map_err(|error| format!("Could not save account connection: {error}"))?;
+        let connection = ServerConnection {
             kind,
             url,
             credential_id: Some(uuid::Uuid::new_v4().to_string()),
+            connection_id: Some(id),
+            server_user_id: Some(identity.user_id),
         };
+        let services = self.clone();
+        tokio::task::spawn_blocking(move || services.persist_server(connection, &api_key))
+            .await
+            .map_err(|_| "Could not save connection credentials".to_string())?
+    }
+
+    fn persist_server(
+        &self,
+        mut connection: ServerConnection,
+        api_key: &str,
+    ) -> Result<ServerConnection, String> {
         let mut cloud = self.cloud.lock().map_err(|_| "Connection lock poisoned")?;
         let stored_entry = credential_entry(&connection).and_then(|entry| {
             entry
@@ -142,7 +161,7 @@ pub fn restore_server(config: &UserConfig) -> Result<Option<CloudDetails>, Strin
         .transpose()
 }
 
-fn normalize_server_url(value: &str) -> Result<String, String> {
+pub(crate) fn normalize_server_url(value: &str) -> Result<String, String> {
     let mut url = reqwest::Url::parse(value.trim()).map_err(|_| "Enter a valid server URL.")?;
     if !matches!(url.scheme(), "http" | "https")
         || url.host_str().is_none()
@@ -158,4 +177,41 @@ fn normalize_server_url(value: &str) -> Result<String, String> {
     let path = url.path().trim_end_matches('/').to_owned();
     url.set_path(&path);
     Ok(url.to_string().trim_end_matches('/').to_owned())
+}
+
+async fn server_identity(
+    kind: ServerKind,
+    url: &str,
+    key: &str,
+) -> Result<crate::cloud_auth::SessionIdentity, String> {
+    match kind {
+        ServerKind::Cloud => crate::cloud_auth::validate_session(key).await,
+        ServerKind::Custom => crate::cloud_auth::custom_session(url, key).await,
+    }
+}
+
+pub async fn resolve_restored_connection(
+    db: &Database,
+    session: &mut CloudDetails,
+) -> Result<(), String> {
+    let url = normalize_server_url(&session.connection.url)?;
+    let identity = server_identity(session.connection.kind, &url, &session.api_key).await?;
+    if session
+        .connection
+        .server_user_id
+        .as_deref()
+        .is_some_and(|saved| saved != identity.user_id)
+    {
+        return Err(
+            "The saved credential belongs to a different account. Please sign in again.".into(),
+        );
+    }
+    let id = db
+        .connection_id(&url, &identity.user_id)
+        .await
+        .map_err(|error| format!("Could not restore account connection: {error}"))?;
+    session.connection.url = url;
+    session.connection.connection_id = Some(id);
+    session.connection.server_user_id = Some(identity.user_id);
+    Ok(())
 }

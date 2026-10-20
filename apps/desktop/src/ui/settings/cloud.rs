@@ -15,6 +15,15 @@ impl Component for CloudPanel {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let services = use_consume::<Arc<AppServices>>();
+        let mut auto_sync = use_state(|| {
+            services
+                .user_config
+                .lock()
+                .map(|config| config.auto_sync)
+                .unwrap_or(false)
+        });
+        let mut sync_error = use_state(|| None::<String>);
+        let sync_services = services.clone();
         let server_url = use_state(|| {
             services
                 .user_config
@@ -158,10 +167,7 @@ impl Component for CloudPanel {
                                                 let services = cloud_services.clone();
                                                 let task = runtime.spawn(async move {
                                                     let token = login(cancelled).await?;
-                                                    let credential = token.clone();
-                                                    let saved = tokio::task::spawn_blocking(move || {
-                                                        services.save_server(ServerKind::Cloud, CLOUD_API_URL, &credential)
-                                                    }).await.map_err(|_| "Could not save connection".to_string())?;
+                                                    let saved = services.save_server(ServerKind::Cloud, CLOUD_API_URL, &token).await;
                                                     if saved.is_err() { let _ = crate::cloud_auth::revoke(&token).await; }
                                                     saved
                                                 });
@@ -264,8 +270,8 @@ impl Component for CloudPanel {
                                                 let services = custom_services.clone();
                                                 logging_in.set(true);
                                                 custom_error.set(None);
-                                                let task = custom_runtime.spawn_blocking(move || {
-                                                    services.save_server(ServerKind::Custom, &url, &key)
+                                                let task = custom_runtime.spawn(async move {
+                                                    services.save_server(ServerKind::Custom, &url, &key).await
                                                 });
                                                 spawn(async move {
                                                     match task.await {
@@ -289,6 +295,33 @@ impl Component for CloudPanel {
                                     })),
                             ),
                     )
+                    .child(
+                        Button::new().flat().width(Size::fill())
+                            .child(
+                                rect().horizontal().width(Size::fill())
+                                    .cross_align(Alignment::Center).spacing(12.)
+                                    .child(Checkbox::new().selected(*auto_sync.read()))
+                                    .child(
+                                        rect().spacing(4.)
+                                            .child(label().text("Automatically sync library"))
+                                            .child(label().text("Automatically upload new music and sync library changes.")
+                                                .font_size(12.).color(colors.muted_foreground)),
+                                    ),
+                            )
+                            .on_press(move |_| {
+                                let enabled = !*auto_sync.peek();
+                                match sync_services.update_config(|config| config.auto_sync = enabled) {
+                                    Ok(()) => {
+                                        auto_sync.set(enabled);
+                                        sync_error.set(None);
+                                    }
+                                    Err(error) => sync_error.set(Some(format!("Could not save sync preference: {error}"))),
+                                }
+                            }),
+                    )
+                    .maybe_child(sync_error.read().clone().map(|error| {
+                        label().text(error).font_size(12.).color(colors.destructive)
+                    }))
                     .maybe_child(active_server.read().is_some().then(|| {
                         label().text("Log out before switching providers.").font_size(12.).color(colors.muted_foreground)
                     }))

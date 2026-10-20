@@ -15,6 +15,7 @@ pub struct UserConfig {
     pub reduce_motion: bool,
     pub needs_onboarding: bool,
     pub server: Option<ServerConnection>,
+    pub auto_sync: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,6 +30,10 @@ pub struct ServerConnection {
     pub kind: ServerKind,
     pub url: String,
     pub credential_id: Option<String>,
+    #[serde(default)]
+    pub connection_id: Option<String>,
+    #[serde(default)]
+    pub server_user_id: Option<String>,
 }
 
 impl Default for UserConfig {
@@ -49,6 +54,7 @@ impl Default for UserConfig {
             reduce_motion: false,
             needs_onboarding: true,
             server: None,
+            auto_sync: false,
         }
     }
 }

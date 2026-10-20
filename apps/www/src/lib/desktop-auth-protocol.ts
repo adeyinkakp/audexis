@@ -55,6 +55,11 @@ export function loopbackRedirect(value: unknown): string | null {
   }
 }
 
+export function nativeRedirect(value: unknown): string | null {
+  if (value === "audexis://callback") return value;
+  return loopbackRedirect(value);
+}
+
 export function safeLoginCallback(
   value: string | null,
   origin: string,
@@ -97,7 +102,7 @@ export function sameOriginPost(request: Request): boolean {
 }
 
 export function validAuthorization(params: URLSearchParams) {
-  const redirectUri = loopbackRedirect(params.get("redirect_uri"));
+  const redirectUri = nativeRedirect(params.get("redirect_uri"));
   const state = params.get("state");
   const challenge = params.get("code_challenge");
   const keys = [

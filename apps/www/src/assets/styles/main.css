@@ -62,6 +62,9 @@
 
 .docs-layout {
     display: grid;
+    flex: 1;
+    width: 100%;
+    align-content: start;
     gap: 2rem;
     max-width: 90rem;
     margin: 0 auto;

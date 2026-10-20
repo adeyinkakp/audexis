@@ -13,7 +13,8 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
 
     let database_path = dirs.data_local_dir().join("audexis_test.db");
     let user_config_path = dirs.data_local_dir().join("user_config.json");
-    let user_config = UserConfig::load_config(&user_config_path);
+    let mut user_config = UserConfig::load_config(&user_config_path);
+    let db = Database::init(&database_path).await?;
     let credential_config = user_config.clone();
     let mut cloud = match tokio::task::spawn_blocking(move || {
         crate::services::restore_server(&credential_config)
@@ -30,16 +31,20 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
             None
         }
     };
-    if let Some(session) = cloud
-        .as_ref()
-        .filter(|session| session.connection.kind == audexis_core::config::ServerKind::Cloud)
-    {
-        if let Err(error) = crate::cloud_auth::validate_session(&session.api_key).await {
-            tracing::warn!(%error, "Cloud session unavailable");
-            cloud = None;
+    if let Some(session) = cloud.as_mut() {
+        match crate::services::resolve_restored_connection(&db, session).await {
+            Ok(()) => {
+                user_config.server = Some(session.connection.clone());
+                if let Err(error) = UserConfig::save_config(&user_config_path, &user_config) {
+                    tracing::warn!(%error, "Could not persist restored account identity");
+                }
+            }
+            Err(error) => {
+                tracing::warn!(%error, "Server session unavailable");
+                cloud = None;
+            }
         }
     }
-    let db = Database::init(&database_path).await?;
 
     #[cfg(not(target_os = "windows"))]
     let controls = souvlaki::MediaControls::new(souvlaki::PlatformConfig {

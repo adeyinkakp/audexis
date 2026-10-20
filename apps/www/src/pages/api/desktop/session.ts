@@ -18,5 +18,5 @@ export const GET: APIRoute = async ({ request }) => {
       { error: "subscription_required" },
       { status: 403, headers: privateHeaders },
     );
-  return Response.json({ authenticated: true }, { headers: privateHeaders });
+  return Response.json({ authenticated: true, user_id: credential.subscriber.id }, { headers: privateHeaders });
 };
