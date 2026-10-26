@@ -1,3 +1,4 @@
+mod results;
 use crate::ui::components::track_selection::{TrackSelectionScope, song_items};
 use crate::{
     services::AppServices,
@@ -44,7 +45,11 @@ impl Component for Songs {
             sorting,
             library.revision(),
             requested_columns,
+            library.connection(),
         );
+        let identity = (key.0.clone(), key.1.clone(), key.3.clone(), key.4.clone());
+        let mut previous = use_state(|| None);
+        let mut refreshing = use_state(|| false);
         let source = use_reactive(&key);
         let mut rows = use_state(|| Arc::new(Vec::<SongRow>::new()));
         let mut total = use_state(|| 0i64);
@@ -55,7 +60,9 @@ impl Component for Songs {
         let mut loader = use_hook(move || {
             FutureTask::create(move || {
                 let key = source.peek().clone();
-                let offset = rows.peek().len();
+                let replace = *refreshing.peek();
+                let loaded = rows.peek().len().max(1);
+                let offset = if replace { 0 } else { rows.peek().len() };
                 let db = loading_services.db.clone();
                 let runtime = runtime.clone();
                 async move {
@@ -64,15 +71,34 @@ impl Component for Songs {
                         if offset == 0 {
                             tokio::time::sleep(std::time::Duration::from_millis(180)).await;
                         }
-                        db.songs_page_columns(
-                            &requested.0,
-                            requested.1.0,
-                            requested.1.1,
-                            offset,
-                            &requested.3,
-                        )
-                        .await
-                        .map_err(|e| e.to_string())
+                        let mut collected = Vec::new();
+                        let mut position = offset;
+                        loop {
+                            let page = db
+                                .songs_page_columns(
+                                    &requested.0,
+                                    requested.1.0.clone(),
+                                    requested.1.1,
+                                    position,
+                                    &requested.3,
+                                )
+                                .await
+                                .map_err(|e| e.to_string())?;
+                            let total = page.total;
+                            let count = page.rows.len();
+                            collected.extend(page.rows);
+                            position += count;
+                            if !replace
+                                || position >= loaded
+                                || position >= total as usize
+                                || count == 0
+                            {
+                                return Ok::<_, String>(audexis_core::database::songs::SongPage {
+                                    rows: collected,
+                                    total,
+                                });
+                            }
+                        }
                     });
                     let _abort = AbortLoad(task.abort_handle());
                     let result = task.await.map_err(|e| e.to_string()).and_then(|r| r);
@@ -81,22 +107,35 @@ impl Component for Songs {
                     }
                     match result {
                         Ok(page) => {
-                            total.set(page.total);
-                            let mut accumulated = rows.write();
-                            Arc::make_mut(&mut accumulated).extend(page.rows);
+                            total.set_if_modified(page.total);
+                            if replace {
+                                if **rows.peek() != page.rows {
+                                    rows.set(Arc::new(page.rows));
+                                }
+                            } else {
+                                Arc::make_mut(&mut rows.write()).extend(page.rows);
+                            }
                             error.set(None);
                         }
                         Err(message) => error.set(Some(message)),
                     }
+                    refreshing.set(false);
                     busy.set(false);
                 }
             })
         });
-        use_side_effect_with_deps(&key, move |_| {
+        use_side_effect_with_deps(&key, move |key| {
+            let query_identity = (key.0.clone(), key.1.clone(), key.3.clone(), key.4.clone());
             loader.cancel();
-            selecting_all.set(false);
-            rows.set(Arc::new(Vec::new()));
-            total.set(0);
+            if previous.peek().as_ref() != Some(&query_identity) {
+                previous.set(Some(query_identity.clone()));
+                refreshing.set(false);
+                selecting_all.set(false);
+                rows.set(Arc::new(Vec::new()));
+                total.set(0);
+            } else {
+                refreshing.set(true);
+            }
             error.set(None);
             busy.set(true);
             loader.start();
@@ -127,25 +166,24 @@ impl Component for Songs {
             sort: key.1.0.clone(),
             descending: key.1.1,
         };
-        let selection_key = format!("track-selection:{playback_query:?}");
+        let selection_key = format!(
+            "track-selection:{playback_query:?}:{:?}",
+            library.connection()
+        );
         let data = rows.read().clone();
+        let loaded_count = data.len();
         let selection_items = song_items(&data, None);
         let row_items = selection_items.clone();
         let more = data.len() < *total.read() as usize;
         let length = data.len() + usize::from(more);
         let width = 50.0 + columns.iter().map(|col| col.width as f32).sum::<f32>();
-        let mut scroll = use_table_scroll(width, length as f32 * ROW_HEIGHT);
+        let scroll = use_table_scroll(width, length as f32 * ROW_HEIGHT);
         let mut position = scroll.position;
-        use_side_effect_with_deps(&key, move |_| {
+        use_side_effect_with_deps(&identity, move |_| {
             let x = position.peek().0;
             position.set((x, 0));
         });
-        let mut viewport = scroll.viewport;
-        let controller = scroll.controller;
-        let row_scroll = scroll.clone();
         let header_scroll = scroll.clone();
-        let pointer_scroll = scroll.clone();
-        let mut key_scroll = scroll.clone();
         let save_settings = settings.clone();
         let header = rect()
             .width(Size::fill())
@@ -164,7 +202,21 @@ impl Component for Songs {
                 width,
                 offset: scroll.position.read().0,
             });
-        let body = rect()
+        let track_list = results::results(
+            data,
+            columns,
+            playback_query,
+            width,
+            row_items,
+            scroll.clone(),
+            format!("{identity:?}"),
+            length,
+            busy,
+            search,
+            load_more,
+            colors.clone(),
+        );
+        rect()
             .expanded()
             .content(Content::Flex)
             .padding(20.0)
@@ -190,7 +242,7 @@ impl Component for Songs {
                                     .text(format!(
                                         "{} songs · {} loaded",
                                         *total.read(),
-                                        data.len()
+                                        loaded_count
                                     ))
                                     .font_size(12.0)
                                     .color(colors.muted_foreground),
@@ -238,101 +290,16 @@ impl Component for Songs {
             .child(header)
             .child(
                 rect()
+                    .key(selection_key)
                     .width(Size::fill())
                     .height(Size::flex(1.0))
-                    .on_sized(move |event: Event<SizedEventData>| {
-                        viewport.set_if_modified((event.area.width(), event.area.height()));
-                    })
-                    .on_pointer_down(move |_| pointer_scroll.release_axis())
-                    .on_global_key_down(move |event: Event<KeyboardEventData>| {
-                        scroll.key(&event, true)
-                    })
-                    .on_global_key_up(move |event: Event<KeyboardEventData>| {
-                        key_scroll.key(&event, false)
-                    })
-                    .child(if data.is_empty() {
-                        rect()
-                            .padding(24.0)
-                            .child(
-                                label()
-                                    .text(if *busy.read() {
-                                        "Loading songs…"
-                                    } else if search.read().is_empty() {
-                                        "No songs yet. Add a music folder from Home."
-                                    } else {
-                                        "No matching songs."
-                                    })
-                                    .color(colors.muted_foreground),
-                            )
-                            .into_element()
-                    } else {
-                        rect()
-                            .key(format!("{key:?}"))
-                            .expanded()
-                            .child(
-                                VisibilityViewport::new().child(
-                                    VirtualScrollView::new_with_data_controlled(
-                                        (data, columns, playback_query, width, row_items),
-                                        move |index,
-                                              (songs, columns, query, width, items): &(
-                                            Arc<Vec<SongRow>>,
-                                            Vec<TableColumn>,
-                                            SongQuery,
-                                            f32,
-                                            Arc<Vec<crate::ui::components::media::SelectedTrack>>,
-                                        )| {
-                                            let wheel = row_scroll.clone();
-                                            if let Some(song) = songs.get(index) {
-                                                rect()
-                                                    .key(song.id)
-                                                    .width(Size::px(*width))
-                                                    .height(Size::px(ROW_HEIGHT))
-                                                    .on_wheel(
-                                                        move |event: Event<WheelEventData>| {
-                                                            wheel.wheel(&event)
-                                                        },
-                                                    )
-                                                    .child(SongTableRow {
-                                                        columns: columns.clone(),
-                                                        song: song.clone(),
-                                                        query: query.clone(),
-                                                        index,
-                                                        item: items[index].clone(),
-                                                        load_more,
-                                                        near_end: index + 15 >= songs.len(),
-                                                    })
-                                                    .into_element()
-                                            } else {
-                                                rect()
-                                                    .height(Size::px(ROW_HEIGHT))
-                                                    .width(Size::px(*width))
-                                                    .on_wheel(
-                                                        move |event: Event<WheelEventData>| {
-                                                            wheel.wheel(&event)
-                                                        },
-                                                    )
-                                                    .child(label().text("Loading more songs…"))
-                                                    .into_element()
-                                            }
-                                        },
-                                        controller,
-                                    )
-                                    .length(length)
-                                    .item_size(ROW_HEIGHT),
-                                ),
-                            )
-                            .into_element()
+                    .child(TrackSelectionScope {
+                        items: selection_items,
+                        fill: true,
+                        on_select_all: Some(EventHandler::new(move |()| selecting_all.set(true))),
+                        child: track_list.into_element(),
                     }),
-            );
-        rect()
-            .expanded()
-            .key(selection_key)
-            .child(TrackSelectionScope {
-                items: selection_items,
-                child: body.into_element(),
-                fill: true,
-                on_select_all: Some(EventHandler::new(move |()| selecting_all.set(true))),
-            })
+            )
     }
 }
 struct AbortLoad(tokio::task::AbortHandle);

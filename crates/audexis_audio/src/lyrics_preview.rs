@@ -14,6 +14,10 @@ use symphonia::core::{
     io::MediaSourceStream,
     units::{Time, TimeBase},
 };
+mod decoder;
+mod worker;
+use decoder::Decoder;
+use worker::run;
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,64 +98,5 @@ impl Drop for Preview {
     fn drop(&mut self) {
         let (tx, _) = crossbeam_channel::bounded(1);
         let _ = self.sender.send((Action::Close, 0, tx));
-    }
-}
-
-mod decoder;
-mod worker;
-use decoder::Decoder;
-use worker::run;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn progress_uses_total_frames_without_per_callback_rounding_drift() {
-        let output = Output {
-            frames: 44100,
-            start_ms: 1250,
-            duration_ms: 10000,
-            ..Output::default()
-        };
-        assert_eq!(output.status(44100).position_ms, 2250);
-    }
-}
-
-#[cfg(test)]
-mod decoding_tests {
-    use super::*;
-
-    #[test]
-    fn native_decoder_seeks_to_a_fractional_second_without_audio_device() {
-        let path =
-            std::env::temp_dir().join(format!("audexis-preview-{}.wav", uuid::Uuid::new_v4()));
-        let rate = 8000u32;
-        let data_size = rate * 2 * 2;
-        let mut bytes = b"RIFF".to_vec();
-        bytes.extend_from_slice(&(36 + data_size).to_le_bytes());
-        bytes.extend_from_slice(b"WAVEfmt \x10\0\0\0\x01\0\x01\0");
-        bytes.extend_from_slice(&rate.to_le_bytes());
-        bytes.extend_from_slice(&(rate * 2).to_le_bytes());
-        bytes.extend_from_slice(b"\x02\0\x10\0data");
-        bytes.extend_from_slice(&data_size.to_le_bytes());
-        for frame in 0..rate * 2 {
-            bytes.extend_from_slice(&((frame % 997) as i16).to_le_bytes());
-        }
-        std::fs::write(&path, bytes).unwrap();
-        let (mut decoder, duration) = Decoder::open(path.to_str().unwrap()).unwrap();
-        assert_eq!(duration, 2000);
-        decoder.seek(1250).unwrap();
-        while decoder.pending.is_empty() && !decoder.eof {
-            decoder.fill().unwrap();
-        }
-        let expected = ((10000 % 997) as f32) / 32768.0;
-        assert!((decoder.pending[0] - expected).abs() < 0.00001);
-        decoder.seek(250).unwrap();
-        while decoder.pending.is_empty() && !decoder.eof {
-            decoder.fill().unwrap();
-        }
-        assert!((decoder.pending[0] - (2000 % 997) as f32 / 32768.0).abs() < 0.00001);
-        drop(decoder);
-        std::fs::remove_file(path).unwrap();
     }
 }

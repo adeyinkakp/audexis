@@ -103,9 +103,11 @@ impl ArtworkCache {
         };
         let bytes = match stored {
             Some((bytes,)) => Some(bytes),
-            None if !path.is_empty() => tokio::task::spawn_blocking(move || embedded_cover(&path))
-                .await
-                .map_err(|e| e.to_string())??,
+            None if !path.is_empty() && !path.starts_with("cloud-library://") => {
+                tokio::task::spawn_blocking(move || embedded_cover(&path))
+                    .await
+                    .map_err(|e| e.to_string())??
+            }
             None => None,
         };
         let Some(bytes) = bytes else {
@@ -140,6 +142,26 @@ impl ArtworkCache {
             },
         );
         Ok(Some(artwork))
+    }
+    pub async fn invalidate_files(&self, ids: &[i64]) {
+        let ids: std::collections::HashSet<_> = ids.iter().copied().collect();
+        let mut cache = self.cache.lock().await;
+        let keys: Vec<_> = cache
+            .sources
+            .iter()
+            .filter(|(key, _)| ids.contains(&key.0))
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in keys {
+            cache.sources.pop(&key);
+        }
+    }
+    pub async fn invalidate_source(&self, file_id: i64, path: &str) {
+        self.cache
+            .lock()
+            .await
+            .sources
+            .pop(&(file_id, path.to_owned()));
     }
     pub async fn invalidate(&self) {
         self.cache.lock().await.sources.clear();
@@ -231,6 +253,12 @@ mod tests {
         cache.invalidate().await;
         let first = cache.load(1, String::new()).await.unwrap().unwrap();
         let second = cache.load(2, String::new()).await.unwrap().unwrap();
+        cache.invalidate_files(&[1]).await;
+        assert!(cache.cached(1, "", EDGE).is_none());
+        assert!(cache.cached(2, "", EDGE).is_some());
+        let reloaded = cache.load(1, String::new()).await.unwrap().unwrap();
+        assert!(Arc::ptr_eq(&first, &reloaded));
+
         assert_eq!(first.hash, second.hash);
         assert_eq!(first.bytes.as_ptr(), second.bytes.as_ptr());
         assert_eq!(image::load_from_memory(&first.bytes).unwrap().width(), EDGE);

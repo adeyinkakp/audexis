@@ -1,3 +1,4 @@
+pub use scroll::TableScroll;
 mod fields;
 mod header;
 mod menu;

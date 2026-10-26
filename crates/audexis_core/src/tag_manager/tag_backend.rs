@@ -119,7 +119,8 @@ impl TagBackend for DefaultBackend {
     /// * `Ok(File)` - If the tags were successfully read, returns a `File` struct containing the tag information.
     /// * `Err(BackendError)` - If there was an error reading the tags, returns a `BackendError` with details about the failure.
     fn read(&self, path: &Path) -> Result<MetadataFile, BackendError> {
-        let fmt = self.resolve_format(path);
+        let tag_formats = super::detect_formats(path, None);
+        let fmt = tag_formats.first().cloned().unwrap_or(Formats::Unknown);
 
         let release = self.resolve_release(&fmt).ok_or_else(|| {
             BackendError::ReadFailed(TagError {
@@ -131,10 +132,9 @@ impl TagBackend for DefaultBackend {
         let (mut tag_map, freeforms) = if Self::has_no_id3_header(path, &fmt) {
             (HashMap::new(), Vec::new())
         } else {
-            (release.get_tags(path)?, release.get_freeforms(path)?)
+            release.get_metadata(path)?
         };
         super::portable_fields::expose_regular_fields(&fmt, &mut tag_map);
-        let tag_formats = self.detect_all_formats(path, &fmt);
         Ok(MetadataFile {
             path: path.to_path_buf(),
             tags: tag_map,

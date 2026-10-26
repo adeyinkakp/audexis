@@ -55,6 +55,12 @@ pub trait TagFormat: Debug {
     fn get_freeforms(&self, _file_path: &Path) -> Result<Vec<FreeformTag>, BackendError> {
         Ok(vec![])
     }
+    fn get_metadata(
+        &self,
+        file_path: &Path,
+    ) -> Result<(HashMap<FrameKey, Vec<TagValue>>, Vec<FreeformTag>), BackendError> {
+        Ok((self.get_tags(file_path)?, self.get_freeforms(file_path)?))
+    }
     ///  Writes the provided tags to the specified file path. The `updated_tags` parameter is a `HashMap` where the keys are `FrameKey` and the values are vectors of `TagValue`. If an error occurs during the writing process, it returns a `BackendError`.
     fn write_tags(
         &self,

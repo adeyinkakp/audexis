@@ -1,4 +1,4 @@
-# Audexis
+# Audexis NEXT GEN
 
 I want audexis to use least amount of memeory as possible so i'm remaking it
 in freya
@@ -19,13 +19,12 @@ library on their own computer. It uses freya for ui
 - Synced and unsynced lyrics
 - Batch Editing up to 200 Songs
 - Custom Metadata fields
-
+- Create, rename, and delete playlists
 - Read embedded metadata and artwork from common audio formats
+- - Mark songs as favorites
 
 ## Todo
 
-- Create, rename, reorder, and delete playlists
-- Mark songs as favorites
 - Shuffle and repeat playback modes
 - View listening history and statistics in Rewind
 - 10 band equalizer window

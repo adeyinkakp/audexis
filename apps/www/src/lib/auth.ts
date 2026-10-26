@@ -3,8 +3,29 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { db } from "../db";
 import * as schema from "../db/schema";
 
+const developmentOrigins: string[] = import.meta.env.DEV
+  ? (import.meta.env.AUDEXIS_DEV_AUTH_ORIGINS ?? "")
+      .split(",")
+      .map((value: string) => value.trim())
+      .filter(Boolean)
+      .map((value: string) => new URL(value).origin)
+  : [];
+const configuredOrigin = import.meta.env.BETTER_AUTH_URL;
+const allowedOrigins = [
+  ...new Set([
+    ...(configuredOrigin ? [new URL(configuredOrigin).origin] : []),
+    ...developmentOrigins,
+  ]),
+];
+
 export const auth = betterAuth({
-  baseURL: import.meta.env.BETTER_AUTH_URL,
+  baseURL: import.meta.env.DEV
+    ? {
+        allowedHosts: allowedOrigins.map((origin) => new URL(origin).host),
+        protocol: "auto",
+      }
+    : configuredOrigin,
+  trustedOrigins: allowedOrigins,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

@@ -1,3 +1,8 @@
+mod state;
+use state::*;
+mod window;
+pub use window::*;
+
 use freya::prelude::*;
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -30,47 +35,6 @@ pub(crate) fn request_section(section: Section) {
 }
 use library::LibraryPanel;
 use metadata::MetadataPanel;
-
-pub struct SettingsWindow {
-    pub services: Arc<AppServices>,
-    pub runtime: Handle,
-}
-
-impl App for SettingsWindow {
-    fn render(&self) -> impl IntoElement {
-        use_provide_context({
-            let services = self.services.clone();
-            move || services
-        });
-        use_provide_context({
-            let runtime = self.runtime.clone();
-            move || runtime
-        });
-        crate::ui::theme::use_app_theme(self.services.clone());
-        Settings
-    }
-}
-
-#[derive(Clone, PartialEq)]
-struct Preferences {
-    theme: audexis_core::config::ThemePreference,
-    density: audexis_core::config::Density,
-    reduce_motion: bool,
-    folders: Vec<String>,
-}
-#[derive(Clone)]
-struct Draft {
-    value: Preferences,
-    saved: Preferences,
-    loaded: bool,
-    busy: bool,
-    error: Option<String>,
-}
-impl Draft {
-    fn dirty(&self) -> bool {
-        self.value != self.saved
-    }
-}
 
 #[derive(PartialEq)]
 struct Settings;

@@ -68,7 +68,18 @@ impl Component for Details {
                 )
                 .children(s.files.iter().map(|file| {
                     label()
-                        .text(file.original.path.display().to_string())
+                        .text(
+                            if file
+                                .original
+                                .path
+                                .to_string_lossy()
+                                .starts_with("cloud-library://")
+                            {
+                                "Stored in your cloud library".into()
+                            } else {
+                                file.original.path.display().to_string()
+                            },
+                        )
                         .font_size(12.)
                         .into_element()
                 })),

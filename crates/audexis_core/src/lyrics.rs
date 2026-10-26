@@ -126,7 +126,7 @@ impl Database {
                 return Ok(lyrics);
             }
         }
-        if path.is_empty() {
+        if path.is_empty() || crate::library_files::is_virtual_path(std::path::Path::new(&path)) {
             return Ok(Lyrics::default());
         }
         tokio::task::spawn_blocking(move || {

@@ -34,6 +34,7 @@ impl Component for PlaylistActions {
         let db = services.db.clone();
         let rt = runtime.clone();
         let callback = changed.clone();
+        let rename_services = services.clone();
         body = body
             .padding(20.)
             .corner_radius(16.)
@@ -59,6 +60,7 @@ impl Component for PlaylistActions {
                             .enabled(!*busy.read())
                             .child("Save name")
                             .on_press(move |_| {
+                                let services = rename_services.clone();
                                 let db = db.clone();
                                 let rt = rt.clone();
                                 let callback = callback.clone();
@@ -74,7 +76,11 @@ impl Component for PlaylistActions {
                                         .map_err(|e| e.to_string())
                                         .and_then(|r| r)
                                     {
-                                        Ok(()) => callback.call(Some(value)),
+                                        Ok(()) => {
+                                            services.library_files.publish_changed(vec![]);
+                                            services.sync_edits();
+                                            callback.call(Some(value));
+                                        }
                                         Err(e) => error.set(Some(e)),
                                     }
                                     busy.set(false);
@@ -96,6 +102,7 @@ impl Component for PlaylistActions {
                 .enabled(!*busy.read())
                 .child("Delete playlist")
                 .on_press(move |_| {
+                    let services = services.clone();
                     let db = db.clone();
                     let rt = rt.clone();
                     let callback = changed.clone();
@@ -119,7 +126,11 @@ impl Component for PlaylistActions {
                                 .map_err(|e| e.to_string())
                                 .and_then(|r| r)
                             {
-                                Ok(()) => callback.call(None),
+                                Ok(()) => {
+                                    services.library_files.publish_changed(vec![]);
+                                    services.sync_edits();
+                                    callback.call(None);
+                                }
                                 Err(e) => error.set(Some(e)),
                             }
                         }

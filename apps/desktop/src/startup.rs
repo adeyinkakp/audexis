@@ -100,12 +100,18 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
                 (None, Some(error.to_string()))
             }
         };
-    Ok(Arc::new(AppServices {
+    let services = Arc::new(AppServices {
         watcher,
         watcher_error,
         library_files,
         audio,
         cloud: Mutex::new(cloud),
+        sync_worker: Mutex::new(None),
+        sync_progress: tokio::sync::watch::channel(Default::default()).0,
+        sync_status: tokio::sync::watch::channel(
+            audexis_core::cloud_sync::CloudSyncStatus::Stopped,
+        )
+        .0,
         player,
         audio_error,
         artwork: Arc::new(audexis_core::artwork::ArtworkCache::new(db.pool.clone())),
@@ -113,5 +119,8 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
         user_config_path,
         config_updates: tokio::sync::broadcast::channel(16).0,
         user_config: Mutex::new(user_config),
-    }))
+    });
+    services.install_library_playback();
+    services.start_cloud_sync();
+    Ok(services)
 }

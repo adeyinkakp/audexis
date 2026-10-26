@@ -1,3 +1,6 @@
+mod auth;
+mod playback;
+mod sync;
 use crate::{
     services::AppServices,
     ui::theme::{RADIUS, use_audexis_colors},
@@ -5,7 +8,7 @@ use crate::{
 use audexis_core::config::ServerKind;
 use std::sync::Arc;
 
-use crate::cloud_auth::{CLOUD_API_URL, login};
+use crate::cloud_auth::CLOUD_API_URL;
 use freya::{icons::lucide, prelude::*};
 
 #[derive(PartialEq)]
@@ -15,14 +18,40 @@ impl Component for CloudPanel {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let services = use_consume::<Arc<AppServices>>();
-        let mut auto_sync = use_state(|| {
+        let sync_now_services = services.clone();
+        let settings_services = services.clone();
+        let quality = use_state(|| {
+            services
+                .user_config
+                .lock()
+                .map(|c| c.cloud_audio_quality)
+                .unwrap_or_default()
+        });
+        let cache_mb = use_state(|| {
+            services
+                .user_config
+                .lock()
+                .map(|c| c.playback_cache_mb)
+                .unwrap_or(2048)
+        });
+        let mut status = use_state(|| services.sync_status.borrow().clone());
+        let status_services = services.clone();
+        use_future(move || {
+            let mut receiver = status_services.sync_status.subscribe();
+            async move {
+                while receiver.changed().await.is_ok() {
+                    status.set(receiver.borrow_and_update().clone());
+                }
+            }
+        });
+        let auto_sync = use_state(|| {
             services
                 .user_config
                 .lock()
                 .map(|config| config.auto_sync)
                 .unwrap_or(false)
         });
-        let mut sync_error = use_state(|| None::<String>);
+        let sync_error = use_state(|| None::<String>);
         let sync_services = services.clone();
         let server_url = use_state(|| {
             services
@@ -88,6 +117,14 @@ impl Component for CloudPanel {
         };
         let mut cloud_logout = logout.clone();
 
+        let playback_settings = playback::playback_settings(
+            settings_services,
+            custom_runtime.clone(),
+            quality,
+            cache_mb,
+            sync_error,
+            colors.clone(),
+        );
         ScrollView::new()
             .width(Size::fill())
             .height(Size::fill())
@@ -160,34 +197,7 @@ impl Component for CloudPanel {
                                                     cloud_logout();
                                                     return;
                                                 }
-                                                logging_in.set(true);
-                                                login_error.set(None);
-                                                let (cancel, cancelled) = tokio::sync::oneshot::channel();
-                                                cancel_login.set(Some(cancel));
-                                                let services = cloud_services.clone();
-                                                let task = runtime.spawn(async move {
-                                                    let token = login(cancelled).await?;
-                                                    let saved = services.save_server(ServerKind::Cloud, CLOUD_API_URL, &token).await;
-                                                    if saved.is_err() { let _ = crate::cloud_auth::revoke(&token).await; }
-                                                    saved
-                                                });
-                                                spawn(async move {
-                                                    let result = task.await;
-                                                    cancel_login.set(None);
-                                                    match result {
-                                                        Ok(Ok(connection)) => {
-                                                            active_server.set(Some(connection));
-                                                            custom_error.set(None);
-                                                        }
-                                                        Ok(Err(error)) => {
-                                                            login_error.set(Some(error.to_string()))
-                                                        }
-                                                        Err(error) => {
-                                                            login_error.set(Some(error.to_string()))
-                                                        }
-                                                    }
-                                                    logging_in.set(false);
-                                                });
+                                                auth::login(cloud_services.clone(), runtime.clone(), logging_in, login_error, cancel_login, active_server, custom_error);
                                             }),
                                     )
                                     .maybe_child(cancel_login.read().is_some().then(|| {
@@ -295,30 +305,15 @@ impl Component for CloudPanel {
                                     })),
                             ),
                     )
-                    .child(
-                        Button::new().flat().width(Size::fill())
-                            .child(
-                                rect().horizontal().width(Size::fill())
-                                    .cross_align(Alignment::Center).spacing(12.)
-                                    .child(Checkbox::new().selected(*auto_sync.read()))
-                                    .child(
-                                        rect().spacing(4.)
-                                            .child(label().text("Automatically sync library"))
-                                            .child(label().text("Automatically upload new music and sync library changes.")
-                                                .font_size(12.).color(colors.muted_foreground)),
-                                    ),
-                            )
-                            .on_press(move |_| {
-                                let enabled = !*auto_sync.peek();
-                                match sync_services.update_config(|config| config.auto_sync = enabled) {
-                                    Ok(()) => {
-                                        auto_sync.set(enabled);
-                                        sync_error.set(None);
-                                    }
-                                    Err(error) => sync_error.set(Some(format!("Could not save sync preference: {error}"))),
-                                }
-                            }),
-                    )
+                    .child(sync::auto_sync(sync_services, auto_sync, sync_error, colors.clone()))
+                    .child(playback_settings)
+                    .child(label().text(match &*status.read() {
+                        audexis_core::cloud_sync::CloudSyncStatus::Running=>"Syncing your library…".into(),
+                        audexis_core::cloud_sync::CloudSyncStatus::Failed(e)=>format!("Sync needs attention: {e}"),
+                        audexis_core::cloud_sync::CloudSyncStatus::Stopped=>"Sign in to start syncing.".into(),
+                        audexis_core::cloud_sync::CloudSyncStatus::Idle=>"Music and playlists are available in your library. Manage sync issues in Cloud Sync.".into(),
+                    }).font_size(12.).color(colors.muted_foreground))
+                    .maybe_child(active_server.read().is_some().then(||Button::new().outline().child("Sync now").on_press(move |_|sync_now_services.sync_now())))
                     .maybe_child(sync_error.read().clone().map(|error| {
                         label().text(error).font_size(12.).color(colors.destructive)
                     }))

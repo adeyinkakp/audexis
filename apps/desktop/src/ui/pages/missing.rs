@@ -37,7 +37,15 @@ impl Component for Missing {
             loader.start();
         });
         let state = loader.state();
-        let result = state.try_as_fulfilled();
+        let mut retained = use_state(|| None);
+        let fresh = state.try_as_fulfilled().cloned();
+        use_side_effect_with_deps(&fresh, move |result| {
+            if let Some(Ok(data)) = result {
+                retained.set_if_modified(Some(Ok::<_, String>(data.clone())));
+            }
+        });
+        let previous = retained.read();
+        let result = state.try_as_fulfilled().or(previous.as_ref());
         let mut body = rect()
             .width(Size::fill())
             .padding(24.)

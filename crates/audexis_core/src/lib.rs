@@ -1,4 +1,5 @@
 pub mod artwork;
+pub mod cloud_sync;
 pub mod config;
 pub mod database;
 pub mod file_watcher;

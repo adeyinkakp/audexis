@@ -34,17 +34,33 @@ impl Component for LyricsPanel {
                 }
             })
         });
-        use_side_effect_with_deps(&key, move |_| loader.start());
+        use_side_effect_with_deps(&key, move |_| {
+            loader.cancel();
+            loader.start();
+        });
         let colors = use_audexis_colors();
         let state = loader.state();
+        let mut retained = use_state(|| None);
+        let finished = state.try_as_fulfilled().cloned();
+        use_side_effect_with_deps(&finished, move |finished| {
+            if let Some((key, Ok(lyrics))) = finished {
+                retained.set_if_modified(Some((key.clone(), Ok::<_, String>(lyrics.clone()))));
+            }
+        });
+        let previous = retained.read();
+        let matching = |(loaded, _): &&(
+            (i64, String, u64),
+            Result<Arc<audexis_core::lyrics::Lyrics>, String>,
+        )| loaded.0 == key.0 && loaded.1 == key.1;
+        let visible = state
+            .try_as_fulfilled()
+            .filter(matching)
+            .or_else(|| previous.as_ref().filter(matching));
         let content = if snapshot.path.is_none() {
             label()
                 .text("Play a song to see its lyrics.")
                 .into_element()
-        } else if let Some((loaded, result)) = state
-            .try_as_fulfilled()
-            .filter(|(loaded, _)| loaded == &key)
-        {
+        } else if let Some((loaded, result)) = visible {
             match result {
                 Ok(lyrics) => rect()
                     .key(loaded.1.clone())

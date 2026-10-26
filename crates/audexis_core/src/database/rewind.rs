@@ -1,32 +1,32 @@
 use serde::Serialize;
 use sqlx::FromRow;
 
-#[derive(Clone, Debug, Serialize, FromRow)]
+#[derive(Clone, Debug, PartialEq, Serialize, FromRow)]
 pub struct SongTime {
     pub file_id: i64,
     pub listened_us: i64,
 }
-#[derive(Clone, Debug, Serialize, FromRow)]
+#[derive(Clone, Debug, PartialEq, Serialize, FromRow)]
 pub struct ArtistTime {
     pub name: String,
     pub file_id: i64,
     pub listened_us: i64,
 }
-#[derive(Clone, Debug, Serialize, FromRow)]
+#[derive(Clone, Debug, PartialEq, Serialize, FromRow)]
 pub struct AlbumTime {
     pub name: String,
     pub artist: String,
     pub file_id: i64,
     pub listened_us: i64,
 }
-#[derive(Clone, Debug, Serialize, FromRow)]
+#[derive(Clone, Debug, PartialEq, Serialize, FromRow)]
 pub struct PlaylistTime {
     pub playlist_id: i64,
     pub name: String,
     pub file_id: i64,
     pub listened_us: i64,
 }
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Rewind {
     pub years: Vec<i64>,
     pub total_us: i64,
@@ -83,7 +83,7 @@ pub async fn read(
         SELECT MIN(name) AS name,MIN(artist) AS artist,MIN(file_id) AS file_id,SUM(listened_us) AS listened_us FROM tagged WHERE name IS NOT NULL
         GROUP BY name COLLATE METADATA_NOCASE,artist COLLATE METADATA_NOCASE ORDER BY listened_us DESC,name,artist LIMIT 20"))
         .bind(&start).bind(&end).fetch_all(&mut *tx).await.map_err(|e|e.to_string())?;
-    let playlists = sqlx::query_as::<_,PlaylistTime>("SELECT p.id AS playlist_id,p.name,MIN(d.file_id) AS file_id,SUM(d.heard_us) AS listened_us FROM listening_time_daily d JOIN files f ON f.id=d.file_id JOIN playlists p ON p.id=d.source_playlist_id WHERE f.missing_since IS NULL AND d.day>=? AND d.day<? GROUP BY p.id,p.name ORDER BY listened_us DESC,p.id LIMIT 20")
+    let playlists = sqlx::query_as::<_,PlaylistTime>("SELECT p.id AS playlist_id,p.name,MIN(d.file_id) AS file_id,SUM(d.heard_us) AS listened_us FROM listening_time_daily d JOIN files f ON f.id=d.file_id JOIN library_playlists p ON p.id=d.source_playlist_id WHERE f.missing_since IS NULL AND d.day>=? AND d.day<? GROUP BY p.id,p.name ORDER BY listened_us DESC,p.id LIMIT 20")
         .bind(&start).bind(&end).fetch_all(&mut *tx).await.map_err(|e|e.to_string())?;
     tx.commit().await.map_err(|e| e.to_string())?;
     Ok(Rewind {

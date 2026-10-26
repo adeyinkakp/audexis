@@ -59,6 +59,7 @@ impl Component for PlaylistForm {
                                     match result {
                                         Ok(id) => {
                                             services.library_files.publish_changed(vec![]);
+                                            services.sync_edits();
                                             created.call((id, title));
                                         }
                                         Err(e) => error

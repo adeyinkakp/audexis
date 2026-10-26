@@ -5,16 +5,15 @@ impl V0 {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<tag_manager::utils::FrameKey, Vec<TagValue>>, BackendError> {
-        let buffer = crate::library_files::read(file_path).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                internal_message: "Failed to open file".to_string(),
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Unable to read file.".to_string(),
-            })
-        })?;
-        let Ok(ilst_atom) = V0::ensure_ilst_atom(&buffer) else {
+        let Some(ilst_atom) = Self::read_ilst_atom(file_path)? else {
             return Ok(HashMap::new());
         };
+        Self::tags_from_ilst(&ilst_atom)
+    }
+
+    pub(super) fn tags_from_ilst(
+        ilst_atom: &Atom,
+    ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
         let mut raw_entries = Vec::new();
         for atom in V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size) {
             let children = V0::parse_atoms(&atom.buffer, 8, atom.size);

@@ -246,6 +246,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7eb209b1518d6bb87b283c20095f5228ecda460da70b44f0802523dea6da04"
 
 [[package]]
+name = "android_system_properties"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -558,10 +567,12 @@ dependencies = [
  "audioadapter-buffers",
  "cpal",
  "crossbeam-channel",
+ "reqwest",
  "ringbuf",
  "rubato",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "souvlaki",
  "sqlx",
  "symphonia",
@@ -575,6 +586,7 @@ dependencies = [
 name = "audexis_core"
 version = "0.20.0"
 dependencies = [
+ "audexis_protocol",
  "base64 0.22.1",
  "bytes",
  "image",
@@ -582,6 +594,7 @@ dependencies = [
  "lru",
  "notify",
  "notify-debouncer-full",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -589,18 +602,53 @@ dependencies = [
  "symphonia",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
  "walkdir",
 ]
 
 [[package]]
+name = "audexis_mobile"
+version = "0.20.0"
+dependencies = [
+ "audexis_protocol",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "audexis_protocol"
+version = "0.20.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "audexis_server"
 version = "0.20.0"
 dependencies = [
+ "audexis_core",
  "axum",
+ "chrono",
+ "dotenvy",
+ "hmac 0.12.1",
+ "http-body-util",
  "hyper",
+ "image",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "symphonia",
  "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -1042,6 +1090,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono"
+version = "0.4.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
+dependencies = [
+ "iana-time-zone",
+ "js-sys",
+ "num-traits",
+ "wasm-bindgen",
+ "windows-link",
+]
+
+[[package]]
 name = "cipher"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1429,9 +1490,9 @@ dependencies = [
 
 [[package]]
 name = "ctutils"
-version = "0.4.3"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03bb0e1cc970d482d121d9a1744999169b69a07470b3d644a7894e53fcaf4574"
+checksum = "7d5515a3834141de9eafb9717ad39eea8247b5674e6066c404e8c4b365d2a29e"
 dependencies = [
  "cmov",
 ]
@@ -2807,6 +2868,30 @@ dependencies = [
  "tokio",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "iana-time-zone"
+version = "0.1.65"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470"
+dependencies = [
+ "android_system_properties",
+ "core-foundation-sys",
+ "iana-time-zone-haiku",
+ "js-sys",
+ "log",
+ "wasm-bindgen",
+ "windows-core",
+]
+
+[[package]]
+name = "iana-time-zone-haiku"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -4628,6 +4713,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
+ "serde",
 ]
 
 [[package]]
@@ -4998,6 +5084,7 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",

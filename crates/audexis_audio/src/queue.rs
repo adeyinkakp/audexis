@@ -2,6 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
 
+mod navigation;
+
+mod reconcile;
+
+use shuffle::generate_shuffle_seed;
+
+mod shuffle;
 use crate::{
     AudioPlayerError, PlayerCmd,
     modes::{PlaybackModes, RepeatMode},
@@ -305,14 +312,3 @@ impl Queue {
         }
     }
 }
-
-#[cfg(test)]
-mod library_reconcile_tests;
-
-mod navigation;
-
-mod reconcile;
-
-use shuffle::generate_shuffle_seed;
-
-mod shuffle;

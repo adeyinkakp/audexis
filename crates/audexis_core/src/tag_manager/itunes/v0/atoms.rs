@@ -97,3 +97,75 @@ pub(super) fn validate_for_write(buffer: &[u8]) -> Result<(), String> {
     }
     walk(buffer, false, 0)
 }
+
+pub(super) fn read_ilst<R: std::io::Read + std::io::Seek>(
+    file: &mut R,
+) -> std::io::Result<Option<Atom>> {
+    use std::io::{Error, ErrorKind, SeekFrom};
+    fn walk<R: std::io::Read + std::io::Seek>(
+        file: &mut R,
+        mut pos: u64,
+        end: u64,
+        depth: usize,
+    ) -> std::io::Result<Option<Atom>> {
+        let invalid = |message| Error::new(ErrorKind::InvalidData, message);
+        if depth > 8 {
+            return Err(invalid("MP4 metadata nesting is too deep"));
+        }
+        while pos < end {
+            if end - pos < 8 {
+                return Err(invalid("Truncated MP4 atom header"));
+            }
+            file.seek(SeekFrom::Start(pos))?;
+            let mut header = [0; 8];
+            file.read_exact(&mut header)?;
+            let size32 = u32::from_be_bytes(header[..4].try_into().unwrap());
+            let (size, header_size) = match size32 {
+                0 => (end - pos, 8),
+                1 => {
+                    if end - pos < 16 {
+                        return Err(invalid("Truncated extended MP4 atom"));
+                    }
+                    let mut extended = [0; 8];
+                    file.read_exact(&mut extended)?;
+                    (u64::from_be_bytes(extended), 16)
+                }
+                _ => (u64::from(size32), 8),
+            };
+            if size < header_size || size > end - pos {
+                return Err(invalid("Invalid MP4 atom size"));
+            }
+            let kind = &header[4..];
+            if kind == b"ilst" {
+                let payload = size - header_size;
+                if payload > 64 * 1024 * 1024 {
+                    return Err(invalid("MP4 metadata exceeds 64 MB"));
+                }
+                let normalized_size = payload + 8;
+                let mut buffer = vec![0; normalized_size as usize];
+                buffer[..4].copy_from_slice(&(normalized_size as u32).to_be_bytes());
+                buffer[4..8].copy_from_slice(b"ilst");
+                file.read_exact(&mut buffer[8..])?;
+                return Ok(Some(Atom {
+                    atom_type: "ilst".into(),
+                    size: normalized_size,
+                    position: 0,
+                    buffer,
+                }));
+            }
+            if matches!(kind, b"moov" | b"udta" | b"meta") {
+                let skip = if kind == b"meta" { 4 } else { 0 };
+                if size < header_size + skip {
+                    return Err(invalid("Truncated MP4 metadata container"));
+                }
+                if let Some(atom) = walk(file, pos + header_size + skip, pos + size, depth + 1)? {
+                    return Ok(Some(atom));
+                }
+            }
+            pos += size;
+        }
+        Ok(None)
+    }
+    let end = file.seek(SeekFrom::End(0))?;
+    walk(file, 0, end, 0)
+}

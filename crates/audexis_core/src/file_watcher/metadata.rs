@@ -38,7 +38,7 @@ impl FileWatcher {
         }
         let _worker_guard = PendingWorkerGuard(state.pending_worker_running.clone());
         let total = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM files WHERE status = 'pending' AND metadata_status = 'ok' AND missing_since IS NULL",
+            "SELECT COUNT(*) FROM files WHERE cloud_connection_id IS NULL AND status = 'pending' AND metadata_status = 'ok' AND missing_since IS NULL",
         )
         .fetch_one(&db.pool)
         .await
@@ -50,12 +50,13 @@ impl FileWatcher {
             Some(total),
         );
         let mut processed = 0_u64;
+        let mut last_refresh = std::time::Instant::now();
 
         loop {
             let pending: Vec<(i64, String)> = sqlx::query_as(
                 "SELECT id, path
                  FROM files
-                 WHERE status = 'pending' AND metadata_status = 'ok' AND missing_since IS NULL
+                 WHERE cloud_connection_id IS NULL AND status = 'pending' AND metadata_status = 'ok' AND missing_since IS NULL
                  ORDER BY id
                  LIMIT 50",
             )
@@ -67,24 +68,15 @@ impl FileWatcher {
                 task.complete(format!("Indexed {processed} files"));
                 return Ok(());
             }
-            let batch_size = pending.len() as u64;
-
-            let parsed = async_runtime::spawn_blocking(move || {
-                let backend = DefaultBackend::new();
-                pending
-                    .into_iter()
-                    .map(|(id, path)| {
-                        let result = backend.read(&PathBuf::from(&path));
-                        (id, path, result)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .await
-            .map_err(DatabaseError::Join)?;
-
-            for (id, path, result) in parsed {
+            let mut changed = Vec::new();
+            for (id, path) in pending {
+                let read_path = PathBuf::from(&path);
+                let result =
+                    async_runtime::spawn_blocking(move || DefaultBackend::new().read(&read_path))
+                        .await
+                        .map_err(DatabaseError::Join)?;
                 let metadata = match result {
-                    Ok(metadata) => metadata,
+                    Ok(metadata) => Some(metadata),
                     Err(error) => {
                         let hash = async_runtime::spawn_blocking(move || {
                             super::hashing::attempt_file_hash(Path::new(&path))
@@ -101,20 +93,27 @@ impl FileWatcher {
                         .await
                         .map_err(DatabaseError::Sqlx)?;
                         drop(error);
-                        events::emit_changed(app_handle, &[id])?;
-                        continue;
+                        None
                     }
                 };
 
-                Self::store_metadata(&db.pool, id, &metadata).await?;
-                events::emit_changed(app_handle, &[id])?;
+                if let Some(metadata) = metadata {
+                    Self::store_metadata(&db.pool, id, &metadata).await?;
+                }
+                changed.push(id);
+                processed += 1;
+                task.update(
+                    processed,
+                    Some(total),
+                    Some(format!("{processed} of {total} files")),
+                );
+                if last_refresh.elapsed() >= std::time::Duration::from_millis(250) {
+                    events::emit_changed(app_handle, &changed)?;
+                    changed.clear();
+                    last_refresh = std::time::Instant::now();
+                }
             }
-            processed += batch_size;
-            task.update(
-                processed,
-                Some(total),
-                Some(format!("{processed} of {total} files")),
-            );
+            events::emit_changed(app_handle, &changed)?;
         }
     }
 
@@ -230,6 +229,23 @@ impl FileWatcher {
 
 pub(super) fn read_duration_ms(path: &Path) -> Option<i64> {
     let source = crate::library_files::open(path).ok()?;
+    use std::io::{Read, Seek, SeekFrom};
+    let mut source = source;
+    let mut header = [0; 8];
+    if source.read_exact(&mut header).is_ok() && &header[..4] == b"fLaC" {
+        if header[4] & 0x7f == 0 && header[5..8] == [0, 0, 34] {
+            let mut info = [0; 34];
+            if source.read_exact(&mut info).is_ok() {
+                let packed = u64::from_be_bytes(info[10..18].try_into().ok()?);
+                let rate = packed >> 44;
+                let samples = packed & ((1u64 << 36) - 1);
+                if rate > 0 && samples > 0 {
+                    return Some((samples * 1000 / rate) as i64).filter(|ms| *ms > 0);
+                }
+            }
+        }
+    }
+    source.seek(SeekFrom::Start(0)).ok()?;
     let stream = MediaSourceStream::new(Box::new(source), Default::default());
     let mut hint = Hint::new();
     if let Some(extension) = path.extension().and_then(|value| value.to_str()) {

@@ -8,3 +8,5 @@ mod playlist_actions;
 pub mod rewind;
 
 mod home_stats;
+
+pub mod cloud;

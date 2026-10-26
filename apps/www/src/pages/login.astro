@@ -89,12 +89,16 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
     <script>
         import { authClient } from "../lib/auth-client";
 
-        const callbackURL =
+        const callbackURL = new URL(
             document.getElementById("login-page")?.dataset.loginCallback ??
-            "/dashboard";
-        const errorCallbackURL =
+                "/dashboard",
+            window.location.origin,
+        ).href;
+        const errorCallbackURL = new URL(
             document.getElementById("login-page")?.dataset.errorCallback ??
-            "/login";
+                "/login",
+            window.location.origin,
+        ).href;
         const isDesktopLogin =
             document.getElementById("login-page")?.dataset.desktopLogin ===
             "true";
@@ -118,11 +122,12 @@ Astro.response.headers.set("Referrer-Policy", "no-referrer");
                     errorCallbackURL,
                 });
                 if (result.error) throw new Error("Sign-in failed");
-            } catch {
+            } catch (err) {
                 if (isDesktopLogin) {
                     window.location.assign(errorCallbackURL);
                     return;
                 }
+                console.log(err);
                 error.textContent = "Could not sign in. Please try again.";
                 error.hidden = false;
             } finally {

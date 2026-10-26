@@ -119,7 +119,7 @@ pub fn create(
             };
             loop {
                 let result: Result<(), sqlx::Error> = runtime.block_on(async {
-                    let mut tx = pool.begin().await?;
+                    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
                     let previous = sqlx::query_as::<_, (String, i64)>(
                         "SELECT segment_id,heard_us FROM listening_time_checkpoint WHERE slot=1",
                     )

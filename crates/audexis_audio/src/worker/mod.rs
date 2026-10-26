@@ -1,7 +1,7 @@
 mod commands;
-mod decode;
+pub(crate) mod decode;
 mod gapless;
-mod source;
+pub(crate) mod source;
 mod state;
 
 use crate::events::EventBus;

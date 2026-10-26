@@ -22,8 +22,17 @@ pub(crate) fn open(
     spawn(async move {
         let ids = tracks(&target).into_iter().map(|t| t.0).collect::<Vec<_>>();
         let db = services.db.clone();
+        let cloud = services.cloud_context().ok();
         let state = runtime
-            .spawn(async move { db.media_menu_state(&ids).await.map_err(|e| e.to_string()) })
+            .spawn(async move {
+                if let Some(context) = cloud {
+                    context
+                        .reconcile_downloads()
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+                db.media_menu_state(&ids).await.map_err(|e| e.to_string())
+            })
             .await
             .map_err(|e| e.to_string())
             .and_then(|r| r);

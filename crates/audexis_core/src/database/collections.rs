@@ -47,7 +47,7 @@ pub async fn browse_library_with_pool(
             "SELECT m.value AS name, '' AS artist, f.id AS file_id, NULL AS playlist_id FROM files f JOIN metadata_texts m ON m.file_id=f.id WHERE f.missing_since IS NULL AND m.key IN ('artist','albumArtist') AND TRIM(m.value) <> '' UNION ALL SELECT '' AS name, '' AS artist, f.id AS file_id, NULL AS playlist_id FROM files f WHERE f.missing_since IS NULL AND NOT EXISTS (SELECT 1 FROM metadata_texts m WHERE m.file_id=f.id AND m.key IN ('artist','albumArtist') AND TRIM(m.value) <> '')"
         }
         CollectionKind::Playlists => {
-            "SELECT p.name, '' AS artist, CASE WHEN f.id IS NOT NULL THEN pt.file_id END AS file_id, p.id AS playlist_id FROM playlists p LEFT JOIN playlist_tracks pt ON pt.playlist_id=p.id LEFT JOIN files f ON f.id=pt.file_id AND f.missing_since IS NULL"
+            "SELECT p.name, '' AS artist, CASE WHEN f.id IS NOT NULL THEN pt.file_id END AS file_id, p.id AS playlist_id FROM library_playlists p LEFT JOIN playlist_tracks pt ON pt.playlist_id=p.id LEFT JOIN files f ON f.id=pt.file_id AND f.missing_since IS NULL"
         }
     };
     let indexed_kind = match kind {
@@ -142,7 +142,8 @@ impl Database {
                 "SELECT songs.*,pt.ord AS playlist_ord FROM ({}) songs JOIN playlist_tracks pt ON pt.file_id=songs.id WHERE pt.playlist_id=",
                 super::songs::SONG_SOURCE
             ));
-            q.push_bind(id);
+            q.push_bind(id)
+                .push(" AND EXISTS(SELECT 1 FROM library_playlists p WHERE p.id=pt.playlist_id)");
         }
         if let Some(artist) = filter.artist {
             if artist.is_empty() {
@@ -166,7 +167,9 @@ impl Database {
         } else {
             " ORDER BY title COLLATE NOCASE, id"
         });
-        q.build_query_as().fetch_all(&self.pool).await
+        let mut rows: Vec<SongRow> = q.build_query_as().fetch_all(&self.pool).await?;
+        self.validate_song_downloads(&mut rows).await?;
+        Ok(rows)
     }
     pub async fn create_collection_playlist(&self, name: &str) -> Result<i64, String> {
         let name = name.trim();

@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "crates/audexis_core",
+    "crates/audexis_protocol",
+    "crates/audexis_mobile",
     "crates/audexis_audio",
     "apps/desktop", "crates/audexis_server",
 ]

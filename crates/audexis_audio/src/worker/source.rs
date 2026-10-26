@@ -16,9 +16,31 @@ fn open_inner(
     output_rate: u32,
     output_channels: usize,
 ) -> Result<(WorkerState, u64), String> {
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let library = if path.starts_with("cloud-library://") {
+        Some(crate::streaming::resolve_library(path)?)
+    } else {
+        None
+    };
+    let stream = match &library {
+        Some(crate::streaming::LibrarySource::Stream(stream)) => Some(stream.clone()),
+        _ if path.starts_with("cloud-stream://") => Some(crate::streaming::lookup(path)?),
+        _ => None,
+    };
+    let path = match &library {
+        Some(crate::streaming::LibrarySource::Local(path)) => {
+            path.to_str().ok_or("Invalid local file path")?
+        }
+        _ => path,
+    };
+    let file: Box<dyn symphonia::core::io::MediaSource> = if let Some(stream) = &stream {
+        Box::new(crate::streaming::HttpSource::new(stream.clone())?)
+    } else {
+        Box::new(std::fs::File::open(path).map_err(|e| e.to_string())?)
+    };
     let mut hint = Hint::new();
-    if let Some(ext) = std::path::Path::new(path)
+    if let Some(stream) = &stream {
+        hint.with_extension(&stream.extension);
+    } else if let Some(ext) = std::path::Path::new(path)
         .extension()
         .and_then(|s| s.to_str())
     {
@@ -27,7 +49,7 @@ fn open_inner(
     let mut format = symphonia::default::get_probe()
         .probe(
             &hint,
-            MediaSourceStream::new(Box::new(file), Default::default()),
+            MediaSourceStream::new(file, Default::default()),
             Default::default(),
             Default::default(),
         )
@@ -54,7 +76,15 @@ fn open_inner(
         .make_audio_decoder(params, &Default::default())
         .map_err(|e| e.to_string())?;
     let track_id = track.id;
-    let duration = resolve_duration_ms(&mut format, track_id, None).ms;
+    let duration = if let Some(stream) = stream {
+        if stream.duration_ms > 0 {
+            stream.duration_ms
+        } else {
+            crate::duration::stream_duration_ms(&mut format, track_id)
+        }
+    } else {
+        resolve_duration_ms(&mut format, track_id, None).ms
+    };
     let mut state = WorkerState::new();
     state.track_id = track_id;
     state.source_sample_rate = rate;

@@ -58,84 +58,11 @@ impl TagFormat for FlacFormat {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let mut data: HashMap<FrameKey, Vec<TagValue>> = HashMap::new();
-        let b = crate::library_files::read(file_path);
-        if b.is_err() {
-            print!("I guess");
-            return Err(BackendError::ReadFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Could not read file".to_string(),
-                internal_message: "Failed to read file".to_string(),
-            }));
-        }
-        let b = b.unwrap();
-
-        if b.len() < 4 || &b[0..4] != b"fLaC" {
-            return Err(BackendError::ReadFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Not a FLAC file".to_string(),
-                internal_message: "File does not start with fLaC signature".to_string(),
-            }));
-        }
-        let pos = 4;
-        let mut offset = pos;
-        while offset < b.len() {
-            if offset + 4 > b.len() {
-                return Err(BackendError::ReadFailed(TagError {
-                    path: file_path.to_string_lossy().to_string(),
-                    public_message: "Truncated FLAC metadata block".to_string(),
-                    internal_message: "Metadata block header is shorter than four bytes"
-                        .to_string(),
-                }));
-            }
-            let is_last = (b[offset] & 0x80) != 0;
-
-            let block_type = FlacBlockType::from(b[offset] & 0x7F);
-            let block_length = ((b[offset + 1] as u32) << 16)
-                | ((b[offset + 2] as u32) << 8)
-                | (b[offset + 3] as u32);
-            offset += 4;
-            if offset + block_length as usize > b.len() {
-                return Err(BackendError::ReadFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "Bad flac block length".to_string(),
-                    internal_message: "Bad flac block length".to_string(),
-                }));
-            }
-            let block_data = &b[offset..offset + block_length as usize];
-
-            offset += block_length as usize;
-            if let FlacBlockType::VorbisComment = block_type {
-                let tags = utils::parse_comments(block_data);
-                if tags.is_err() {
-                    return Err(BackendError::ReadFailed(TagError {
-                        path: file_path.to_str().unwrap_or("").to_string(),
-                        public_message: "Failed to parse vorbis comments".to_string(),
-                        internal_message: "Failed to parse vorbis comments".to_string(),
-                    }));
-                }
-                let tags = tags.unwrap();
-                data.extend(tags);
-            } else if FlacBlockType::Picture == block_type {
-                let pic = utils::parse_picture(block_data);
-                if pic.is_err() {
-                    return Err(BackendError::ReadFailed(TagError {
-                        path: file_path.to_str().unwrap_or("").to_string(),
-                        public_message: "Failed to parse picture block".to_string(),
-                        internal_message: "Failed to parse picture block".to_string(),
-                    }));
-                }
-                let pic: TagValue = pic.unwrap();
-                data.entry(FrameKey::AttachedPicture).or_default().push(pic);
-            }
-
-            if is_last {
-                break;
-            }
-        }
-
-        Ok(data)
+        let mut file =
+            crate::library_files::open(file_path).map_err(|error| read_error(file_path, error))?;
+        read_tags(&mut file).map_err(|error| read_error(file_path, error))
     }
+
     fn write_tags(
         &self,
         file_path: &std::path::Path,
@@ -326,4 +253,61 @@ struct FlacBlock {
     block_type: FlacBlockType,
 
     data: Vec<u8>,
+}
+
+fn read_error(path: &std::path::Path, error: std::io::Error) -> BackendError {
+    BackendError::ReadFailed(TagError {
+        path: path.to_string_lossy().into_owned(),
+        public_message: "Could not read FLAC metadata".into(),
+        internal_message: error.to_string(),
+    })
+}
+
+fn read_tags<R: std::io::Read + std::io::Seek>(
+    file: &mut R,
+) -> std::io::Result<HashMap<FrameKey, Vec<TagValue>>> {
+    use std::io::{Error, ErrorKind, SeekFrom};
+    let invalid = |message| Error::new(ErrorKind::InvalidData, message);
+    let end = file.seek(SeekFrom::End(0))?;
+    file.seek(SeekFrom::Start(0))?;
+    let mut signature = [0; 4];
+    file.read_exact(&mut signature)?;
+    if &signature != b"fLaC" {
+        return Err(invalid("Not a FLAC file"));
+    }
+    let mut tags = HashMap::new();
+    loop {
+        let mut header = [0; 4];
+        file.read_exact(&mut header)?;
+        let size = u32::from_be_bytes([0, header[1], header[2], header[3]]) as usize;
+        let position = file.stream_position()?;
+        if size as u64 > end.saturating_sub(position) {
+            return Err(invalid("Truncated FLAC metadata block"));
+        }
+        match header[0] & 0x7f {
+            4 | 6 => {
+                let mut block = vec![0; size];
+                file.read_exact(&mut block)?;
+                if header[0] & 0x7f == 4 {
+                    tags.extend(
+                        utils::parse_comments(&block).map_err(|error| {
+                            Error::new(ErrorKind::InvalidData, error.to_string())
+                        })?,
+                    );
+                } else {
+                    let picture = utils::parse_picture(&block)
+                        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
+                    tags.entry(FrameKey::AttachedPicture)
+                        .or_insert_with(Vec::new)
+                        .push(picture);
+                }
+            }
+            _ => {
+                file.seek(SeekFrom::Current(size as i64))?;
+            }
+        }
+        if header[0] & 0x80 != 0 {
+            return Ok(tags);
+        }
+    }
 }

@@ -27,3 +27,8 @@ sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
 
 base64 = "0.22"
+
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+audexis_protocol = { path = "../audexis_protocol" }

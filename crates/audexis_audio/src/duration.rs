@@ -17,6 +17,19 @@ pub fn resolve_duration_ms(
     track_id: u32,
     file_size_bytes: Option<u64>,
 ) -> DurationResult {
+    resolve_duration(format, track_id, file_size_bytes, true)
+}
+
+pub fn stream_duration_ms(format: &mut Box<dyn FormatReader>, track_id: u32) -> u64 {
+    resolve_duration(format, track_id, None, false).ms
+}
+
+fn resolve_duration(
+    format: &mut Box<dyn FormatReader>,
+    track_id: u32,
+    file_size_bytes: Option<u64>,
+    scan: bool,
+) -> DurationResult {
     let track = format.tracks().iter().find(|t| t.id == track_id);
     if track.is_none() {
         return DurationResult { ms: 0 };
@@ -42,6 +55,9 @@ pub fn resolve_duration_ms(
         };
     }
 
+    if !scan {
+        return DurationResult { ms: 0 };
+    }
     let mut last_ts_end: u64 = 0;
     let mut saw_any_packet = false;
     while let Ok(Some(packet)) = format.next_packet() {

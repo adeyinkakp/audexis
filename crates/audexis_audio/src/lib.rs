@@ -5,6 +5,7 @@ mod playback;
 mod progress;
 mod queue;
 pub mod queue_track;
+pub mod streaming;
 mod types;
 mod worker;
 

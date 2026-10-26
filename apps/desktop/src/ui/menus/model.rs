@@ -3,12 +3,15 @@ use super::*;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Action {
     Play,
+    Download,
+    RemoveDownload,
     Info,
     Edit,
     Next,
     Last,
     RemoveQueue,
     Copy,
+    Reveal,
     Heart(bool),
     AddPlaylist(i64),
     ShowAlbum,
@@ -133,9 +136,43 @@ pub(super) fn entries(
                 "Copy file path"
             },
             Action::Copy,
-            !target.paths().is_empty(),
+            !ids.is_empty()
+                && state
+                    .as_ref()
+                    .is_ok_and(|state| ids.iter().all(|(id, _)| state.disk_paths.contains_key(id))),
         ),
     ];
+    items.push(Entry::item(
+        if cfg!(target_os = "macos") {
+            "Show in Finder"
+        } else {
+            "Show in Folder"
+        },
+        Action::Reveal,
+        state
+            .as_ref()
+            .is_ok_and(|state| !state.disk_paths.is_empty()),
+    ));
+    let cloud: Vec<_> = ids
+        .iter()
+        .filter(|(_, path)| path.starts_with("cloud-library://"))
+        .collect();
+    if !cloud.is_empty() {
+        items.push(Entry::separator());
+        let downloaded = state.as_ref().map(|state| &state.downloaded).ok();
+        if cloud
+            .iter()
+            .any(|(id, _)| !downloaded.is_some_and(|ids| ids.contains(id)))
+        {
+            items.push(Entry::item("Download for Offline", Action::Download, true));
+        }
+        if cloud
+            .iter()
+            .any(|(id, _)| downloaded.is_some_and(|ids| ids.contains(id)))
+        {
+            items.push(Entry::item("Remove Download", Action::RemoveDownload, true));
+        }
+    }
     if playlist.is_some() {
         items.push(Entry::separator());
         items.push(Entry::item(

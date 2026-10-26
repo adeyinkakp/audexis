@@ -8,7 +8,7 @@ use crate::file_watcher::FileWatcher;
 use crate::library_files::LibraryFiles;
 use crate::tag_manager::tag_backend::{DefaultBackend, TagBackend};
 
-#[derive(Clone, Debug, Serialize, sqlx::FromRow)]
+#[derive(Clone, Debug, PartialEq, Serialize, sqlx::FromRow)]
 pub struct MissingFile {
     pub id: i64,
     pub path: String,
@@ -24,7 +24,7 @@ pub async fn get_missing_files(db: &Database) -> Result<Vec<MissingFile>, String
                 COALESCE((SELECT value FROM metadata_texts WHERE file_id=f.id AND key='title' ORDER BY ord LIMIT 1), '') AS title,
                 COALESCE((SELECT value FROM metadata_texts WHERE file_id=f.id AND key='artist' ORDER BY ord LIMIT 1), '') AS artist
          FROM files f
-         WHERE f.missing_since IS NOT NULL
+         WHERE f.cloud_connection_id IS NULL AND f.missing_since IS NOT NULL
          ORDER BY f.missing_since DESC, f.id",
     )
     .fetch_all(&db.pool)
@@ -38,7 +38,7 @@ pub async fn delete_missing_file(
     file_id: i64,
 ) -> Result<(), String> {
     let deleted = sqlx::query_scalar::<_, i64>(
-        "DELETE FROM files WHERE id = ?1 AND missing_since IS NOT NULL RETURNING id",
+        "DELETE FROM files WHERE id = ?1 AND cloud_connection_id IS NULL AND missing_since IS NOT NULL RETURNING id",
     )
     .bind(file_id)
     .fetch_optional(&db.pool)
@@ -76,9 +76,13 @@ pub async fn relink_missing_file(
         .await
         .map_err(|error| error.to_string())?;
 
-    let mut tx = db.pool.begin().await.map_err(|error| error.to_string())?;
+    let mut tx = db
+        .pool
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+        .map_err(|error| error.to_string())?;
     let is_missing = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE id = ?1 AND missing_since IS NOT NULL",
+        "SELECT COUNT(*) FROM files WHERE id = ?1 AND cloud_connection_id IS NULL AND missing_since IS NOT NULL",
     )
     .bind(file_id)
     .fetch_one(&mut *tx)

@@ -1,3 +1,6 @@
+mod provider;
+pub(super) use provider::provide_library;
+
 use crate::services::AppServices;
 use audexis_audio::AudioEvent;
 use audexis_core::database::{
@@ -24,7 +27,14 @@ impl<T> Default for Query<T> {
         }
     }
 }
-impl<T> Query<T> {
+impl<T: PartialEq> Query<T> {
+    fn needs_update(&self, result: &Result<T, String>) -> bool {
+        self.loading
+            || match result {
+                Ok(data) => self.data.as_deref() != Some(data) || self.error.is_some(),
+                Err(error) => self.error.as_ref() != Some(error),
+            }
+    }
     fn complete(&mut self, result: Result<T, String>) {
         self.loading = false;
         match result {
@@ -51,6 +61,9 @@ pub struct Library {
     songs: State<HashMap<Vec<i64>, Query<Vec<DiscoveryTrack>>>>,
     refresh_pending: State<bool>,
     revision: State<u64>,
+    artwork_revision: State<u64>,
+    connection: State<Option<String>>,
+    refresh_generation: State<u64>,
     requests: mpsc::UnboundedSender<Request>,
 }
 impl Library {
@@ -58,6 +71,9 @@ impl Library {
         self.watcher.read().clone()
     }
     pub fn refresh(&self) {
+        let mut generation = self.refresh_generation;
+        let next = generation.peek().wrapping_add(1);
+        generation.set(next);
         let mut pending = self.refresh_pending;
         if !*pending.peek() {
             pending.set(true);
@@ -66,6 +82,12 @@ impl Library {
     }
     pub fn revision(&self) -> u64 {
         *self.revision.read()
+    }
+    pub fn connection(&self) -> Option<String> {
+        self.connection.read().clone()
+    }
+    pub fn artwork_revision(&self) -> u64 {
+        *self.artwork_revision.read()
     }
     pub fn discovery(&self) -> Query<HomeDiscovery> {
         self.discovery.read().clone()
@@ -113,17 +135,17 @@ pub fn use_songs(ids: &[i64]) -> Query<Vec<DiscoveryTrack>> {
 async fn load(store: &mut Library, db: &Database, runtime: &Handle, request: Request) {
     match request {
         Request::Discovery => {
-            store.discovery.write().loading = true;
             let db = db.clone();
             let result = runtime
                 .spawn(async move { db.home_discovery().await.map_err(|e| e.to_string()) })
                 .await
                 .map_err(|e| e.to_string())
                 .and_then(|r| r);
-            store.discovery.write().complete(result);
+            if store.discovery.peek().needs_update(&result) {
+                store.discovery.write().complete(result);
+            }
         }
         Request::Files(ids) => {
-            store.files.write().entry(ids.clone()).or_default().loading = true;
             let db = db.clone();
             let requested = ids.clone();
             let result = runtime
@@ -131,10 +153,16 @@ async fn load(store: &mut Library, db: &Database, runtime: &Handle, request: Req
                 .await
                 .map_err(|e| e.to_string())
                 .and_then(|r| r);
-            store.files.write().entry(ids).or_default().complete(result);
+            if store
+                .files
+                .peek()
+                .get(&ids)
+                .is_none_or(|query| query.needs_update(&result))
+            {
+                store.files.write().entry(ids).or_default().complete(result);
+            }
         }
         Request::Songs(ids) => {
-            store.songs.write().entry(ids.clone()).or_default().loading = true;
             let db = db.clone();
             let requested = ids.clone();
             let result = runtime
@@ -142,131 +170,15 @@ async fn load(store: &mut Library, db: &Database, runtime: &Handle, request: Req
                 .await
                 .map_err(|e| e.to_string())
                 .and_then(|r| r);
-            store.songs.write().entry(ids).or_default().complete(result);
+            if store
+                .songs
+                .peek()
+                .get(&ids)
+                .is_none_or(|query| query.needs_update(&result))
+            {
+                store.songs.write().entry(ids).or_default().complete(result);
+            }
         }
         Request::Refresh => unreachable!("expanded by the root loader"),
     }
-}
-
-pub(super) fn provide_library(services: Arc<AppServices>, runtime: Handle) {
-    let watcher = use_state(|| {
-        services
-            .watcher
-            .as_ref()
-            .map(|watcher| watcher.subscribe().borrow().clone())
-            .unwrap_or_else(|| audexis_core::file_watcher::WatcherStatus {
-                error: services.watcher_error.clone(),
-                ..Default::default()
-            })
-    });
-    let watcher_service = services.watcher.clone();
-    use_future(move || {
-        let service = watcher_service.clone();
-        let mut status = watcher;
-        async move {
-            if let Some(service) = service {
-                let mut receiver = service.subscribe();
-                status.set(receiver.borrow_and_update().clone());
-                while receiver.changed().await.is_ok() {
-                    status.set(receiver.borrow_and_update().clone());
-                }
-            }
-        }
-    });
-    let discovery = use_state(Query::default);
-    let files = use_state(HashMap::new);
-    let songs = use_state(HashMap::new);
-    let refresh_pending = use_state(|| false);
-    let revision = use_state(|| 0);
-    let (sender, mut receiver) = use_hook(|| {
-        let (sender, receiver) = mpsc::unbounded_channel();
-        (sender, State::create(Some(receiver)))
-    });
-    let store = use_provide_context(move || Library {
-        watcher,
-        discovery,
-        files,
-        songs,
-        refresh_pending,
-        revision,
-        requests: sender,
-    });
-    let loader_store = store.clone();
-    let db = services.db.clone();
-    let artwork = services.artwork.clone();
-    use_future(move || {
-        let receiver = receiver.take();
-        let mut store = loader_store.clone();
-        let db = db.clone();
-        let runtime = runtime.clone();
-        let artwork = artwork.clone();
-        async move {
-            let Some(mut receiver) = receiver else {
-                return;
-            };
-            load(&mut store, &db, &runtime, Request::Discovery).await;
-            while let Some(request) = receiver.recv().await {
-                if matches!(request, Request::Refresh) {
-                    store.refresh_pending.set(false);
-                    artwork.invalidate().await;
-                    let revision = *store.revision.peek();
-                    store.revision.set(revision.wrapping_add(1));
-                    let files: Vec<_> = store.files.peek().keys().cloned().collect();
-                    let songs: Vec<_> = store.songs.peek().keys().cloned().collect();
-                    load(&mut store, &db, &runtime, Request::Discovery).await;
-                    for ids in files {
-                        load(&mut store, &db, &runtime, Request::Files(ids)).await;
-                    }
-                    for ids in songs {
-                        load(&mut store, &db, &runtime, Request::Songs(ids)).await;
-                    }
-                } else {
-                    load(&mut store, &db, &runtime, request).await;
-                }
-            }
-        }
-    });
-    let changes_store = store.clone();
-    let mut changes = use_hook(|| State::create(Some(services.library_files.subscribe())));
-    use_future(move || {
-        let receiver = changes.take();
-        let store = changes_store.clone();
-        async move {
-            let Some(mut receiver) = receiver else {
-                return;
-            };
-            loop {
-                match receiver.recv().await {
-                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                        store.refresh()
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
-            }
-        }
-    });
-    use_future(move || {
-        let player = services.player.clone();
-        let store = store.clone();
-        async move {
-            if let Some(player) = player {
-                let mut receiver = player.subscribe_events();
-                loop {
-                    match receiver.recv().await {
-                        Ok(
-                            AudioEvent::PlayCountChanged(_)
-                            | AudioEvent::ListeningHistoryChanged(_),
-                        ) => {
-                            let _ = store.requests.send(Request::Discovery);
-                        }
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                            let _ = store.requests.send(Request::Discovery);
-                        }
-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                        _ => {}
-                    }
-                }
-            }
-        }
-    });
 }

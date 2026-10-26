@@ -9,7 +9,10 @@ yarn-error.log*
 # Environment
 .env
 .env.local
+**/data/ingest/
+**/data/variant-input/
 
+apps/android/
 apps/ios/
 # Build outputs
 dist/

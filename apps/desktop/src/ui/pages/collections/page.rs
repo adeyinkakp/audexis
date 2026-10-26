@@ -1,3 +1,5 @@
+mod cards;
+mod heading;
 use super::*;
 const PAGE_PADDING: f32 = 28.;
 const CARD_PADDING: f32 = 8.;
@@ -18,6 +20,11 @@ impl Component for LibraryPage {
         let kind = *active_kind.read();
         let mut search = use_state(String::new);
         let mut detail = use_state(|| self.initial.clone());
+        use_side_effect_with_deps(&self.initial, move |initial| {
+            if initial.is_some() {
+                detail.set_if_modified(initial.clone());
+            }
+        });
         let mut creating = use_state(|| false);
         let mut name = use_state(String::new);
         let mut reload = use_state(|| 0u64);
@@ -26,14 +33,14 @@ impl Component for LibraryPage {
             kind,
             search.read().clone(),
             detail.read().clone(),
-            library.revision(),
-            *reload.read(),
+            library.connection(),
         );
         let db = services.db.clone();
         let load_runtime = runtime.clone();
         let (pages, load_more) = crate::ui::hooks::use_infinite_pages(
             key.clone(),
-            move |(kind, query, detail, _, _), offset| {
+            library.revision().wrapping_add(*reload.read()),
+            move |(kind, query, detail, _), offset| {
                 let db = db.clone();
                 let runtime = load_runtime.clone();
                 async move {
@@ -198,77 +205,8 @@ impl Component for LibraryPage {
                     }),
             );
         }
-        if kind == Kind::Favorites {
-            body = body.child(
-                rect()
-                    .horizontal()
-                    .spacing(24.)
-                    .padding((20., 0.))
-                    .cross_align(Alignment::Center)
-                    .child(
-                        rect()
-                            .width(Size::px(112.))
-                            .height(Size::px(112.))
-                            .corner_radius(16.)
-                            .background(colors.primary)
-                            .center()
-                            .child(
-                                SvgViewer::new(lucide::heart())
-                                    .width(Size::px(48.))
-                                    .height(Size::px(48.))
-                                    .stroke(Color::WHITE),
-                            ),
-                    )
-                    .child(
-                        rect()
-                            .spacing(12.)
-                            .child(label().text("Made by you").color(colors.muted_foreground))
-                            .child(heading("Favorites", 36.))
-                            .child(
-                                label()
-                                    .text("Heart a song anywhere to keep it here. Unheart it to remove it.")
-                                    .color(colors.muted_foreground),
-                            ),
-                    ),
-            );
-        } else if let Some(collection) = &current {
-            body = body.child(
-                rect()
-                    .horizontal()
-                    .spacing(24.)
-                    .padding((20., 0.))
-                    .cross_align(Alignment::Center)
-                    .maybe_child((kind != Kind::Artists).then(|| Artwork {
-                        file_id: collection.file_id.unwrap_or(0),
-                        path: String::new(),
-                        size: 160.,
-                    }))
-                    .child(
-                        rect()
-                            .spacing(12.)
-                            .child(
-                                label()
-                                    .text(kind.title().trim_end_matches('s').to_uppercase())
-                                    .font_size(12.)
-                                    .color(colors.muted_foreground),
-                            )
-                            .child(heading(&title, 36.))
-                            .child(
-                                label()
-                                    .text(format!("{} songs", collection.track_count))
-                                    .color(colors.muted_foreground),
-                            ),
-                    ),
-            );
-        } else if !matches!(kind, Kind::Playlists) {
-            body = body.child(heading(
-                if kind == Kind::Search {
-                    "Search your library"
-                } else {
-                    "Your library"
-                },
-                30.,
-            ));
+        if let Some(header) = heading::collection_heading(kind, &current, &title, colors.clone()) {
+            body = body.child(header);
         }
         if kind == Kind::Search && current.is_none() {
             for kind in [Kind::Artists, Kind::Albums, Kind::Playlists] {
@@ -333,118 +271,19 @@ impl Component for LibraryPage {
         match result {
             None => {}
             Some((collections, tracks)) => {
-                let mut cards = Vec::new();
-                if kind == Kind::Playlists && current.is_none() {
-                    cards.push(
-                        Button::new()
-                            .flat()
-                            .theme_layout(card_layout.clone())
-                            .child(
-                                rect()
-                                    .width(Size::px(card_size))
-                                    .spacing(12.)
-                                    .child(
-                                        rect()
-                                            .width(Size::px(card_size))
-                                            .height(Size::px(card_size))
-                                            .center()
-                                            .corner_radius(12.)
-                                            .background(colors.surface_subtle)
-                                            .border(Border::new().fill(colors.border).width(1.))
-                                            .child(
-                                                SvgViewer::new(lucide::plus())
-                                                    .width(Size::px(64.))
-                                                    .height(Size::px(64.))
-                                                    .stroke(colors.primary),
-                                            ),
-                                    )
-                                    .child(label().text("Create Playlist"))
-                                    .child(
-                                        label()
-                                            .text("Make something yours")
-                                            .font_size(12.)
-                                            .color(colors.muted_foreground),
-                                    ),
-                            )
-                            .on_press(move |_| creating.set(true))
-                            .into_element(),
-                    );
-                    if key
-                        .1
-                        .split_whitespace()
-                        .all(|t| "favorites".contains(&t.to_lowercase()))
-                    {
-                        cards.push(
-                            Link::new(crate::ui::routes::Route::Favorites)
-                                .child(
-                                    rect()
-                                        .width(Size::px(card_size + CARD_PADDING * 2.))
-                                        .padding(CARD_PADDING)
-                                        .spacing(12.)
-                                        .child(
-                                            rect()
-                                                .width(Size::px(card_size))
-                                                .height(Size::px(card_size))
-                                                .center()
-                                                .corner_radius(12.)
-                                                .background(
-                                                    LinearGradient::new()
-                                                        .angle(135.)
-                                                        .stop((Color::from_rgb(251, 113, 133), 0.))
-                                                        .stop((Color::from_rgb(236, 72, 153), 50.))
-                                                        .stop((
-                                                            Color::from_rgb(124, 58, 237),
-                                                            100.,
-                                                        )),
-                                                )
-                                                .child(
-                                                    SvgViewer::new(lucide::heart())
-                                                        .width(Size::px(64.))
-                                                        .height(Size::px(64.))
-                                                        .stroke(Color::WHITE),
-                                                ),
-                                        )
-                                        .child(label().text("Favorites"))
-                                        .child(
-                                            label()
-                                                .text("The songs you love")
-                                                .font_size(12.)
-                                                .color(colors.muted_foreground),
-                                        ),
-                                )
-                                .into_element(),
-                        );
-                    }
-                }
-                for collection in collections {
-                    let target = collection.clone();
-                    let artist_albums = kind == Kind::Artists && current.is_some();
-                    let round = kind == Kind::Artists && current.is_none();
-                    cards.push(
-                        Button::new()
-                            .flat()
-                            .theme_layout(card_layout.clone())
-                            .child(crate::ui::components::ArtworkCard {
-                                file_id: collection.file_id.unwrap_or(0),
-                                title: display_name(&collection.name),
-                                subtitle: if !round && kind != Kind::Playlists {
-                                    collection.artist.clone()
-                                } else {
-                                    format!("{} songs", collection.track_count)
-                                },
-                                size: card_size,
-                                radius: if round { card_size / 2. } else { 12. },
-                            })
-                            .on_press(move |_| {
-                                if artist_albums {
-                                    active_kind.set(Kind::Albums);
-                                }
-                                detail.set(Some(target.clone()));
-                                search.set(String::new());
-                            })
-                            .into_element(),
-                    );
-                }
+                let cards = cards::collection_cards(
+                    kind,
+                    &current,
+                    collections,
+                    card_size,
+                    card_layout,
+                    &key.1,
+                    creating,
+                    active_kind,
+                    detail,
+                    search,
+                    colors.clone(),
+                );
                 if !cards.is_empty() {
                     if kind != Kind::Playlists {
                         body = body.child(heading(

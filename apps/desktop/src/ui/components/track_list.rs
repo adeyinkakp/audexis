@@ -157,7 +157,10 @@ impl Component for TrackList {
                                                 .text(crate::ui::display_text(song.title.clone()))
                                                 .max_lines(1)
                                                 .text_overflow(TextOverflow::Ellipsis),
-                                        ),
+                                        )
+                                        .maybe_child(song.download_path.as_ref().map(|_| {
+                                            label().text("✓").font_size(12.).color(colors.primary)
+                                        })),
                                 )
                                 .child(
                                     label()
@@ -214,12 +217,14 @@ impl Component for TrackList {
                                 )
                                 .maybe_child(self.playlist.zip(song.playlist_ord).map(
                                     |(playlist, ord)| {
+                                        let remove_services = services.clone();
                                         let db = services.db.clone();
                                         let runtime = remove_runtime.clone();
                                         let callback = self.on_change.clone();
                                         Button::new().flat().compact().child("Remove").on_press(
                                             move |event: Event<PressEventData>| {
                                                 event.stop_propagation();
+                                                let services = remove_services.clone();
                                                 let db = db.clone();
                                                 let runtime = runtime.clone();
                                                 let callback = callback.clone();
@@ -233,7 +238,13 @@ impl Component for TrackList {
                                                         })
                                                         .await
                                                     {
-                                                        Ok(Ok(())) => callback.call(()),
+                                                        Ok(Ok(())) => {
+                                                            services
+                                                                .library_files
+                                                                .publish_changed(vec![]);
+                                                            services.sync_edits();
+                                                            callback.call(());
+                                                        }
                                                         other => error.set(Some(format!(
                                                             "Could not remove song: {other:?}"
                                                         ))),

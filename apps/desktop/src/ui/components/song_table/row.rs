@@ -20,6 +20,7 @@ pub(crate) struct SongTableRow {
     pub(crate) item: SelectedTrack,
     pub(crate) load_more: State<Callback<(), ()>>,
     pub(crate) near_end: bool,
+    pub(crate) busy: State<bool>,
 }
 impl Component for SongTableRow {
     fn render(&self) -> impl IntoElement {
@@ -30,8 +31,8 @@ impl Component for SongTableRow {
             MediaTarget::library_track(self.song.id, self.song.path.clone(), self.query.clone());
         let command_target = target.clone();
         let mut load_more = self.load_more;
-        use_side_effect_with_deps(&self.near_end, move |near| {
-            if *near {
+        use_side_effect_with_deps(&(self.near_end, *self.busy.read()), move |(near, busy)| {
+            if *near && !*busy {
                 load_more.write().call(());
             }
         });
@@ -48,10 +49,20 @@ impl Component for SongTableRow {
                     .child(if current {
                         "▶".into()
                     } else {
-                        "".to_string()
+                        if self.song.download_path.is_some() {
+                            "✓".to_string()
+                        } else if self.song.path.starts_with("cloud-library://") {
+                            "☁".to_string()
+                        } else {
+                            "".to_string()
+                        }
                     })
                     .width(Size::px(34.0))
-                    .color(colors.muted_foreground),
+                    .color(if self.song.download_path.is_some() {
+                        colors.primary
+                    } else {
+                        colors.muted_foreground
+                    }),
             );
         for col in &self.columns {
             let value = self.song.column_text(&col.column);

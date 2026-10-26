@@ -1,3 +1,9 @@
+mod window;
+pub use window::*;
+
+mod session;
+pub use session::*;
+
 mod lookup;
 mod preview;
 mod tabs;
@@ -49,97 +55,6 @@ impl Tab {
         }
     }
 }
-#[derive(Clone, Default)]
-pub struct Session {
-    files: Vec<EditFile>,
-    busy: bool,
-    message: String,
-    selected: usize,
-    revision: u64,
-}
-impl Session {
-    fn scoped(&self, tab: Tab) -> Vec<EditFile> {
-        self.files
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| tab != Tab::Custom || *index == self.selected)
-            .map(|(_, file)| {
-                let mut scoped = file.clone();
-                scoped.tags.retain(|key, _| tab.includes(*key));
-                scoped.tags.extend(
-                    file.original
-                        .tags
-                        .iter()
-                        .filter(|(key, _)| !tab.includes(**key))
-                        .map(|(key, values)| (*key, values.clone())),
-                );
-                scoped
-            })
-            .collect()
-    }
-    fn discard(&mut self, tab: Tab) {
-        for (index, file) in self.files.iter_mut().enumerate() {
-            if tab == Tab::Custom && index != self.selected {
-                continue;
-            }
-            file.tags.retain(|key, _| !tab.includes(*key));
-            file.tags.extend(
-                file.original
-                    .tags
-                    .iter()
-                    .filter(|(key, _)| tab.includes(**key))
-                    .map(|(key, values)| (*key, values.clone())),
-            );
-        }
-        self.revision += 1;
-        self.message.clear();
-    }
-    fn accept(&mut self, mut saved: EditFile, tab: Tab) {
-        if let Some(old) = self.files.iter_mut().find(|f| f.id == saved.id) {
-            for key in old.changes().keys().filter(|key| !tab.includes(**key)) {
-                if let Some(values) = old.tags.get(key) {
-                    saved.tags.insert(*key, values.clone());
-                } else {
-                    saved.tags.remove(key);
-                }
-            }
-            *old = saved;
-        }
-    }
-
-    fn dirty(&self) -> bool {
-        self.files.iter().any(EditFile::dirty)
-    }
-    fn values(&self, key: FrameKey) -> Vec<TagValue> {
-        self.files
-            .first()
-            .and_then(|f| f.tags.get(&key))
-            .cloned()
-            .unwrap_or_default()
-    }
-    fn mixed(&self, key: FrameKey) -> bool {
-        let first = self.values(key);
-        self.files
-            .iter()
-            .any(|f| f.tags.get(&key).cloned().unwrap_or_default() != first)
-    }
-    fn set_values(&mut self, key: FrameKey, values: Vec<TagValue>) {
-        for file in &mut self.files {
-            file.tags.insert(key, values.clone());
-        }
-    }
-    fn text(&self, key: FrameKey) -> String {
-        self.values(key).first().map(text_value).unwrap_or_default()
-    }
-}
-fn text_value(value: &TagValue) -> String {
-    match value {
-        TagValue::Text(s) => crate::ui::display_text(s.clone()),
-        TagValue::Comment { text, .. } => crate::ui::display_text(text.clone()),
-        _ => String::new(),
-    }
-}
-
 pub fn open(services: Arc<AppServices>, runtime: Handle, tracks: Vec<(i64, String)>, tab: Tab) {
     let mut seen = std::collections::HashSet::new();
     let tracks: Vec<_> = tracks
@@ -160,99 +75,6 @@ pub fn open(services: Arc<AppServices>, runtime: Handle, tracks: Vec<(i64, Strin
     let _ = Platform::get().post_callback(move |_, context| {
         context.launch_window(window);
     });
-}
-pub fn window_config(
-    services: Arc<AppServices>,
-    runtime: Handle,
-    tracks: Vec<(i64, String)>,
-    tab: Tab,
-) -> WindowConfig {
-    let guard = Arc::new(AtomicU8::new(0));
-    let close_guard = guard.clone();
-    crate::ui::windows::title_bar::configure(WindowConfig::new_app(EditorApp {
-        services,
-        runtime,
-        tracks,
-        tab,
-        guard,
-    }))
-    .with_title("Track Info")
-    .with_size(1000., 800.)
-    .with_min_size(800., 600.)
-    .with_on_close(move |_, _| match close_guard.load(Ordering::Acquire) {
-        2 => CloseDecision::KeepOpen,
-        1 => {
-            let discard = rfd::MessageDialog::new()
-                .set_title("Unsaved metadata")
-                .set_description("Discard your unsaved changes and close Track Info?")
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .show();
-            if discard == rfd::MessageDialogResult::Yes {
-                CloseDecision::Close
-            } else {
-                CloseDecision::KeepOpen
-            }
-        }
-        _ => CloseDecision::Close,
-    })
-}
-
-struct EditorApp {
-    services: Arc<AppServices>,
-    runtime: Handle,
-    tracks: Vec<(i64, String)>,
-    tab: Tab,
-    guard: Arc<AtomicU8>,
-}
-impl App for EditorApp {
-    fn render(&self) -> impl IntoElement {
-        use_provide_context({
-            let services = self.services.clone();
-            move || services
-        });
-        use_provide_context({
-            let runtime = self.runtime.clone();
-            move || runtime
-        });
-        super::theme::use_app_theme(self.services.clone());
-        let mut session = use_state(|| Session {
-            busy: true,
-            ..Session::default()
-        });
-        use_hook({
-            let tracks = self.tracks.clone();
-            let runtime = self.runtime.clone();
-            move || {
-                spawn(async move {
-                    let result = runtime
-                        .spawn_blocking(move || metadata_editor::load(tracks))
-                        .await;
-                    let mut s = session.write();
-                    s.busy = false;
-                    match result {
-                        Ok(Ok(files)) => s.files = files,
-                        other => s.message = format!("Could not read metadata: {other:?}"),
-                    }
-                });
-            }
-        });
-        use_provide_context(move || session);
-        let current = session.read();
-        self.guard.store(
-            if current.busy {
-                2
-            } else if current.dirty() {
-                1
-            } else {
-                0
-            },
-            Ordering::Release,
-        );
-        drop(current);
-        Editor {
-            initial_tab: self.tab,
-        }
-    }
 }
 #[derive(PartialEq)]
 struct Editor {
@@ -422,6 +244,7 @@ impl Component for Editor {
                                         Ok(result) => {
                                             let ids = result.saved.iter().map(|f| f.id).collect();
                                             services.library_files.publish_changed(ids);
+                                            services.sync_edits();
                                             let cache = services.artwork.clone();
                                             let _ = runtime
                                                 .spawn(async move {

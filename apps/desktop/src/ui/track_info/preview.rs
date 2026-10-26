@@ -173,6 +173,8 @@ impl Component for Controls {
                 Slider::new(move |percent: f64| {
                     slider.command(Action::Seek, (percent / 100.0 * duration as f64) as u64)
                 })
+                .thumb_background(colors.transparent)
+                .thumb_inner_background(colors.transparent)
                 .enabled(duration > 0)
                 .value(if duration > 0 {
                     status.position_ms as f64 / duration as f64 * 100.0

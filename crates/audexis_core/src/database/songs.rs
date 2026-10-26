@@ -4,6 +4,7 @@ use sqlx::{QueryBuilder, Sqlite};
 use std::collections::HashMap;
 
 pub(super) const SONG_SOURCE: &str = "SELECT f.id,f.path,f.file_name,f.size,f.modified_at,
+            (SELECT d.path FROM cloud_downloads d JOIN file_cloud_links l ON l.connection_id=d.connection_id AND l.cloud_track_id=d.track_id WHERE l.file_id=f.id AND d.connection_id=f.cloud_connection_id AND d.sha256=f.hash LIMIT 1) AS download_path,
             COALESCE(strftime('%Y-%m-%d %H:%M',NULLIF(f.modified_at,0),'unixepoch','localtime'),'—') AS modified_label,
             COALESCE((SELECT NULLIF(TRIM(value),'') FROM metadata_texts WHERE file_id=f.id AND key='title' ORDER BY ord LIMIT 1),f.file_name) AS title,
             COALESCE((SELECT NULLIF(TRIM(value),'') FROM metadata_texts WHERE file_id=f.id AND key='artist' ORDER BY ord LIMIT 1),'Unknown artist') AS artist,
@@ -18,6 +19,7 @@ pub const SONG_PAGE_SIZE: usize = 100;
 pub struct SongRow {
     pub id: i64,
     pub path: String,
+    pub download_path: Option<String>,
     pub file_name: String,
     pub size: i64,
     pub modified_at: i64,
@@ -47,7 +49,15 @@ impl SongRow {
                 .map(|ms| format!("{}:{:02}", ms / 60000, (ms / 1000) % 60))
                 .unwrap_or_else(|| "—".into()),
             SongSort::FileName => self.file_name.clone(),
-            SongSort::Path => self.path.clone(),
+            SongSort::Path => {
+                if self.path.starts_with("cloud-library://") {
+                    self.download_path
+                        .clone()
+                        .unwrap_or_else(|| "Cloud library".into())
+                } else {
+                    self.path.clone()
+                }
+            }
             SongSort::Size => format!("{:.1} MB", self.size as f64 / 1_000_000.0),
             SongSort::Modified => self.modified_label.clone(),
             SongSort::Plays => self.plays.to_string(),
@@ -146,6 +156,26 @@ fn order(sql: &mut QueryBuilder<'_, Sqlite>, sort: &SongSort, descending: bool) 
         .push(" NULLS LAST,songs.id ASC");
 }
 impl Database {
+    pub(crate) async fn validate_song_downloads(
+        &self,
+        rows: &mut [SongRow],
+    ) -> Result<(), sqlx::Error> {
+        for row in rows {
+            let Some(path) = row.download_path.clone() else {
+                continue;
+            };
+            let missing = match tokio::fs::metadata(&path).await {
+                Ok(stat) => !stat.is_file() || stat.len() != row.size as u64,
+                Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+            };
+            if missing {
+                sqlx::query("DELETE FROM cloud_downloads WHERE path=? AND connection_id=(SELECT cloud_connection_id FROM files WHERE id=?)")
+                    .bind(path).bind(row.id).execute(&self.pool).await?;
+                row.download_path = None;
+            }
+        }
+        Ok(())
+    }
     pub async fn songs_queue(
         &self,
         query: &SongQuery,
@@ -242,6 +272,7 @@ impl Database {
             }
         }
         tx.commit().await?;
+        self.validate_song_downloads(&mut rows).await?;
         Ok(SongPage { rows, total })
     }
 }

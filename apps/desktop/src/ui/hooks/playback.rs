@@ -16,6 +16,7 @@ pub struct Playback {
     pub queue: State<QueueInfo>,
     pub panel: State<Option<PlaybackPanelView>>,
     pub error: State<Option<String>>,
+    pub cloud_track: State<Option<(String, audexis_core::cloud_sync::protocol::Track)>>,
     player: Option<PlayerHandle>,
     library_request: State<Option<(u64, SongQuery, i64)>>,
 }
@@ -71,6 +72,7 @@ pub(super) fn provide_playback(services: Arc<AppServices>) {
         });
     let mut state = use_state(move || initial);
     let error = use_state(|| None);
+    let cloud_track = use_state(|| None::<(String, audexis_core::cloud_sync::protocol::Track)>);
     let panel = use_state(|| None);
     let mut queue = use_state(|| {
         services
@@ -142,24 +144,79 @@ pub(super) fn provide_playback(services: Arc<AppServices>) {
         }
     });
     let player = services.player.clone();
+    let metadata_player = services.player.clone();
+    let metadata_key = (
+        state.read().path.clone(),
+        state.read().duration,
+        cloud_track.read().clone(),
+    );
+    use_side_effect_with_deps(&metadata_key, move |(path, duration, cloud)| {
+        if let (Some(player), Some((cloud_path, track))) = (metadata_player.as_ref(), cloud) {
+            if path.as_ref() == Some(cloud_path) {
+                let _ = player.send(PlayerCmd::UpdateControlsMetadata {
+                    metadata: audexis_audio::PartialMetadata {
+                        title: Some(track.title()),
+                        artist: Some(track.artist()),
+                        album: track
+                            .metadata
+                            .tags
+                            .get("album")
+                            .and_then(|v| v.first())
+                            .cloned(),
+                        cover_url: None,
+                        duration: Some(*duration),
+                    },
+                });
+            }
+        }
+    });
     use_provide_context(move || Playback {
         state,
         queue,
         panel,
         error,
+        cloud_track,
         player,
         library_request,
     });
+    let controls_runtime = use_consume::<tokio::runtime::Handle>();
     use_future(move || {
         let player = services.player.clone();
+        let db = services.db.clone();
+        let runtime = controls_runtime.clone();
         async move {
             if let Some(player) = player {
                 let mut receiver = player.subscribe();
                 let initial = receiver.borrow_and_update().clone();
                 state.set(initial);
+                let mut controls_key = None;
                 while receiver.changed().await.is_ok() {
                     let next = receiver.borrow_and_update().clone();
-                    state.set(next);
+                    let key = (next.id, next.path.clone());
+                    state.set(next.clone());
+                    if controls_key.as_ref() != Some(&key) {
+                        controls_key = Some(key.clone());
+                        if next.id > 0 && next.path.is_some() {
+                            let db = db.clone();
+                            if let Ok(Ok(Some(info))) = runtime
+                                .spawn(async move { db.track_display(next.id).await })
+                                .await
+                            {
+                                let current = receiver.borrow().clone();
+                                if (current.id, current.path) == key {
+                                    let _ = player.send(PlayerCmd::UpdateControlsMetadata {
+                                        metadata: audexis_audio::PartialMetadata {
+                                            title: Some(info.title),
+                                            artist: Some(info.artist),
+                                            album: Some(info.album),
+                                            cover_url: None,
+                                            duration: Some(next.duration),
+                                        },
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

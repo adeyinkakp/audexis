@@ -11,7 +11,7 @@ pub struct DiscoveryTrack {
     pub duration_ms: Option<i64>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct HomeDiscovery {
     pub track_count: i64,
     pub total_size: i64,

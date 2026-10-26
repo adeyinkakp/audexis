@@ -16,6 +16,10 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use std::time::Duration;
+mod stream;
+
+mod progress;
+use progress::spawn_progress_notifier;
 
 use super::progress::FrameProgress;
 use super::queue::Queue;
@@ -268,8 +272,3 @@ impl Drop for AudioPlayer {
         }
     }
 }
-
-mod stream;
-
-mod progress;
-use progress::spawn_progress_notifier;

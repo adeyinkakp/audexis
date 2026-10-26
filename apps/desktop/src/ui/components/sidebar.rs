@@ -23,7 +23,7 @@ impl Component for Sidebar {
                 async move {
                     rt.spawn(async move {
                         sqlx::query_as::<_, (i64, String)>(
-                            "SELECT id,name FROM playlists ORDER BY name COLLATE NOCASE,id",
+                            "SELECT id,name FROM library_playlists ORDER BY name COLLATE NOCASE,id",
                         )
                         .fetch_all(&db.pool)
                         .await
@@ -39,11 +39,19 @@ impl Component for Sidebar {
             loader.start();
         });
         let state = loader.state();
+        let mut retained = use_state(|| None::<Result<Vec<(i64, String)>, String>>);
+        let result = state.try_as_fulfilled().cloned();
+        use_side_effect_with_deps(&result, move |result| {
+            if let Some(Ok(items)) = result {
+                retained.set_if_modified(Some(Ok(items.clone())));
+            }
+        });
+        let previous = retained.read();
         let mut playlists = ScrollView::new()
             .width(Size::fill())
             .height(Size::flex(1.))
             .spacing(4.);
-        match state.try_as_fulfilled() {
+        match state.try_as_fulfilled().or(previous.as_ref()) {
             Some(Ok(items)) => {
                 for (id, title) in items {
                     playlists = playlists.child(nav(
@@ -82,6 +90,12 @@ impl Component for Sidebar {
             .child(nav(Route::Rewind, "Rewind", lucide::history(), &colors))
             .child(nav(Route::Search, "Search", lucide::search(), &colors))
             .child(section("LIBRARY", &colors))
+            .child(nav(
+                Route::CloudLibrary,
+                "Cloud Sync",
+                lucide::cloud(),
+                &colors,
+            ))
             .child(nav(Route::Songs, "Songs", lucide::music(), &colors))
             .child(nav(Route::Artists, "Artists", lucide::users(), &colors))
             .child(nav(Route::Albums, "Albums", lucide::disc(), &colors))
@@ -100,6 +114,7 @@ impl Component for Sidebar {
                 &colors,
             ))
             .child(playlists)
+            .child(super::sync_indicator::SyncIndicator)
             .child(
                 rect()
                     .width(Size::fill())

@@ -18,6 +18,18 @@ impl V0 {
         atoms::parse_atoms(buffer, start, end)
     }
 
+    fn read_ilst_atom(path: &std::path::Path) -> Result<Option<Atom>, BackendError> {
+        crate::library_files::open(path)
+            .and_then(|mut file| atoms::read_ilst(&mut file))
+            .map_err(|error| {
+                BackendError::ReadFailed(TagError {
+                    path: path.to_string_lossy().into_owned(),
+                    public_message: "Could not read M4A metadata".into(),
+                    internal_message: error.to_string(),
+                })
+            })
+    }
+
     fn ensure_ilst_atom(buffer: &[u8]) -> Result<Atom, ()> {
         atoms::find_ilst(buffer).ok_or(())
     }
@@ -43,16 +55,28 @@ impl TagFormat for V0 {
     }
 
     fn get_freeforms(&self, file_path: &std::path::Path) -> Result<Vec<FreeformTag>, BackendError> {
-        let buffer = crate::library_files::read(file_path).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                internal_message: "Unable to open and read file".to_string(),
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Unable to read file.".to_string(),
-            })
-        })?;
-        let Ok(ilst_atom) = V0::ensure_ilst_atom(&buffer) else {
+        let Some(ilst_atom) = Self::read_ilst_atom(file_path)? else {
             return Ok(Vec::new());
         };
+        Ok(Self::freeforms_from_ilst(&ilst_atom))
+    }
+
+    fn get_metadata(
+        &self,
+        file_path: &std::path::Path,
+    ) -> Result<(HashMap<FrameKey, Vec<TagValue>>, Vec<FreeformTag>), BackendError> {
+        let Some(ilst_atom) = Self::read_ilst_atom(file_path)? else {
+            return Ok((HashMap::new(), Vec::new()));
+        };
+        Ok((
+            Self::tags_from_ilst(&ilst_atom)?,
+            Self::freeforms_from_ilst(&ilst_atom),
+        ))
+    }
+}
+
+impl V0 {
+    fn freeforms_from_ilst(ilst_atom: &Atom) -> Vec<FreeformTag> {
         let ilst_sub_atoms = V0::parse_atoms(&ilst_atom.buffer, 8, ilst_atom.size);
         let mut out: Vec<FreeformTag> = Vec::new();
         for atom in &ilst_sub_atoms {
@@ -114,7 +138,7 @@ impl TagFormat for V0 {
                 });
             }
         }
-        Ok(out)
+        out
     }
 }
 

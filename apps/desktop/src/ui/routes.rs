@@ -1,3 +1,4 @@
+use super::pages::cloud::CloudLibrary;
 use super::pages::collections::{
     AlbumForTrack, Albums, Artists, Favorites, Playlist, Playlists, Search,
 };
@@ -12,6 +13,8 @@ pub enum Route {
     #[layout(Shell)]
         #[route("/")]
         Home,
+        #[route("/cloud")]
+        CloudLibrary,
         #[route("/songs")]
         Songs,
         #[route("/artists")]

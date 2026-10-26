@@ -13,9 +13,11 @@ impl Component for SearchCollections {
         let runtime = use_consume::<tokio::runtime::Handle>();
         let library = use_library();
         let kind = self.kind;
-        let key = (kind, self.query.clone(), library.revision());
-        let (pages, load_more) =
-            crate::ui::hooks::use_infinite_pages(key, move |(kind, query, _), cursor| {
+        let key = (kind, self.query.clone(), library.connection());
+        let (pages, load_more) = crate::ui::hooks::use_infinite_pages(
+            key,
+            library.revision(),
+            move |(kind, query, _), cursor| {
                 let db = services.db.clone();
                 let runtime = runtime.clone();
                 async move {
@@ -34,7 +36,8 @@ impl Component for SearchCollections {
                         .map_err(|e| e.to_string())??;
                     Ok((page.items, page.next_cursor))
                 }
-            });
+            },
+        );
         let pages = pages.read();
         let items = pages.pages.iter().flatten().collect::<Vec<_>>();
         let mut body = rect()

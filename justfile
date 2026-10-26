@@ -1,3 +1,4 @@
+# will update list eventually
 default:
     @just --list
 

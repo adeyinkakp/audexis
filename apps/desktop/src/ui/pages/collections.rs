@@ -131,7 +131,7 @@ impl Component for Playlist {
                     runtime
                         .spawn(async move {
                             sqlx::query_as::<_, (String, Option<i64>, i64)>(concat!(
-                                "SELECT p.name,MIN(f.id),COUNT(f.id) FROM playlists p LEFT JOIN ",
+                                "SELECT p.name,MIN(f.id),COUNT(f.id) FROM library_playlists p LEFT JOIN ",
                                 "playlist_tracks pt ON pt.playlist_id=p.id LEFT JOIN files f ON ",
                                 "f.id=pt.file_id AND f.missing_since IS NULL WHERE p.id=? GROUP BY p.id",
                             ))
@@ -145,12 +145,30 @@ impl Component for Playlist {
                 }
             })
         });
-        use_side_effect_with_deps(&id, move |_| {
+        let key = (id, use_library().revision(), use_library().connection());
+        use_side_effect_with_deps(&key, move |_| {
             loader.cancel();
             loader.start();
         });
         let state = loader.state();
-        match state.try_as_fulfilled() {
+        let scope = (id, key.2.clone());
+        let saved_scope = scope.clone();
+        let mut retained = use_state(|| None);
+        let finished = state.try_as_fulfilled().cloned();
+        use_side_effect_with_deps(&finished, move |finished| {
+            if let Some(Ok(result)) = finished {
+                retained
+                    .set_if_modified(Some((saved_scope.clone(), Ok::<_, String>(result.clone()))));
+            }
+        });
+        let previous = retained.read();
+        let visible = state.try_as_fulfilled().or_else(|| {
+            previous
+                .as_ref()
+                .filter(|(saved, _)| saved == &scope)
+                .map(|(_, result)| result)
+        });
+        match visible {
             Some(Ok(Some((name, file_id, count)))) => LibraryPage {
                 kind: Kind::Playlists,
                 initial: Some(Collection {

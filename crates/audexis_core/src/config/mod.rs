@@ -16,6 +16,25 @@ pub struct UserConfig {
     pub needs_onboarding: bool,
     pub server: Option<ServerConnection>,
     pub auto_sync: bool,
+    pub cloud_audio_quality: CloudAudioQuality,
+    pub playback_cache_mb: u64,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudAudioQuality {
+    #[default]
+    Original,
+    Balanced,
+    High,
+}
+impl CloudAudioQuality {
+    pub fn api_value(self) -> &'static str {
+        match self {
+            Self::Original => "original",
+            Self::Balanced => "aac_128",
+            Self::High => "aac_256",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +74,8 @@ impl Default for UserConfig {
             needs_onboarding: true,
             server: None,
             auto_sync: false,
+            cloud_audio_quality: CloudAudioQuality::Original,
+            playback_cache_mb: 2048,
         }
     }
 }

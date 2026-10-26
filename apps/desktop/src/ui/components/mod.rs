@@ -51,3 +51,5 @@ mod infinite_scroll;
 pub(crate) use infinite_scroll::InfiniteScroll;
 
 pub(crate) mod track_selection;
+
+pub(crate) mod sync_indicator;

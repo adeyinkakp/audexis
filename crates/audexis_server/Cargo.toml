@@ -5,6 +5,25 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+dotenvy = "0.15"
+symphonia.workspace = true
 axum = "0.8.9"
 hyper = "1.12.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+audexis_core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["postgres", "json"] }
+uuid.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+tokio-util = { version = "0.7", features = ["io"] }
+sha2 = "0.10"
+hmac = "0.12"
+quick-xml = { version = "0.41", features = ["serialize", "overlapped-lists"] }
+chrono = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+http-body-util = "0.1"

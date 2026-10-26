@@ -1,3 +1,10 @@
+mod credentials;
+pub use credentials::*;
+
+mod account;
+
+mod playback;
+
 use audexis_audio::{AudioPlayer, PlayerHandle};
 use std::sync::{Arc, Mutex};
 
@@ -16,6 +23,9 @@ pub struct AppServices {
     pub player: Option<PlayerHandle>,
     pub audio_error: Option<String>,
     pub cloud: Mutex<Option<CloudDetails>>,
+    pub sync_worker: Mutex<Option<audexis_core::cloud_sync::CloudWorker>>,
+    pub sync_status: tokio::sync::watch::Sender<audexis_core::cloud_sync::CloudSyncStatus>,
+    pub sync_progress: tokio::sync::watch::Sender<audexis_core::cloud_sync::CloudSyncProgress>,
     pub db: Database,
     pub watcher: Option<Arc<audexis_core::file_watcher::FileWatcher>>,
     pub watcher_error: Option<String>,
@@ -27,99 +37,154 @@ pub struct AppServices {
 }
 
 impl AppServices {
-    pub fn logout_server(&self) -> Result<Option<String>, String> {
-        let mut cloud = self.cloud.lock().map_err(|_| "Connection lock poisoned")?;
-        let mut previous = None;
-        self.update_config(|config| previous = config.server.take())
-            .map_err(|error| format!("Could not clear server settings: {error}"))?;
-        *cloud = None;
-        let Some(previous) = previous.filter(|connection| connection.credential_id.is_some())
-        else {
-            return Ok(None);
-        };
-        let cleanup =
-            credential_entry(&previous).and_then(|entry| match entry.delete_credential() {
-                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-                Err(error) => Err(error.to_string()),
-            });
-        Ok(cleanup.err().map(|error| {
-            format!("Logged out, but the saved key could not be removed from keyring: {error}")
-        }))
+    pub fn cloud_context(&self) -> Result<audexis_core::cloud_sync::CloudSyncContext, String> {
+        let session = self
+            .cloud
+            .lock()
+            .map_err(|_| "Connection lock poisoned")?
+            .clone()
+            .ok_or("Sign in to a server in Settings → Cloud.")?;
+        Ok(audexis_core::cloud_sync::CloudSyncContext {
+            db: self.db.clone(),
+            connection_id: session
+                .connection
+                .connection_id
+                .ok_or("Sign in again to verify this connection.")?,
+            server_user_id: session
+                .connection
+                .server_user_id
+                .ok_or("Sign in again to verify this account.")?,
+            server_url: session.connection.url,
+            api_key: session.api_key,
+            cache_dir: self
+                .user_config_path
+                .parent()
+                .ok_or("Settings directory unavailable")?
+                .join("cloud-cache"),
+            files: self.library_files.clone(),
+        })
     }
-
-    pub async fn save_server(
-        self: &Arc<Self>,
-        kind: ServerKind,
-        url: &str,
-        api_key: &str,
-    ) -> Result<ServerConnection, String> {
-        let url = normalize_server_url(url)?;
-        let api_key = api_key.trim().to_owned();
-        if api_key.is_empty() {
-            return Err("Enter an API key.".into());
+    pub fn sync_edits(&self) {
+        if let Ok(worker) = self.sync_worker.lock() {
+            if let Some(worker) = worker.as_ref() {
+                worker.wake_edits();
+            }
         }
-        let identity = server_identity(kind, &url, &api_key).await?;
-        let id = self
-            .db
-            .connection_id(&url, &identity.user_id)
-            .await
-            .map_err(|error| format!("Could not save account connection: {error}"))?;
-        let connection = ServerConnection {
-            kind,
-            url,
-            credential_id: Some(uuid::Uuid::new_v4().to_string()),
-            connection_id: Some(id),
-            server_user_id: Some(identity.user_id),
-        };
-        let services = self.clone();
-        tokio::task::spawn_blocking(move || services.persist_server(connection, &api_key))
-            .await
-            .map_err(|_| "Could not save connection credentials".to_string())?
     }
-
-    fn persist_server(
-        &self,
-        mut connection: ServerConnection,
-        api_key: &str,
-    ) -> Result<ServerConnection, String> {
-        let mut cloud = self.cloud.lock().map_err(|_| "Connection lock poisoned")?;
-        let stored_entry = credential_entry(&connection).and_then(|entry| {
-            entry
-                .set_password(api_key)
-                .map_err(|error| error.to_string())?;
-            Ok(entry)
+    pub fn sync_now(&self) {
+        if let Ok(worker) = self.sync_worker.lock() {
+            if let Some(worker) = worker.as_ref() {
+                worker.wake();
+            }
+        }
+    }
+    pub fn start_cloud_sync(self: &Arc<Self>) {
+        let weak = Arc::downgrade(self);
+        let mut updates = self.config_updates.subscribe();
+        tokio::spawn(async move {
+            let mut fingerprint: Option<(String, String, bool)> = None;
+            loop {
+                let Some(services) = weak.upgrade() else {
+                    break;
+                };
+                let context = services.cloud_context().ok();
+                let auto = services
+                    .user_config
+                    .lock()
+                    .map(|c| c.auto_sync)
+                    .unwrap_or(false);
+                let next = context
+                    .as_ref()
+                    .map(|c| (c.connection_id.clone(), c.api_key.clone(), auto));
+                if next != fingerprint {
+                    if let Ok(mut slot) = services.sync_worker.lock() {
+                        slot.take();
+                    }
+                    if fingerprint.as_ref().map(|f| &f.0) != next.as_ref().map(|f| &f.0) {
+                        if let Some(player) = &services.player {
+                            if player
+                                .subscribe()
+                                .borrow()
+                                .path
+                                .as_deref()
+                                .is_some_and(|p| {
+                                    p.starts_with("cloud-library://")
+                                        || p.starts_with("cloud-stream://")
+                                })
+                            {
+                                let _ = player.send(audexis_audio::PlayerCmd::Stop);
+                            }
+                        }
+                        if let Err(error) = services
+                            .db
+                            .set_cloud_library_connection(
+                                context.as_ref().map(|c| c.connection_id.as_str()),
+                            )
+                            .await
+                        {
+                            tracing::error!(%error, "Could not switch cloud library account");
+                            return;
+                        }
+                    }
+                    if let Some(context) = &context {
+                        if let Err(error) = context.refresh_library().await {
+                            tracing::warn!(%error, "Could not restore cached cloud library");
+                        }
+                    }
+                    services.library_files.publish_changed(Vec::new());
+                    if let Ok(mut slot) = services.sync_worker.lock() {
+                        slot.take();
+                        *slot = context.map(|c| {
+                            audexis_core::cloud_sync::CloudWorker::start(
+                                c,
+                                auto,
+                                &tokio::runtime::Handle::current(),
+                            )
+                        });
+                    }
+                    fingerprint = next;
+                }
+                let mut status = services
+                    .sync_worker
+                    .lock()
+                    .ok()
+                    .and_then(|s| s.as_ref().map(|w| w.subscribe()));
+                let mut progress = services
+                    .sync_worker
+                    .lock()
+                    .ok()
+                    .and_then(|s| s.as_ref().map(|w| w.subscribe_progress()));
+                services.sync_progress.send_replace(
+                    progress
+                        .as_ref()
+                        .map(|p| p.borrow().clone())
+                        .unwrap_or_default(),
+                );
+                services.sync_status.send_replace(
+                    status
+                        .as_ref()
+                        .map(|s| s.borrow().clone())
+                        .unwrap_or(audexis_core::cloud_sync::CloudSyncStatus::Stopped),
+                );
+                let status_sender = services.sync_status.clone();
+                let progress_sender = services.sync_progress.clone();
+                drop(services);
+                loop {
+                    tokio::select! {
+                        result = updates.recv() => { if matches!(result, Err(tokio::sync::broadcast::error::RecvError::Closed)) { return; } break; },
+                        changed = async { if let Some(p) = progress.as_mut() {p.changed().await} else {std::future::pending().await} } => {
+                            if changed.is_err() {break;}
+                            if let Some(p)=progress.as_ref() {progress_sender.send_replace(p.borrow().clone());}
+                        }
+                        changed = async { if let Some(s) = status.as_mut() { s.changed().await } else { std::future::pending().await } } => {
+                            if changed.is_err() { break; }
+                            if let Some(s) = status.as_ref() { status_sender.send_replace(s.borrow().clone()); }
+                        }
+                    }
+                }
+            }
         });
-        let entry = match stored_entry {
-            Ok(entry) => Some(entry),
-            Err(error) => {
-                tracing::warn!(%error, "Keyring unavailable; using a session-only server connection");
-                connection.credential_id = None;
-                None
-            }
-        };
-        let mut previous = None;
-        if let Err(error) = self.update_config(|config| {
-            previous = config.server.replace(connection.clone());
-        }) {
-            if let Some(entry) = entry {
-                let _ = entry.delete_credential();
-            }
-            return Err(format!("Could not save server settings: {error}"));
-        }
-        *cloud = Some(CloudDetails {
-            api_key: api_key.into(),
-            connection: connection.clone(),
-        });
-        if let Some(previous) = previous.filter(|connection| connection.credential_id.is_some()) {
-            if let Err(error) = credential_entry(&previous)
-                .and_then(|entry| entry.delete_credential().map_err(|e| e.to_string()))
-            {
-                tracing::warn!(%error, "Could not remove previous server credential");
-            }
-        }
-        Ok(connection)
     }
-
     pub fn update_config(&self, edit: impl FnOnce(&mut UserConfig)) -> std::io::Result<()> {
         let mut current = self
             .user_config
@@ -134,84 +199,4 @@ impl AppServices {
         }
         Ok(())
     }
-}
-
-fn credential_entry(connection: &ServerConnection) -> Result<keyring::Entry, String> {
-    let id = connection
-        .credential_id
-        .as_deref()
-        .ok_or("This connection is session-only.")?;
-    keyring::Entry::new("com.kp.audexis", id).map_err(|e| format!("Could not access keyring: {e}"))
-}
-
-pub fn restore_server(config: &UserConfig) -> Result<Option<CloudDetails>, String> {
-    config
-        .server
-        .as_ref()
-        .filter(|connection| connection.credential_id.is_some())
-        .map(|connection| {
-            let api_key = credential_entry(connection)?
-                .get_password()
-                .map_err(|e| format!("Could not read server API key from keyring: {e}"))?;
-            Ok(CloudDetails {
-                api_key,
-                connection: connection.clone(),
-            })
-        })
-        .transpose()
-}
-
-pub(crate) fn normalize_server_url(value: &str) -> Result<String, String> {
-    let mut url = reqwest::Url::parse(value.trim()).map_err(|_| "Enter a valid server URL.")?;
-    if !matches!(url.scheme(), "http" | "https")
-        || url.host_str().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-    {
-        return Err(
-            "Use an HTTP or HTTPS server URL without credentials, a query, or a fragment.".into(),
-        );
-    }
-    let path = url.path().trim_end_matches('/').to_owned();
-    url.set_path(&path);
-    Ok(url.to_string().trim_end_matches('/').to_owned())
-}
-
-async fn server_identity(
-    kind: ServerKind,
-    url: &str,
-    key: &str,
-) -> Result<crate::cloud_auth::SessionIdentity, String> {
-    match kind {
-        ServerKind::Cloud => crate::cloud_auth::validate_session(key).await,
-        ServerKind::Custom => crate::cloud_auth::custom_session(url, key).await,
-    }
-}
-
-pub async fn resolve_restored_connection(
-    db: &Database,
-    session: &mut CloudDetails,
-) -> Result<(), String> {
-    let url = normalize_server_url(&session.connection.url)?;
-    let identity = server_identity(session.connection.kind, &url, &session.api_key).await?;
-    if session
-        .connection
-        .server_user_id
-        .as_deref()
-        .is_some_and(|saved| saved != identity.user_id)
-    {
-        return Err(
-            "The saved credential belongs to a different account. Please sign in again.".into(),
-        );
-    }
-    let id = db
-        .connection_id(&url, &identity.user_id)
-        .await
-        .map_err(|error| format!("Could not restore account connection: {error}"))?;
-    session.connection.url = url;
-    session.connection.connection_id = Some(id);
-    session.connection.server_user_id = Some(identity.user_id);
-    Ok(())
 }

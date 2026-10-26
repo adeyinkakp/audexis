@@ -22,14 +22,60 @@ pub(super) async fn dispatch(
             );
             None
         }
+        Action::Download | Action::RemoveDownload => {
+            let context = services.cloud_context()?;
+            let paths = tracks(target);
+            runtime
+                .spawn(async move {
+                    for (_, path) in paths {
+                        if path.starts_with("cloud-library://") {
+                            let track = context
+                                .library_track(&path)
+                                .await
+                                .map_err(|e| e.to_string())?;
+                            if matches!(action, Action::Download) {
+                                context.download(&track).await.map_err(|e| e.to_string())?;
+                            } else {
+                                context
+                                    .remove_download(&track)
+                                    .await
+                                    .map_err(|e| e.to_string())?;
+                            }
+                        }
+                    }
+                    Ok::<_, String>(())
+                })
+                .await
+                .map_err(|e| e.to_string())??;
+            services.library_files.publish_changed(Vec::new());
+            None
+        }
         Action::Play => {
             target.play(playback);
             None
         }
         Action::Next => target.enqueue_command(true),
         Action::Last => target.enqueue_command(false),
-        Action::Copy => {
-            Clipboard::set(target.paths()).map_err(|e| format!("Could not copy paths: {e:?}"))?;
+        Action::Copy | Action::Reveal => {
+            let ids: Vec<_> = tracks(target).into_iter().map(|(id, _)| id).collect();
+            let db = services.db.clone();
+            let paths = runtime
+                .spawn(async move { db.library_disk_paths(&ids).await })
+                .await
+                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())?;
+            if paths.is_empty() {
+                return Err("This song is not downloaded on this device.".into());
+            }
+            if matches!(action, Action::Copy) {
+                Clipboard::set(paths.values().cloned().collect::<Vec<_>>().join("\n"))
+                    .map_err(|e| format!("Could not copy paths: {e:?}"))?;
+            } else {
+                runtime
+                    .spawn_blocking(move || reveal_files(paths.into_values().collect()))
+                    .await
+                    .map_err(|e| e.to_string())??;
+            }
             None
         }
         Action::RemoveQueue => match target {
@@ -107,11 +153,40 @@ pub(super) async fn dispatch(
                 .await
                 .map_err(|e| e.to_string())??;
             services.library_files.publish_changed(ids);
+            services.sync_edits();
             None
         }
     };
     if let Some(command) = command {
         playback.send(command);
+    }
+    Ok(())
+}
+
+fn reveal_files(paths: Vec<String>) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("open")
+            .arg("-R")
+            .args(paths)
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Could not show the selected files in Finder".into());
+        }
+    }
+    #[cfg(target_os = "windows")]
+    for path in paths {
+        std::process::Command::new("explorer")
+            .arg(format!("/select,{path}"))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    for path in paths {
+        if let Some(folder) = std::path::Path::new(&path).parent() {
+            open::that(folder).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }

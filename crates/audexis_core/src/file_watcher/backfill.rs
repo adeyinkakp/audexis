@@ -1,6 +1,6 @@
 use super::WatcherContext;
 use super::WatcherError as DatabaseError;
-use crate::tag_manager::tag_backend::{DefaultBackend, TagBackend};
+use crate::tag_manager::tag_backend::DefaultBackend;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
@@ -8,7 +8,7 @@ use tokio::task as async_runtime;
 
 pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<(), DatabaseError> {
     let total = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE missing_since IS NULL AND
+        "SELECT COUNT(*) FROM files WHERE cloud_connection_id IS NULL AND missing_since IS NULL AND
          (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = '' OR last_validated = 0 OR size = 0 OR modified_at = 0 OR hash IS NULL OR hash = '')",
     )
     .fetch_one(pool)
@@ -24,7 +24,7 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<
     let mut cursor: i64 = 0;
     loop {
         let rows: Vec<(i64, String, Option<String>, Option<i64>, Option<String>)> = sqlx::query_as(
-            "SELECT id, path, format, duration_ms, hash FROM files WHERE id > ?1 AND missing_since IS NULL AND
+            "SELECT id, path, format, duration_ms, hash FROM files WHERE id > ?1 AND cloud_connection_id IS NULL AND missing_since IS NULL AND
              (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = ''
               OR last_validated = 0 OR size = 0 OR modified_at = 0 OR hash IS NULL OR hash = '')
              ORDER BY id LIMIT 50",
@@ -48,10 +48,9 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<
                     .filter(|hash| !hash.is_empty())
                     .or_else(|| super::hashing::attempt_file_hash(&path));
                 let format = format.filter(|value| !value.is_empty()).or_else(|| {
-                    DefaultBackend::new()
-                        .read(&path)
-                        .ok()
-                        .map(|metadata| metadata.tag_format.to_string())
+                    let format = DefaultBackend::new().resolve_format(&path);
+                    (format != crate::tag_manager::traits::Formats::Unknown)
+                        .then(|| format.to_string())
                 });
                 let modified = stat
                     .modified()

@@ -11,6 +11,7 @@ static REPORTER: Mutex<Option<Weak<LibraryFiles>>> = Mutex::new(None);
 #[derive(Clone, Debug)]
 pub struct LibraryChange {
     pub file_ids: Vec<i64>,
+    pub artwork_only: bool,
 }
 
 pub struct LibraryFiles {
@@ -39,7 +40,16 @@ impl LibraryFiles {
         }
     }
     pub fn publish_changed(&self, file_ids: Vec<i64>) {
-        let _ = self.changes.send(LibraryChange { file_ids });
+        let _ = self.changes.send(LibraryChange {
+            file_ids,
+            artwork_only: false,
+        });
+    }
+    pub fn publish_artwork_changed(&self, file_ids: Vec<i64>) {
+        let _ = self.changes.send(LibraryChange {
+            file_ids,
+            artwork_only: true,
+        });
     }
     pub fn subscribe(&self) -> broadcast::Receiver<LibraryChange> {
         self.changes.subscribe()
@@ -57,7 +67,10 @@ impl LibraryFiles {
                 }
             };
             reporter.reconcile(Default::default(), ids.clone());
-            let _ = reporter.changes.send(LibraryChange { file_ids: ids });
+            let _ = reporter.changes.send(LibraryChange {
+                file_ids: ids,
+                artwork_only: false,
+            });
         });
     }
 }
@@ -65,8 +78,26 @@ impl LibraryFiles {
 pub fn init(reporter: &Arc<LibraryFiles>) {
     *REPORTER.lock().unwrap() = Some(Arc::downgrade(reporter));
 }
+pub fn is_virtual_path(path: &Path) -> bool {
+    path.to_str().is_some_and(|path| {
+        ["cloud-library://", "cloud-stream://", "http://", "https://"]
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
+    })
+}
+fn require_disk_path(path: &Path) -> io::Result<()> {
+    if is_virtual_path(path) {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Cloud playback handles cannot be opened as disk files",
+        ))
+    } else {
+        Ok(())
+    }
+}
 pub fn observe<T>(path: &Path, result: io::Result<T>) -> io::Result<T> {
     if let Err(error) = &result
+        && !is_virtual_path(path)
         && error.kind() == io::ErrorKind::NotFound
     {
         let reporter = REPORTER.lock().unwrap().as_ref().and_then(Weak::upgrade);
@@ -78,10 +109,12 @@ pub fn observe<T>(path: &Path, result: io::Result<T>) -> io::Result<T> {
 }
 pub fn open(path: impl AsRef<Path>) -> io::Result<File> {
     let path = path.as_ref();
+    require_disk_path(path)?;
     observe(path, File::open(path))
 }
 pub fn open_for_update(path: impl AsRef<Path>) -> io::Result<File> {
     let path = path.as_ref();
+    require_disk_path(path)?;
     observe(
         path,
         std::fs::OpenOptions::new()
@@ -92,10 +125,12 @@ pub fn open_for_update(path: impl AsRef<Path>) -> io::Result<File> {
 }
 pub fn metadata(path: impl AsRef<Path>) -> io::Result<std::fs::Metadata> {
     let path = path.as_ref();
+    require_disk_path(path)?;
     observe(path, std::fs::metadata(path))
 }
 pub fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     let path = path.as_ref();
+    require_disk_path(path)?;
     observe(path, std::fs::read(path))
 }
 pub fn check_after_error(path: &Path) {
@@ -106,7 +141,10 @@ pub(crate) async fn mark_missing(
     pool: &sqlx::SqlitePool,
     path: &Path,
 ) -> Result<Vec<i64>, sqlx::Error> {
-    sqlx::query_scalar("UPDATE files SET missing_since = unixepoch() WHERE path = ?1 AND missing_since IS NULL RETURNING id")
+    if is_virtual_path(path) {
+        return Ok(Vec::new());
+    }
+    sqlx::query_scalar("UPDATE files SET missing_since = unixepoch() WHERE path = ?1 AND cloud_connection_id IS NULL AND missing_since IS NULL RETURNING id")
         .bind(path.to_string_lossy().as_ref()).fetch_all(pool).await
 }
 
@@ -138,13 +176,13 @@ mod tests {
             .await
             .unwrap();
         sqlx::query(
-            "CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT, missing_since INTEGER)",
+            "CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT, missing_since INTEGER, cloud_connection_id TEXT)",
         )
         .execute(&pool)
         .await
         .unwrap();
         let path = std::env::temp_dir().join(format!("audexis-missing-{}", uuid::Uuid::new_v4()));
-        sqlx::query("INSERT INTO files VALUES (1, ?, NULL)")
+        sqlx::query("INSERT INTO files VALUES (1, ?, NULL, NULL)")
             .bind(path.to_string_lossy().as_ref())
             .execute(&pool)
             .await

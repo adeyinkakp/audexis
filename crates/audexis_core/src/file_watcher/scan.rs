@@ -86,10 +86,11 @@ impl FileWatcher {
                     .await?,
             );
         }
-        let indexed: Vec<(i64, String)> =
-            sqlx::query_as("SELECT id,path FROM files WHERE missing_since IS NULL")
-                .fetch_all(&mut *tx)
-                .await?;
+        let indexed: Vec<(i64, String)> = sqlx::query_as(
+            "SELECT id,path FROM files WHERE cloud_connection_id IS NULL AND missing_since IS NULL",
+        )
+        .fetch_all(&mut *tx)
+        .await?;
         let mut missing = Vec::new();
         for (id, path) in indexed {
             let path = Path::new(&path);
