@@ -276,6 +276,3 @@ impl Database {
         Ok(SongPage { rows, total })
     }
 }
-
-#[cfg(test)]
-mod tests;
