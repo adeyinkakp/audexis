@@ -86,7 +86,17 @@ impl Component for LyricLines {
             let playback = playback.clone();
             let time = line.time_ms;
             let gap = line.text.trim().is_empty();
-            let content = if gap {
+            let mut has_enough_time = true;
+            let next = self.lyrics.lines[index + 1..]
+                .iter()
+                .find(|line| !line.text.trim().is_empty())
+                .map(|line| line.time_ms);
+            if let Some(next) = next {
+                has_enough_time = next.saturating_sub(time) >= 5000;
+            }
+            let content = if gap && !has_enough_time {
+                rect().height(Size::px(0.0)).into_element()
+            } else if gap {
                 super::super::lyrics_gap::LyricsGap {
                     active: active == Some(index),
                     position: self.position,
@@ -119,15 +129,21 @@ impl Component for LyricLines {
                         content
                     } else {
                         rect()
-                            .padding((0.0, 0.0, 12.0, 0.0))
-                            .child(Button::new().flat().expanded().child(content).on_press(
-                                move |_| {
-                                    resume_follow.cancel();
-                                    follow.set_if_modified(true);
-                                    playback
-                                        .send(PlayerCmd::SeekMilliseconds { milliseconds: time });
-                                },
-                            ))
+                            .padding((0.0, 0.0, 4.0, 0.0))
+                            .child(
+                                Button::new()
+                                    .flat()
+                                    .compact()
+                                    .expanded()
+                                    .child(content)
+                                    .on_press(move |_| {
+                                        resume_follow.cancel();
+                                        follow.set_if_modified(true);
+                                        playback.send(PlayerCmd::SeekMilliseconds {
+                                            milliseconds: time,
+                                        });
+                                    }),
+                            )
                             .into_element()
                     }),
             );
