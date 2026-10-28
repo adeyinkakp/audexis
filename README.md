@@ -1,113 +1,120 @@
-# Audexis NEXT GEN
+<p align="center">
+    <img src="apps/www/public/audexis-logo.png" alt="Audexis logo" width="96">
+</p>
 
-I want audexis to use least amount of memeory as possible so i'm remaking it
-in freya
-and also adding a server to manage library
+<h1 align="center">Audexis</h1>
 
-Audexis is a local-first desktop music player for people who want to keep their
-library on their own computer. It uses freya for ui
+<p align="center">A cross platform music player.</p>
+
+<p align="center">
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#Apps">Apps</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="SUPPORT.md">Support</a>
+</p>
+
+Audexis is for people who keep their own music library. Browse and play local
+files, edit their metadata, and keep library data on your computer. Optional
+server that connect that library to mobile clients (can self-host).
+
+The desktop app is being rebuilt with Freya, trying to use as little memory as
+possible. The iOS client is in development and theAndroid client
+will be developed eventually.
 
 ## Features
 
-- Scan and monitor one or more local music folders
-- Browse music by song, album, or artist
-- Search and filter the local library
-- Manage the playback queue
-- Shuffle and repeat playback modes
-- Control playback through native system media controls
-- Keep library data locally in SQLite
-- Synced and unsynced lyrics
-- Batch Editing up to 200 Songs
-- Custom Metadata fields
-- Create, rename, and delete playlists
-- Read embedded metadata and artwork from common audio formats
-- - Mark songs as favorites
+- Scan and monitor local music folders.
+- Browse and search songs, albums, and artists.
+- Manage playlists, favorites, and the playback queue.
+- Use shuffle, repeat, and native system media controls.
+- Read and edit embedded metadata, including custom fields.
+- Display artwork and synced or unsynced lyrics.
+- Store the local library in SQLite.
+- Connect to an optional server for library sync and mobile access.
 
-## Todo
+Features vary between apps.
 
-- Shuffle and repeat playback modes
-- View listening history and statistics in Rewind
-- 10 band equalizer window
-- settings window
-- logs page
-- missing files page
-- albums page
-- artists page
-- favorites page
-- search page
-- metadta editing window
+## Getting started
 
-- Expand automated test coverage
-- Continue expanding metadata and codec compatibility
-- Implement smart playlists
-- Genre page
-- Normalize tags
-- Custom playlist images
-- Custom artist images
-- Ability to organize file/folder structure based on tags
-- Pin album, songs & playlists
+### Desktop
 
-Audexis currently recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA,
-SPX, OGV, MOV, M4V, and QuickTime files. Support can vary depending on the codec
-and metadata contained in a file.
-
-## Project status
-
-Audexis is pre-release software. Core library browsing, metadata-editing
-and playback are in place, but testing, error handling, and documentation
-still being improved before a stable release.
-
-## Development
-
-### Prerequisites
-
-- [Rust & cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-
-- [Just](https://github.com/casey/just)
-
-For website
-
-- [Node.js](https://nodejs.org/) 22.18 or newer
-- [pnpm](https://pnpm.io/) 9
-
-### Run locally
-
-From the repository root:
+Install a Rust toolchain with support for edition 2024, then run from the
+repository root:
 
 ```sh
-just dev
+cargo run -p audexis
 ```
 
-On the first run, choose the folders that contain your music. Audexis will scan
-them and build a local library database.
+Choose your music folders in the app to build a local library. For development
+that changes tags or files, use copies of your music.
 
-### Build the desktop application
+Build the release executable with:
 
 ```sh
-just build
+cargo build -p audexis --release
 ```
 
-## Project structure
+If you use Just, `just dev` starts the app. `just build` creates desktop packages
+and requires Cargo Packager. See the [desktop README](apps/desktop/README.md)
+for more details.
 
-```text
-audexis/
-├── apps/
-│   ├── dekstop           Desktop App
-│   └── www               Website
-└── crates/
-    ├── audexis_audio     Crate that handles audio play back
-    └── audexis_core      Crate has core modules (user config, db, filewatcher)
-```
+### Website, server, and mobile
 
-## Tech Stack
+Each has its own setup and dependencies:
 
-- [Freya](https://freyaui.dev)
-- [Rust](https://www.rust-lang.org/)
-- [SQLite](https://www.sqlite.org/) through
-  [SQLx](https://github.com/transact-rs/sqlx)
-- [Symphonia](https://github.com/pdeljanov/Symphonia) and
-  [CPAL](https://github.com/RustAudio/cpal) for audio
+- [Website](apps/www/README.md): Astro site, documentation, accounts, and billing.
+- [Server](crates/audexis_server/README.md): cloud API, PostgreSQL, and media storage.
+- [iOS](apps/ios/README.md): Xcode project and Rust mobile integration.
+- [Android](apps/android/README.md): Android Studio project and current status.
+
+### Apps
+
+| Component                         | Purpose                                            |
+| --------------------------------- | -------------------------------------------------- |
+| [desktop](apps/desktop/README.md) | Rust and Freya desktop music player                |
+| [www](apps/www/README.md)         | Astro website, documentation, and account services |
+| [ios](apps/ios/README.md)         | Native SwiftUI mobile client                       |
+| [android](apps/android/README.md) | Android app scaffolding                            |
+
+### Rust crates
+
+| Crate                                                 | Purpose                                         |
+| ----------------------------------------------------- | ----------------------------------------------- |
+| [audexis_core](crates/audexis_core/README.md)         | Library data, metadata, file watching, and sync |
+| [audexis_audio](crates/audexis_audio/README.md)       | decoding, audio output, and playback state      |
+| [audexis_protocol](crates/audexis_protocol/README.md) | Shared cloud records and wire types             |
+| [audexis_mobile](crates/audexis_mobile/README.md)     | Persistent mobile library and C interface       |
+| [audexis_server](crates/audexis_server/README.md)     | Cloud library and media server                  |
+
+The root Cargo workspace defaults to the desktop application. Use `-p` to
+select a package or `--workspace` to check all Rust packages.
+
+## Audio formats
+
+Audexis recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA, SPX,
+OGV, MOV, M4V, and QuickTime files. Playback and metadata support depend on the
+codec and container, and differ between native clients (for now).
+
+## Development priorities
+
+- Improve testing, error handling, and metadata compatibility.
+- Continue the desktop rewrite and mobile clients.
+- Expand library organization, including smart playlists and tag normalization.
+- Add more artwork customization and ways to organize files from their tags.
+
+These are areas of interest rather than release commitments. Propose specific
+changes through the [contribution process](CONTRIBUTING.md).
+
+## Contributing and support
+
+Bug reports, documentation, accessibility improvements, and focused code
+contributions are welcome.
+
+- [Contributing](CONTRIBUTING.md): setup, checks, and contribution expectations.
+- [Support](SUPPORT.md): questions, bug reports, and troubleshooting information.
+- [Security](SECURITY.md): reporting vulnerabilities privately.
+- [Code of conduct](CODE_OF_CONDUCT.md): expectations for project participation.
 
 ## License
 
-Audexis is available under the [MIT License](./LICENSE).
+Audexis is under the [MIT License](LICENSE).

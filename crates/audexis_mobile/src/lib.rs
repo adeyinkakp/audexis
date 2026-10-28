@@ -1,10 +1,11 @@
+mod library;
 mod persistence;
+mod storage;
 
 mod ffi;
 pub use ffi::*;
 
 use audexis_protocol::{ChangeValue, Changes, MediaUrl, Playlist, Track};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
@@ -15,9 +16,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Clone, Default)]
 struct State {
+    generation: i64,
     cursor: i64,
     user_id: Option<String>,
     tracks: BTreeMap<String, Track>,
@@ -26,7 +27,7 @@ struct State {
     current: Option<usize>,
     downloads: BTreeMap<String, Download>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 struct Download {
     file: String,
     source_hash: String,
@@ -36,6 +37,7 @@ struct Download {
 
 #[derive(Default)]
 pub struct MobileCore {
+    library: Option<library::CoreLibrary>,
     root: Option<PathBuf>,
     state: State,
 }
@@ -46,18 +48,40 @@ impl MobileCore {
         if op == "open" {
             let root = PathBuf::from(string(&request, "directory")?);
             fs::create_dir_all(root.join("audio")).map_err(|e| e.to_string())?;
-            let state = match fs::read(root.join("library.json")) {
-                Ok(bytes) => serde_json::from_slice(&bytes)
-                    .map_err(|_| "The saved library could not be read")?,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => State::default(),
-                Err(e) => return Err(e.to_string()),
-            };
+            let library = library::CoreLibrary::open(&root)?;
+            let state = library.open_state()?;
+            self.library = Some(library);
             self.root = Some(root);
             self.state = state;
             return Ok(self.snapshot());
         }
         self.root()?;
+        self.state = self.library.as_ref().ok_or("Library is not open")?.load()?;
+        let previous = self.state.clone();
+        let result = self.call_open(&request, op, &previous);
+        if result.is_err() {
+            self.state = previous;
+        }
+        result
+    }
+
+    fn call_open(&mut self, request: &Value, op: &str, previous: &State) -> Result<Value, String> {
         match op {
+            "songs" => {
+                let search = request["search"].as_str().unwrap_or("");
+                let offset = match request.get("offset") {
+                    None => 0,
+                    Some(value) => value
+                        .as_u64()
+                        .and_then(|offset| usize::try_from(offset).ok())
+                        .ok_or("Invalid song offset")?,
+                };
+                return self
+                    .library
+                    .as_ref()
+                    .ok_or("Library is not open")?
+                    .songs(search, offset);
+            }
             "snapshot" => return Ok(self.snapshot()),
             "identity" => {
                 let id = string(&request, "user_id")?;
@@ -88,6 +112,21 @@ impl MobileCore {
                     return Err("Cloud sync cursor did not advance".into());
                 }
                 for change in page.changes {
+                    let stale = match &change.value {
+                        ChangeValue::Track(t) => self
+                            .state
+                            .tracks
+                            .get(&t.id)
+                            .is_some_and(|old| old.revision > t.revision),
+                        ChangeValue::Playlist(p) => self
+                            .state
+                            .playlists
+                            .get(&p.id)
+                            .is_some_and(|old| old.revision > p.revision),
+                    };
+                    if stale {
+                        continue;
+                    }
                     match change.value {
                         ChangeValue::Track(t) if t.deleted => {
                             self.state.tracks.remove(&t.id);
@@ -255,23 +294,26 @@ impl MobileCore {
             }
             _ => return Err("Unknown mobile operation".into()),
         }
-        self.save()?;
-        Ok(self.snapshot())
-    }
-    fn remove_download(&mut self, id: &str) -> Result<(), String> {
-        if let Some(download) = self.state.downloads.remove(id)
-            && !self
+        self.library
+            .as_ref()
+            .ok_or("Library is not open")?
+            .save(&self.state, previous)?;
+        self.state = self.library.as_ref().ok_or("Library is not open")?.load()?;
+        // Remove obsolete audio only after its database records have committed.
+        for download in previous.downloads.values() {
+            if !self
                 .state
                 .downloads
                 .values()
                 .any(|d| d.file == download.file)
-        {
-            match fs::remove_file(self.root()?.join("audio").join(download.file)) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(e.to_string()),
+            {
+                let _ = fs::remove_file(self.root()?.join("audio").join(&download.file));
             }
         }
+        Ok(self.snapshot())
+    }
+    fn remove_download(&mut self, id: &str) -> Result<(), String> {
+        self.state.downloads.remove(id);
         Ok(())
     }
 }

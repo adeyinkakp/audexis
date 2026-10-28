@@ -7,6 +7,18 @@ pub async fn apply(
     cursor: Option<i64>,
 ) -> Result<()> {
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+    apply_to_connection(&mut tx, connection, changes, cursor).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Apply a sync page inside the caller's transaction so client state can commit with it.
+pub async fn apply_to_connection(
+    tx: &mut SqliteConnection,
+    connection: &str,
+    changes: &[Change],
+    cursor: Option<i64>,
+) -> Result<()> {
     for change in changes {
         match &change.value {
             ChangeValue::Track(track) => {
@@ -30,9 +42,9 @@ pub async fn apply(
                 let ids:Vec<i64>=sqlx::query_scalar("SELECT file_id FROM file_cloud_links WHERE connection_id=? AND cloud_track_id=?").bind(connection).bind(&track.id).fetch_all(&mut *tx).await?;
                 for id in ids {
                     let baseline:Option<String>=sqlx::query_scalar("SELECT metadata FROM cloud_local_state WHERE connection_id=? AND file_id=?").bind(connection).bind(id).fetch_optional(&mut *tx).await?;
-                    let current = serde_json::to_string(&local_metadata(&mut tx, id).await?)?;
+                    let current = serde_json::to_string(&local_metadata(tx, id).await?)?;
                     if !track.deleted && baseline.as_ref().is_none_or(|base| base == &current) {
-                        write_metadata(&mut tx, id, &track.metadata).await?;
+                        write_metadata(tx, id, &track.metadata).await?;
                     }
                     if baseline.as_ref().is_none_or(|base| base == &current) {
                         sqlx::query("INSERT INTO cloud_local_state(connection_id,file_id,metadata,revision) VALUES (?,?,?,?) ON CONFLICT(connection_id,file_id) DO UPDATE SET metadata=excluded.metadata,revision=excluded.revision").bind(connection).bind(id).bind(serde_json::to_string(&track.metadata)?).bind(track.revision).execute(&mut *tx).await?;
@@ -57,6 +69,5 @@ pub async fn apply(
     if let Some(cursor) = cursor {
         sqlx::query("INSERT INTO cloud_sync_cursors(connection_id,cursor) VALUES (?,?) ON CONFLICT(connection_id) DO UPDATE SET cursor=excluded.cursor").bind(connection).bind(cursor).execute(&mut *tx).await?;
     }
-    tx.commit().await?;
     Ok(())
 }

@@ -25,7 +25,7 @@ test:
 
 # format rust code
 fmt:
-    cargo fmt --all
+    cargo fmt --all ; swift-format format --in-place --recursive apps/ios
 # lint checks
 lint:
     cargo clippy --workspace --all-targets -- -D warnings

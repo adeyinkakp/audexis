@@ -612,10 +612,14 @@ dependencies = [
 name = "audexis_mobile"
 version = "0.20.0"
 dependencies = [
+ "audexis_core",
  "audexis_protocol",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

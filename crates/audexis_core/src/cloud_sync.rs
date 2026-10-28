@@ -7,6 +7,7 @@ pub(crate) mod store;
 pub use client::{CloudClient, SyncError};
 pub use engine::CloudSyncContext;
 use std::time::Duration;
+pub use store::apply_to_connection;
 use tokio::{
     runtime::Handle,
     sync::{mpsc, watch},

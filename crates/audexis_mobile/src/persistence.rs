@@ -4,13 +4,6 @@ impl MobileCore {
     pub(super) fn root(&self) -> Result<&Path, String> {
         self.root.as_deref().ok_or("Library is not open".into())
     }
-    pub(super) fn save(&self) -> Result<(), String> {
-        let root = self.root()?;
-        let bytes = serde_json::to_vec(&self.state).map_err(|e| e.to_string())?;
-        let temporary = root.join("library.json.tmp");
-        fs::write(&temporary, bytes).map_err(|e| e.to_string())?;
-        fs::rename(temporary, root.join("library.json")).map_err(|e| e.to_string())
-    }
     pub(super) fn snapshot(&self) -> Value {
         let mut tracks: Vec<_> = self.state.tracks.values().collect();
         tracks.sort_by_cached_key(|t| {
@@ -29,10 +22,10 @@ impl MobileCore {
                     .tracks
                     .get(*id)
                     .is_some_and(|t| t.sha256 == d.source_hash)
-                    && self
-                        .root
-                        .as_ref()
-                        .is_some_and(|r| r.join("audio").join(&d.file).is_file())
+                    && self.root.as_ref().is_some_and(|r| {
+                        fs::metadata(r.join("audio").join(&d.file))
+                            .is_ok_and(|m| m.is_file() && m.len() == d.size as u64)
+                    })
             })
             .map(|(id, d)| {
                 (

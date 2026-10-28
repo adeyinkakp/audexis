@@ -29,7 +29,7 @@ impl App for AudexisApp {
             .maybe_child(
                 (cfg!(target_os = "macos") && !crate::ui::windows::title_bar::windows_title_bar())
                     .then_some(crate::ui::windows::title_bar::TitleBar {
-                        child: label().text("Audexis").into_element(),
+                        child: label().text("").into_element(),
                     }),
             )
             .maybe_child(

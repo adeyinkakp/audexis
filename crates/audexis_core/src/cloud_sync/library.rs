@@ -2,6 +2,11 @@ use super::{client::Result, protocol::Track, store};
 use crate::database::Database;
 
 impl Database {
+    /// Rebuild the shared library views after applying remote changes.
+    pub async fn refresh_cloud_library(&self, connection: &str) -> Result<bool> {
+        refresh(self, connection).await
+    }
+
     pub async fn set_cloud_library_connection(&self, connection: Option<&str>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM cloud_library_session")

@@ -28,7 +28,7 @@ pub(crate) fn router(state: Arc<AppState>) -> Router {
             auth::middleware,
         ));
     Router::new()
-        .route("/health", get(|| async { StatusCode::NO_CONTENT }))
+        .route("/health", get(|| async { StatusCode::OK }))
         .nest("/api", api)
         .route(
             "/transfer/{token}",
