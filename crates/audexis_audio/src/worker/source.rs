@@ -62,19 +62,23 @@ fn open_inner(
         .as_ref()
         .and_then(|p| p.audio())
         .ok_or("No audio parameters")?;
-    let rate = params
-        .sample_rate
-        .filter(|r| *r > 0)
-        .ok_or("No sample rate")?;
-    let channels = params
-        .channels
-        .as_ref()
-        .map(|c| c.count())
-        .filter(|c| *c > 0)
-        .ok_or("No channels")?;
     let decoder = symphonia::default::get_codecs()
         .make_audio_decoder(params, &Default::default())
         .map_err(|e| e.to_string())?;
+
+    let decoded_params = decoder.codec_params();
+    let rate = decoded_params
+        .sample_rate
+        .or(params.sample_rate)
+        .filter(|rate| *rate > 0)
+        .ok_or("No sample rate")?;
+    let channels = decoded_params
+        .channels
+        .as_ref()
+        .or(params.channels.as_ref())
+        .map(|channels| channels.count())
+        .filter(|channels| *channels > 0)
+        .ok_or("No channels")?;
     let track_id = track.id;
     let duration = if let Some(stream) = stream {
         if stream.duration_ms > 0 {

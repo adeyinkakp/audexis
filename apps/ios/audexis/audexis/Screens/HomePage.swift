@@ -30,7 +30,7 @@ struct HomePage: View {
                   maxWidth: .infinity
                 )
                 .background(
-                  AudexisStyle.card, in: RoundedRectangle(cornerRadius: 14))
+                  AudexisStyle.card, in: RoundedRectangle(cornerRadius: 14), )
             }
             NavigationLink {
               LibraryPage()
@@ -40,7 +40,7 @@ struct HomePage: View {
                   maxWidth: .infinity
                 )
                 .background(
-                  AudexisStyle.card, in: RoundedRectangle(cornerRadius: 14))
+                  AudexisStyle.card, in: RoundedRectangle(cornerRadius: 14), )
             }
           }
           if let track = library.playback.track {
@@ -62,11 +62,11 @@ struct HomePage: View {
                 } label: {
                   HStack(spacing: 14) {
                     Image(systemName: "music.note.list").font(.title2).frame(
-                      width: 44, height: 44
+                      width: 44, height: 44,
                     )
                     .background(
                       AudexisStyle.primary_soft,
-                      in: RoundedRectangle(cornerRadius: 10))
+                      in: RoundedRectangle(cornerRadius: 10), )
                     VStack(alignment: .leading, spacing: 4) {
                       Text(playlist.name).font(.headline)
                       Text("\(playlist.track_ids.count) songs").font(.caption)
@@ -77,7 +77,7 @@ struct HomePage: View {
                       .foregroundStyle(.secondary)
                   }
                   .padding(12).background(
-                    AudexisStyle.card, in: RoundedRectangle(cornerRadius: 16))
+                    AudexisStyle.card, in: RoundedRectangle(cornerRadius: 16), )
                 }
                 .buttonStyle(.plain)
               }
@@ -88,7 +88,7 @@ struct HomePage: View {
             "Unavailable", systemImage: "music.note.house",
             description: Text(
               "Upload songs from Audexis Desktop. Pull down to refresh"
-            ))
+            ), )
         }
       }
       .padding(20).frame(maxWidth: 1100).frame(maxWidth: .infinity)

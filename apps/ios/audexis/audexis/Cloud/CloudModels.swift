@@ -138,4 +138,26 @@ nonisolated struct MobileCommand: Encodable, Sendable {
   var source_hash: String? = nil
   var temporary: String? = nil
   var media: CloudMedia? = nil
+  var path: String? = nil
+  var playback_revision: UInt64? = nil
+  var position_ms: UInt64? = nil
+}
+
+nonisolated struct MobilePlaybackState: Decodable, Sendable {
+  let revision: UInt64
+  let track_id: String?
+  let position_ms: UInt64
+  let duration_ms: UInt64
+  let is_playing: Bool
+  let is_loading: Bool
+  let finished: Bool
+  let error: String?
+  let remote_actions: [MobileRemoteAction]
+  let controls_error: String?
+}
+
+nonisolated struct MobileRemoteAction: Decodable, Sendable {
+  let kind: String
+  let position_ms: UInt64?
+  let offset_ms: Int64?
 }

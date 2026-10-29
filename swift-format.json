@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "lineLength": 100,
+  "indentation": {
+    "spaces": 2
+  },
+  "tabWidth": 8,
+  "maximumBlankLines": 1,
+  "respectsExistingLineBreaks": true,
+  "spacesBeforeEndOfLineComments": 2,
+
+  "fileScopedDeclarationPrivacy": {
+    "accessLevel": "private"
+  },
+  "multilineTrailingCommaBehavior": "alwaysUsed",
+  "rules": {
+    "NoAssignmentInExpressions": true,
+    "OrderedImports": true,
+    "UseShorthandTypeNames": true,
+    "ValidateDocumentationComments": true
+  }
+}

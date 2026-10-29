@@ -13,7 +13,7 @@ struct CloudPlayerControls: View {
   var body: some View {
     VStack(spacing: 12) {
       CloudPlayerSeekBar(
-        position: library.playback.position, duration: library.playback.duration
+        position: library.playback.position, duration: library.playback.duration,
       ) {
         library.playback.seek($0)
       }

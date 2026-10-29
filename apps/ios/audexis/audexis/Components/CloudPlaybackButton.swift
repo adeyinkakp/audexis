@@ -13,7 +13,7 @@ struct CloudPlaybackButton: View {
 
   private var symbol: String {
     if library.playback.error != nil { return "arrow.clockwise" }
-  
+
     return library.playback.isPlaying ? "pause.fill" : "play.fill"
   }
 

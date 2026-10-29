@@ -34,9 +34,9 @@ enum AudexisStyle {
   static let scrollbar_track = adaptive(0xe6e0de, 0x0f0f0f)
   static let scrollbar_thumb = adaptive(0xc44d4d, 0x717171)
   static let primary_washed = adaptive(
-    0xc44d4d, 0xe06464, lightOpacity: 26.0 / 255.0, darkOpacity: 31.0 / 255.0)
+    0xc44d4d, 0xe06464, lightOpacity: 26.0 / 255.0, darkOpacity: 31.0 / 255.0, )
   static let accent_washed = adaptive(
-    0xeb6e6e, 0xf07878, lightOpacity: 26.0 / 255.0, darkOpacity: 31.0 / 255.0)
+    0xeb6e6e, 0xf07878, lightOpacity: 26.0 / 255.0, darkOpacity: 31.0 / 255.0, )
   static let heading = adaptive(0x1a1614, 0xf1f1f1)
   static let warning = adaptive(0x9a6700, 0xe9b85f)
   static let surface_subtle = adaptive(0xebe6e4, 0x212121, lightOpacity: 0.25, darkOpacity: 0.25)
@@ -62,7 +62,7 @@ enum AudexisStyle {
 
   private static func adaptive(
     _ light: UInt32, _ dark: UInt32,
-    lightOpacity: Double = 1, darkOpacity: Double = 1
+    lightOpacity: Double = 1, darkOpacity: Double = 1,
   ) -> Color {
     Color(
       uiColor: UIColor { traits in
@@ -72,7 +72,7 @@ enum AudexisStyle {
           red: CGFloat((hex >> 16) & 255) / 255,
           green: CGFloat((hex >> 8) & 255) / 255,
           blue: CGFloat(hex & 255) / 255,
-          alpha: CGFloat(isDark ? darkOpacity : lightOpacity))
+          alpha: CGFloat(isDark ? darkOpacity : lightOpacity), )
       })
   }
 }

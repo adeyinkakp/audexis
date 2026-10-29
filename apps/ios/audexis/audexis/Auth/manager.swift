@@ -29,7 +29,8 @@ class AuthManager {
 
   func login(token: String) throws {
     try save(
-      .init(connection: .init(kind: .cloud, url: CloudAuthConfiguration.origin), credential: token))
+      .init(
+        connection: .init(kind: .cloud, url: CloudAuthConfiguration.origin), credential: token, ))
   }
 
   func saveCustomServer(url: String, apiKey: String) throws {

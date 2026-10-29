@@ -21,7 +21,8 @@ struct CloudMiniPlayer: View {
             CloudArtwork(track: track, size: 40)
             CloudTrackDetails(
               track: track, titleFont: .subheadline.weight(.semibold),
-              subtitle: library.playback.error == nil ? nil : "Playback unavailable · Tap to retry")
+              subtitle: library.playback.error == nil ? nil : "Playback unavailable · Tap to retry",
+            )
           } else {
             Text("Nothing is playing").font(.subheadline.weight(.semibold))
           }

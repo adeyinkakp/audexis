@@ -612,11 +612,16 @@ dependencies = [
 name = "audexis_mobile"
 version = "0.20.0"
 dependencies = [
+ "audexis_audio",
  "audexis_core",
  "audexis_protocol",
+ "block",
+ "cocoa 0.24.1",
+ "objc",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "souvlaki",
  "sqlx",
  "tokio",
  "uuid",

@@ -12,7 +12,7 @@ struct CloudPlayerQueue: View {
 
   var body: some View {
     let tracks = Dictionary(
-      library.snapshot.tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+      library.snapshot.tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }, )
     List {
       if let current = library.snapshot.current,
         library.snapshot.queue.indices.contains(current),
@@ -33,7 +33,7 @@ struct CloudPlayerQueue: View {
           if let track = tracks[id] {
             CloudTrackRow(
               track: track, onPlay: { library.selectQueue(index) }, isCurrent: false,
-              onRemoveFromQueue: { library.removeQueue(index) }
+              onRemoveFromQueue: { library.removeQueue(index) },
             )
             .swipeActions {
               Button("Remove", role: .destructive) { library.removeQueue(index) }
@@ -47,7 +47,7 @@ struct CloudPlayerQueue: View {
           if let current = library.snapshot.current, library.snapshot.queue.count > current + 1 {
             Button("Clear") {
               for index in stride(
-                from: library.snapshot.queue.count - 1, through: current + 1, by: -1)
+                from: library.snapshot.queue.count - 1, through: current + 1, by: -1, )
               {
                 library.removeQueue(index)
               }

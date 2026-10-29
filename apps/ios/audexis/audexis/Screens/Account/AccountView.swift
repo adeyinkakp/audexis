@@ -23,7 +23,7 @@ struct AccountView: View {
             Image(systemName: custom ? "server.rack" : "cloud.fill")
               .font(.largeTitle).foregroundStyle(AudexisStyle.primary)
               .frame(width: 68, height: 68).background(
-                AudexisStyle.primary_soft, in: RoundedRectangle(cornerRadius: 18))
+                AudexisStyle.primary_soft, in: RoundedRectangle(cornerRadius: 18), )
             Text(custom ? "Your server. Your music." : "Your Audexis account").font(
               .title2.bold())
             Text(
@@ -37,7 +37,7 @@ struct AccountView: View {
         Section("Connection") {
           Label(
             custom ? "Custom server" : "Audexis Cloud",
-            systemImage: custom ? "server.rack" : "cloud")
+            systemImage: custom ? "server.rack" : "cloud", )
           if let connection = authManager.connection {
             Text(connection.url).font(.subheadline).foregroundStyle(.secondary)
               .textSelection(.enabled)

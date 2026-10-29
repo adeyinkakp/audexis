@@ -8,6 +8,7 @@
 import AVFAudio
 
 actor IOSAudioSession {
+  static let shared = IOSAudioSession()
   private var configured = false
   private var revision: UInt64 = 0
 

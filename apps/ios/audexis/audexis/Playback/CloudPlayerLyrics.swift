@@ -33,7 +33,7 @@ struct CloudPlayerLyrics: View {
                     CloudLyricsWaiting(
                       position: library.playback.position,
                       start: line.seconds,
-                      end: lyrics.breakEnd(at: index)
+                      end: lyrics.breakEnd(at: index),
                     )
                     .id(index)
                   }
@@ -98,7 +98,7 @@ struct CloudPlayerLyrics: View {
           "No lyrics available", systemImage: "quote.bubble",
           description: Text(
             "Lyrics will appear here when they’re included in the song’s synced metadata."
-          ))
+          ), )
       }
     }
     .onAppear { lyrics = PlayerLyrics(track: track) }

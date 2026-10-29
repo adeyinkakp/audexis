@@ -19,6 +19,6 @@ struct CloudPlaylistPage: View {
     }
     CloudTrackCollectionPage(
       title: current.name, subtitle: downloadedOnly ? "Downloaded playlist" : "Playlist",
-      trackIDs: ids)
+      trackIDs: ids, )
   }
 }

@@ -5,7 +5,7 @@ use symphonia::core::errors::Error;
 
 use super::{WorkerContext, WorkerState};
 
-pub fn render(state: &mut WorkerState) -> Result<bool, String> {
+fn input_frames_required(state: &mut WorkerState) -> Result<usize, String> {
     let resampling = state.source_sample_rate != state.target_sample_rate;
     if resampling && state.resampler.is_none() {
         let resampler = Async::<f32>::new_poly(
@@ -20,10 +20,14 @@ pub fn render(state: &mut WorkerState) -> Result<bool, String> {
         state.delay_remaining = resampler.output_delay();
         state.resampler = Some(resampler);
     }
-    let required = state
+    Ok(state
         .resampler
         .as_mut()
-        .map_or(1024, |r| r.input_frames_next());
+        .map_or(1024, |r| r.input_frames_next()))
+}
+
+pub fn render(state: &mut WorkerState) -> Result<bool, String> {
+    let mut required = input_frames_required(state)?;
     while !state.eof && state.decode_buffer.len() < required * state.channels_uz {
         match state.format.as_mut().ok_or("No format")?.next_packet() {
             Ok(Some(packet)) => {
@@ -32,10 +36,29 @@ pub fn render(state: &mut WorkerState) -> Result<bool, String> {
                 }
                 match state.decoder.as_mut().ok_or("No decoder")?.decode(&packet) {
                     Ok(audio) => {
+                        let rate = audio.spec().rate();
+                        let channels = audio.spec().channels().count();
+                        if rate == 0 || channels == 0 {
+                            return Err("Decoder returned an invalid audio format".into());
+                        }
                         state
                             .packet_samples
                             .resize(audio.samples_interleaved(), 0.0);
                         audio.copy_to_slice_interleaved(&mut state.packet_samples);
+                        if rate != state.source_sample_rate || channels != state.channels_uz {
+                            if !state.decode_buffer.is_empty() {
+                                return Err(
+                                    "Audio format changed while frames were buffered".into()
+                                );
+                            }
+                            state.source_sample_rate = rate;
+                            state.channels_uz = channels;
+                            state.resampler = None;
+                            state.delay_remaining = 0;
+                            state.input_frames = 0;
+                            state.output_frames = 0;
+                            required = input_frames_required(state)?;
+                        }
                         state.input_frames +=
                             (state.packet_samples.len() / state.channels_uz) as u64;
                         state.decode_buffer.extend_from_slice(&state.packet_samples);

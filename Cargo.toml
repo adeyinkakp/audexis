@@ -4,7 +4,8 @@ members = [
     "crates/audexis_protocol",
     "crates/audexis_mobile",
     "crates/audexis_audio",
-    "apps/desktop", "crates/audexis_server",
+    "apps/desktop",
+    "crates/audexis_server",
 ]
 default-members = ["apps/desktop"]
 resolver = "3"
@@ -40,10 +41,7 @@ walkdir = "2"
 uuid = { version = "1", features = ["v4"] }
 
 
-symphonia = { version = "0.6.0", features = [
-    "all-codecs",
-    "all-formats",
-] }
+symphonia = { version = "0.6.1", features = ["all-codecs", "all-formats"] }
 cpal = "0.18.1"
 crossbeam-channel = "0.5"
 ringbuf = "0.5"
@@ -51,11 +49,7 @@ rubato = "4"
 audioadapter-buffers = "4"
 
 
-freya = {version = "0.4.3", features = [
-    "router",
-    "icons-lucide",
-    "winit"
-]}
+freya = { version = "0.4.3", features = ["router", "icons-lucide", "winit"] }
 
 souvlaki = "0.8.3"
 rfd = "0.17"

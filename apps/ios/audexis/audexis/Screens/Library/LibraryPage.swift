@@ -44,7 +44,7 @@ struct LibraryPage: View {
                   .background(
                     category == item
                       ? AudexisStyle.primary_soft : AudexisStyle.card,
-                    in: Capsule())
+                    in: Capsule(), )
               }
               .buttonStyle(.plain)
               .accessibilityAddTraits(category == item ? .isSelected : [])
@@ -83,7 +83,7 @@ struct LibraryPage: View {
           description: Text(
             downloadedOnly
               ? "Download music to keep it with you offline."
-              : "Try another search or add music from Audexis Desktop.")
+              : "Try another search or add music from Audexis Desktop."),
         )
         .listRowBackground(Color.clear)
       }
@@ -96,7 +96,7 @@ struct LibraryPage: View {
         if playlists.isEmpty {
           ContentUnavailableView(
             "No playlists yet", systemImage: "music.note.list",
-            description: Text("Playlists you create on Desktop will sync here.")
+            description: Text("Playlists you create on Desktop will sync here."),
           )
           .listRowBackground(Color.clear)
         }
@@ -109,7 +109,7 @@ struct LibraryPage: View {
                 AudexisStyle.primary
               )
               .frame(width: 52, height: 52).background(
-                AudexisStyle.primary_soft, in: RoundedRectangle(cornerRadius: 12))
+                AudexisStyle.primary_soft, in: RoundedRectangle(cornerRadius: 12), )
               VStack(alignment: .leading, spacing: 4) {
                 Text(playlist.name).font(.headline)
                 Text("\(playlist.track_ids.count) songs").font(.caption)

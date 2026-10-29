@@ -15,7 +15,7 @@ struct CloudTrackCollectionPage: View {
 
   private var tracks: [CloudTrack] {
     let byID = Dictionary(
-      library.snapshot.tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+      library.snapshot.tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }, )
     return trackIDs.compactMap { byID[$0] }
   }
 

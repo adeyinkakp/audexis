@@ -50,7 +50,7 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
         task.countOfBytesExpectedToReceive > 0
         ? min(
           1,
-          Double(task.countOfBytesReceived) / Double(task.countOfBytesExpectedToReceive))
+          Double(task.countOfBytesReceived) / Double(task.countOfBytesExpectedToReceive), )
         : 0
     }
   }
@@ -67,7 +67,7 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
   }
   private func receipt(_ value: CloudDownloadReceipt, task: URLSessionTask) {
     let root = URL(fileURLWithPath: value.job.directory).appendingPathComponent(
-      "pending", isDirectory: true)
+      "pending", isDirectory: true, )
     do {
       try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
       let path = root.appendingPathComponent("\(task.taskIdentifier).json")
@@ -81,13 +81,13 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
         name: Self.changed, object: nil,
         userInfo: [
           "error": "Could not save the downloaded song: \(error.localizedDescription)"
-        ])
+        ], )
     }
     NotificationCenter.default.post(name: Self.changed, object: nil)
   }
   func urlSession(
     _ session: URLSession, downloadTask: URLSessionDownloadTask,
-    didFinishDownloadingTo location: URL
+    didFinishDownloadingTo location: URL,
   ) {
     guard let job = job(downloadTask) else { return }
     guard let response = downloadTask.response as? HTTPURLResponse,
@@ -96,12 +96,12 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
       receipt(
         .init(
           job: job, temporary: nil,
-          error: "Download failed. Try downloading the song again."), task: downloadTask)
+          error: "Download failed. Try downloading the song again.", ), task: downloadTask, )
       return
     }
     do {
       let staging = URL(fileURLWithPath: job.directory).appendingPathComponent(
-        "pending", isDirectory: true)
+        "pending", isDirectory: true, )
       try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
       let file = staging.appendingPathComponent("\(UUID().uuidString).audio")
       try FileManager.default.moveItem(at: location, to: file)
@@ -109,7 +109,7 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
     } catch {
       receipt(
         .init(job: job, temporary: nil, error: error.localizedDescription),
-        task: downloadTask)
+        task: downloadTask, )
     }
   }
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
@@ -117,21 +117,21 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
       let cancelled = (error as NSError).code == NSURLErrorCancelled
       receipt(
         .init(
-          job: job, temporary: nil, error: cancelled ? nil : error.localizedDescription),
-        task: task)
+          job: job, temporary: nil, error: cancelled ? nil : error.localizedDescription, ),
+        task: task, )
     }
     NotificationCenter.default.post(name: Self.changed, object: nil)
   }
   func urlSession(
     _ session: URLSession, downloadTask: URLSessionDownloadTask,
-    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
+    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64,
   ) {
     if let job = job(downloadTask), totalBytesWritten > job.media.size {
       downloadTask.cancel()
       receipt(
         .init(
           job: job, temporary: nil,
-          error: "The downloaded audio exceeds its declared size."), task: downloadTask)
+          error: "The downloaded audio exceeds its declared size.", ), task: downloadTask, )
     }
     NotificationCenter.default.post(name: Self.changed, object: nil)
   }
@@ -146,7 +146,7 @@ nonisolated final class CloudDownloads: NSObject, URLSessionDownloadDelegate, @u
 final class AudexisAppDelegate: NSObject, UIApplicationDelegate {
   func application(
     _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
-    completionHandler: @escaping () -> Void
+    completionHandler: @escaping () -> Void,
   ) {
     guard identifier == CloudDownloads.identifier else {
       completionHandler()

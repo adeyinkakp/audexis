@@ -1,5 +1,7 @@
 mod library;
+mod media_controls;
 mod persistence;
+mod playback;
 mod storage;
 
 mod ffi;
@@ -37,6 +39,7 @@ struct Download {
 
 #[derive(Default)]
 pub struct MobileCore {
+    playback: playback::MobilePlayback,
     library: Option<library::CoreLibrary>,
     root: Option<PathBuf>,
     state: State,
@@ -46,6 +49,7 @@ impl MobileCore {
     pub fn call(&mut self, request: Value) -> Result<Value, String> {
         let op = request["op"].as_str().ok_or("Missing operation")?;
         if op == "open" {
+            self.playback.reset();
             let root = PathBuf::from(string(&request, "directory")?);
             fs::create_dir_all(root.join("audio")).map_err(|e| e.to_string())?;
             let library = library::CoreLibrary::open(&root)?;
@@ -56,6 +60,9 @@ impl MobileCore {
             return Ok(self.snapshot());
         }
         self.root()?;
+        if op.starts_with("player_") {
+            return self.player_call(&request, op);
+        }
         self.state = self.library.as_ref().ok_or("Library is not open")?.load()?;
         let previous = self.state.clone();
         let result = self.call_open(&request, op, &previous);

@@ -15,29 +15,45 @@ private nonisolated struct MobileResponse<Body: Decodable>: Decodable {
 actor MobileCore {
   private final class Handle: @unchecked Sendable {
     let pointer = audexis_mobile_create()!
-    deinit { audexis_mobile_destroy(pointer) }
+
+    let queue = DispatchQueue(label: "com.kp.audexis.mobile-core", qos: .default)
+
+    deinit {
+      let address = UInt(bitPattern: pointer)
+      queue.async { audexis_mobile_destroy(OpaquePointer(bitPattern: address)) }
+    }
   }
   private let handle = Handle()
 
-  func openLibrary(at directory: URL) throws -> CloudSnapshot {
-    try call(.init(op: "open", directory: directory.path))
+  func openLibrary(at directory: URL) async throws -> CloudSnapshot {
+    try await call(.init(op: "open", directory: directory.path))
   }
 
-  func librarySnapshot() throws -> CloudSnapshot {
-    try call(.init(op: "snapshot"))
+  func librarySnapshot() async throws -> CloudSnapshot {
+    try await call(.init(op: "snapshot"))
   }
 
-  func call<T: Decodable & Sendable>(_ command: MobileCommand, as type: T.Type = T.self) throws
+  func call<T: Decodable & Sendable>(_ command: MobileCommand, as type: T.Type = T.self)
+    async throws
     -> T
   {
     let bytes = try JSONEncoder().encode(command)
-    let result = String(decoding: bytes, as: UTF8.self).withCString {
-      audexis_mobile_call(handle.pointer, $0)
+    let request = String(decoding: bytes, as: UTF8.self)
+    let handle = self.handle
+    let json: String = try await withCheckedThrowingContinuation { continuation in
+      handle.queue.async {
+        let result = request.withCString { audexis_mobile_call(handle.pointer, $0) }
+        guard let result else {
+          continuation.resume(
+            throwing: CloudError.message("Could not open the music library."))
+          return
+        }
+        let response = String(cString: result)
+        audexis_mobile_string_free(result)
+        continuation.resume(returning: response)
+      }
     }
-
-    guard let result else { throw CloudError.message("Could not open the music library.") }
-    defer { audexis_mobile_string_free(result) }
-    let data = Data(bytes: result, count: strlen(result))
+    let data = Data(json.utf8)
     let response = try JSONDecoder().decode(MobileResponse<T>.self, from: data)
     if let error = response.error { throw CloudError.message(error) }
     guard let value = response.ok else { throw CloudError.message("Invalid library response.") }

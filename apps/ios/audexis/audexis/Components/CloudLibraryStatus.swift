@@ -15,7 +15,7 @@ struct CloudLibraryStatus: View {
       VStack(alignment: .leading, spacing: 10) {
         Label(
           "Couldn’t refresh your library",
-          systemImage: "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90"
+          systemImage: "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90",
         )
         .font(.subheadline.weight(.semibold))
         Text(error).font(.caption).foregroundStyle(.secondary)

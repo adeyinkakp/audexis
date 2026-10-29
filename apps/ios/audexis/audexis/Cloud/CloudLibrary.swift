@@ -14,15 +14,15 @@ import UIKit
 @Observable @MainActor
 final class CloudLibrary {
   private(set) var snapshot = CloudSnapshot() {
-    didSet { playback.updateQueue(index: snapshot.current, count: snapshot.queue.count) }
+    didSet { playback.updateQueue() }
   }
   private(set) var isLoading = true
   private(set) var isRefreshing = false
   private(set) var downloads: [String: Double] = [:]
   let artworkCache = CloudArtworkCache()
   var error: String?
-  private(set) var playback = CloudPlayback()
-  @ObservationIgnored private let core = MobileCore()
+  private(set) var playback: CloudPlayback
+  @ObservationIgnored private let core: MobileCore
   @ObservationIgnored private var api: CloudAPI?
   @ObservationIgnored private var directory: URL?
   @ObservationIgnored private var playbackTask: Task<Void, Never>?
@@ -34,6 +34,12 @@ final class CloudLibrary {
   @ObservationIgnored private var playbackGeneration = UUID()
   private static let logger = Logger(subsystem: "com.kp.audexis", category: "Artwork")
 
+  init() {
+    let core = MobileCore()
+    self.core = core
+    playback = CloudPlayback(core: core)
+  }
+
   func start() async {
     if directory != nil {
       if playback.track == nil { restoreQueueSelection() }
@@ -41,7 +47,7 @@ final class CloudLibrary {
       return
     }
     if closed {
-      playback = CloudPlayback()
+      playback = CloudPlayback(core: core)
       closed = false
     }
     let lifecycle = self.lifecycle
@@ -59,7 +65,7 @@ final class CloudLibrary {
       }.joined()
       let base = try FileManager.default.url(
         for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil,
-        create: true)
+        create: true, )
       var folder = base.appendingPathComponent("CloudLibrary/\(scope)", isDirectory: true)
       try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
       var values = URLResourceValues()
@@ -98,8 +104,8 @@ final class CloudLibrary {
   private func restoreQueueSelection() {
     guard let track = snapshot.currentTrack else { return }
     playback.restore(track)
-    if let image = artworkCache.restore(for: track) {
-      playback.updateArtwork(trackID: track.id, image: image)
+    if artworkCache.restore(for: track) != nil {
+      playback.updateArtwork(trackID: track.id, file: artworkCache.file(for: track))
     }
   }
 
@@ -172,31 +178,27 @@ final class CloudLibrary {
     }
     let generation = playbackGeneration
     playback.preparing(track)
-    if let image = artworkCache.image(for: track) {
-      playback.updateArtwork(trackID: track.id, image: image)
+    if artworkCache.image(for: track) != nil {
+      playback.updateArtwork(trackID: track.id, file: artworkCache.file(for: track))
     }
     loadArtwork(track)
     playbackTask = Task {
       do {
-        let url: URL
-        let mimeType: String?
+        let localURL: URL?
+        let media: CloudMedia?
         if let local = snapshot.downloads[track.id],
           FileManager.default.fileExists(atPath: local)
         {
-          url = URL(fileURLWithPath: local)
-          mimeType = track.playbackMIMEType(localURL: url)
+          localURL = URL(fileURLWithPath: local)
+          media = nil
         } else {
           let plan: MediaPlan = try await core.call(.init(op: "media_plan", id: track.id))
-          let media = try await api.playableMedia(plan)
-          guard let remote = URL(string: media.url) else {
-            throw CloudError.message("Invalid audio URL.")
-          }
-          url = remote
-          mimeType = track.playbackMIMEType(quality: media.quality)
+          media = try await api.playableMedia(plan)
+          localURL = nil
         }
         try Task.checkCancellation()
         guard !closed, playbackGeneration == generation else { return }
-        try await playback.play(track, url: url, mimeType: mimeType)
+        try await playback.play(track, localURL: localURL, media: media)
       } catch is CancellationError {} catch {
         if !closed && playbackGeneration == generation {
           playback.error = error.localizedDescription
@@ -220,7 +222,7 @@ final class CloudLibrary {
         try CloudDownloads.shared.start(
           .init(
             id: track.id, sourceHash: track.sha256, directory: directory.path,
-            media: media))
+            media: media, ))
       } catch is CancellationError { downloads[track.id] = nil } catch {
         downloads[track.id] = nil
         if !closed { self.error = error.localizedDescription }
@@ -257,12 +259,12 @@ final class CloudLibrary {
     let pending = directory.appendingPathComponent("pending", isDirectory: true)
     guard
       let files = try? FileManager.default.contentsOfDirectory(
-        at: pending, includingPropertiesForKeys: nil)
+        at: pending, includingPropertiesForKeys: nil, )
     else { return }
     for file in files where file.pathExtension == "json" {
       do {
         let receipt = try JSONDecoder().decode(
-          CloudDownloadReceipt.self, from: Data(contentsOf: file))
+          CloudDownloadReceipt.self, from: Data(contentsOf: file), )
         guard receipt.job.directory == directory.path else { continue }
         defer {
           if let temporary = receipt.temporary {
@@ -276,7 +278,7 @@ final class CloudLibrary {
             .init(
               op: "commit_download", id: receipt.job.id,
               source_hash: receipt.job.sourceHash, temporary: temporary,
-              media: receipt.job.media))
+              media: receipt.job.media, ))
           if let track = snapshot.tracks.first(where: { $0.id == receipt.job.id }) {
             loadArtwork(track)
           }
@@ -286,8 +288,8 @@ final class CloudLibrary {
   }
   func loadArtwork(_ track: CloudTrack) {
     guard track.artwork, !closed else { return }
-    if let image = artworkCache.restore(for: track) {
-      playback.updateArtwork(trackID: track.id, image: image)
+    if artworkCache.restore(for: track) != nil {
+      playback.updateArtwork(trackID: track.id, file: artworkCache.file(for: track))
       return
     }
     let key = artworkCache.key(for: track)
@@ -318,7 +320,7 @@ final class CloudLibrary {
           throw CloudError.message("The downloaded artwork is invalid or unsupported.")
         }
         try artworkCache.store(image, data: data, for: track)
-        playback.updateArtwork(trackID: track.id, image: image)
+        playback.updateArtwork(trackID: track.id, file: artworkCache.file(for: track))
       } catch is CancellationError {} catch {
         Self.logger.warning(
           "Artwork failed for track \(track.id, privacy: .public): \(error.localizedDescription, privacy: .public)"

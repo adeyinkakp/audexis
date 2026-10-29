@@ -20,7 +20,7 @@ struct MusicCollection: Identifiable {
     return groups.map { key, songs in
       MusicCollection(
         id: key.joined(separator: "\n"), title: key[1].isEmpty ? "Singles & untitled" : key[1],
-        subtitle: key[0], tracks: songs.sorted { order($0) < order($1) })
+        subtitle: key[0], tracks: songs.sorted { order($0) < order($1) }, )
     }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
   }
 

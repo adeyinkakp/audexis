@@ -66,7 +66,7 @@ class CloudAuthService {
         self?.handleCallback(
           callbackURL: callbackURL, error: error, state: state,
           pkce: pkce, redirectURI: redirectURI,
-          authManager: authManager, attempt: attempt)
+          authManager: authManager, attempt: attempt, )
       }
     }
     session.presentationContextProvider = presentationContext

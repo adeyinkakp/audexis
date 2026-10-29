@@ -38,7 +38,7 @@ enum SessionStore {
     }
     if value.hasPrefix("audexis_cloud_") {
       return SavedSession(
-        connection: .init(kind: .cloud, url: CloudAuthConfiguration.origin), credential: value)
+        connection: .init(kind: .cloud, url: CloudAuthConfiguration.origin), credential: value, )
     }
     return nil
   }
@@ -46,7 +46,7 @@ enum SessionStore {
   static func save(_ session: SavedSession) throws {
     let data = try JSONEncoder().encode(session)
     try KeychainHelper.standard.save(
-      String(decoding: data, as: UTF8.self), service: service, account: account)
+      String(decoding: data, as: UTF8.self), service: service, account: account, )
   }
 
   static func clear() {

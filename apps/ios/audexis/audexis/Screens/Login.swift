@@ -49,7 +49,7 @@ struct LoginView: View {
           } label: {
             Label("Connect your own server", systemImage: "server.rack")
               .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(
-                .vertical, 12)
+                .vertical, 12, )
           }
           .buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 14))
           Text(

@@ -51,7 +51,7 @@ struct CloudPlayerView: View {
         } else {
           ContentUnavailableView(
             "Nothing is playing", systemImage: "music.note",
-            description: Text("Choose a song from your library.")
+            description: Text("Choose a song from your library."),
           )
           .frame(maxHeight: .infinity)
         }
@@ -160,7 +160,7 @@ struct CloudPlayerView: View {
       Image(systemName: symbol).font(.title3)
         .frame(width: 54, height: 44)
         .background(
-          selected ? AudexisStyle.primary_soft : .clear, in: RoundedRectangle(cornerRadius: 12))
+          selected ? AudexisStyle.primary_soft : .clear, in: RoundedRectangle(cornerRadius: 12), )
     }
     .disabled(library.playback.track == nil)
     .accessibilityLabel(label)

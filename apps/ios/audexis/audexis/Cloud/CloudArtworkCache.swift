@@ -38,7 +38,7 @@ final class CloudArtworkCache {
     if let file = file(for: track) { try data.write(to: file, options: .atomic) }
   }
 
-  private func file(for track: CloudTrack) -> URL? {
+  func file(for track: CloudTrack) -> URL? {
     let name = SHA256.hash(data: Data(key(for: track).utf8))
       .map { String(format: "%02x", $0) }.joined()
     return directory?.appendingPathComponent(name)

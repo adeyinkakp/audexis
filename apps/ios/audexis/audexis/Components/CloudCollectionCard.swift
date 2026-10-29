@@ -42,16 +42,16 @@ struct CloudCollectionGrid: View {
   var body: some View {
     LazyVGrid(
       columns: [GridItem(.adaptive(minimum: 140, maximum: 230), spacing: 18, alignment: .top)],
-      alignment: .leading, spacing: 24
+      alignment: .leading, spacing: 24,
     ) {
       ForEach(collections) { collection in
         NavigationLink {
           CloudTrackCollectionPage(
             title: collection.title, subtitle: collection.subtitle,
-            trackIDs: collection.tracks.map(\.id))
+            trackIDs: collection.tracks.map(\.id), )
         } label: {
           CloudCollectionCard(
-            title: collection.title, subtitle: collection.subtitle, tracks: collection.tracks)
+            title: collection.title, subtitle: collection.subtitle, tracks: collection.tracks, )
         }
         .buttonStyle(.plain)
       }

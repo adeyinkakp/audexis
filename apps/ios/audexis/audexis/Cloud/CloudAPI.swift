@@ -23,7 +23,7 @@ actor CloudAPI {
       _ session: URLSession, task: URLSessionTask,
       willPerformHTTPRedirection response: HTTPURLResponse,
       newRequest request: URLRequest,
-      completionHandler: @escaping (URLRequest?) -> Void
+      completionHandler: @escaping (URLRequest?) -> Void,
     ) {
       completionHandler(nil)
     }

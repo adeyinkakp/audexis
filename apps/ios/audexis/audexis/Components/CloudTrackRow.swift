@@ -17,7 +17,7 @@ struct CloudTrackRow: View {
 
   private var actions: some View {
     CloudTrackActions(
-      track: track, context: context, onPlay: onPlay, onRemoveFromQueue: onRemoveFromQueue)
+      track: track, context: context, onPlay: onPlay, onRemoveFromQueue: onRemoveFromQueue, )
   }
 
   var body: some View {
@@ -32,7 +32,7 @@ struct CloudTrackRow: View {
         HStack(spacing: 12) {
           CloudArtwork(track: track)
           CloudTrackDetails(
-            track: track, highlighted: isCurrent ?? (library.playback.track?.id == track.id))
+            track: track, highlighted: isCurrent ?? (library.playback.track?.id == track.id), )
           Spacer(minLength: 0)
         }
         .contentShape(Rectangle())

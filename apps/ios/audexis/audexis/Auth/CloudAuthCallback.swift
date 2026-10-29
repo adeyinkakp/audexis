@@ -11,7 +11,7 @@ import Foundation
 extension CloudAuthService {
   func handleCallback(
     callbackURL: URL?, error: Error?, state: String, pkce: PKCE,
-    redirectURI: String, authManager: AuthManager, attempt: UUID
+    redirectURI: String, authManager: AuthManager, attempt: UUID,
   ) {
     guard attemptID == attempt else { return }
     authenticationSession = nil
@@ -20,14 +20,14 @@ extension CloudAuthService {
     completionTask = Task {
       await completeSignIn(
         callbackURL: callbackURL, error: error, state: state,
-        pkce: pkce, redirectURI: redirectURI, authManager: authManager, attempt: attempt)
+        pkce: pkce, redirectURI: redirectURI, authManager: authManager, attempt: attempt, )
       finishAttempt(attempt)
     }
   }
 
   func completeSignIn(
     callbackURL: URL?, error: Error?, state: String, pkce: PKCE,
-    redirectURI: String, authManager: AuthManager, attempt: UUID
+    redirectURI: String, authManager: AuthManager, attempt: UUID,
   ) async {
     guard attemptID == attempt, !Task.isCancelled else { return }
     if let error {
@@ -66,7 +66,7 @@ extension CloudAuthService {
     }
     do {
       let token = try await exchangeCodeForToken(
-        code: code, verifier: pkce.verifier, redirectURI: redirectURI)
+        code: code, verifier: pkce.verifier, redirectURI: redirectURI, )
       try Task.checkCancellation()
       guard attemptID == attempt else { return }
       try authManager.login(token: token)

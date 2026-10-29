@@ -372,6 +372,12 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-laudexis_mobile",
+					"-framework",
+					AudioToolbox,
+					"-framework",
+					CoreAudio,
+					"-framework",
+					MediaPlayer,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kp.audexis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -416,6 +422,12 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-laudexis_mobile",
+					"-framework",
+					AudioToolbox,
+					"-framework",
+					CoreAudio,
+					"-framework",
+					MediaPlayer,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kp.audexis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
