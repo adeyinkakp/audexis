@@ -87,6 +87,41 @@ pub(crate) fn encode(id: &str, text: &str) -> Result<Vec<u8>, String> {
     Ok(payload)
 }
 
+pub(crate) fn encode_comment(
+    value: &crate::tag_manager::utils::TagValue,
+    index: usize,
+) -> Result<Vec<u8>, String> {
+    use crate::tag_manager::utils::TagValue;
+
+    let default_description = if index == 0 {
+        String::new()
+    } else {
+        format!("Comment {}", index + 1)
+    };
+    let (language, description, text) = match value {
+        TagValue::Text(text) => ("und", default_description.as_str(), text.as_str()),
+        TagValue::Comment {
+            language,
+            description,
+            text,
+            ..
+        } => (language.as_str(), description.as_str(), text.as_str()),
+        _ => return Err("Expected comment text".into()),
+    };
+    if language.len() != 3 || !language.is_ascii() {
+        return Err("Comment language must be a three-character ASCII code".into());
+    }
+    if description.contains('\0') || text.contains('\0') {
+        return Err("Comments cannot contain NUL characters".into());
+    }
+    let mut payload = vec![1];
+    payload.extend_from_slice(language.as_bytes());
+    payload.extend_from_slice(&encode_text_payload(description, true)[1..]);
+    payload.extend_from_slice(&[0, 0]);
+    payload.extend_from_slice(&encode_text_payload(text, true)[1..]);
+    Ok(payload)
+}
+
 fn terminated(encoding: u8, bytes: &[u8]) -> Option<(&[u8], &[u8])> {
     let width = if encoding == 1 || encoding == 2 { 2 } else { 1 };
     let end = (0..bytes.len()).step_by(width).find(|&i| {

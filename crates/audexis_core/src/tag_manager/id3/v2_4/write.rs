@@ -75,7 +75,11 @@ impl V2_4 {
 
         let mut flattened: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vals) in non_picture.into_iter() {
-            if vals.is_empty() || matches!(k, FrameKey::UserDefinedText | FrameKey::UserDefinedURL)
+            if vals.is_empty()
+                || matches!(
+                    k,
+                    FrameKey::UserDefinedText | FrameKey::UserDefinedURL | FrameKey::Comments
+                )
             {
                 continue;
             }
@@ -175,33 +179,23 @@ impl V2_4 {
                 _ => { /*Handle other types later */ }
             }
         }
-        let comments = updated.get(&FrameKey::Comments);
-        if let Some(vals) = comments {
-            for v in vals {
-                if let TagValue::Comment {
-                    encoding: _,
-                    language,
-                    description,
-                    text,
-                } = v
-                {
-                    let mut payload = Vec::new();
-                    payload.push(0x00);
-                    let lang_bytes = language.as_bytes();
-                    if lang_bytes.len() >= 3 {
-                        payload.extend_from_slice(&lang_bytes[0..3]);
-                    } else {
-                        payload.extend_from_slice(lang_bytes);
-                        payload.extend(std::iter::repeat_n(0x00, 3 - lang_bytes.len()));
-                    }
-                    payload.extend_from_slice(description.as_bytes());
-                    payload.push(0x00);
-                    payload.extend_from_slice(text.as_bytes());
-                    raw_frames.push(("COMM".to_string(), payload));
-                }
-            }
+        for (index, value) in updated
+            .get(&FrameKey::Comments)
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            let payload = crate::tag_manager::id3::lyrics::encode_comment(value, index).map_err(
+                |message| {
+                    BackendError::WriteFailed(TagError {
+                        path: file_path.to_string_lossy().into_owned(),
+                        public_message: "Invalid comment".into(),
+                        internal_message: message,
+                    })
+                },
+            )?;
+            raw_frames.push(("COMM".to_string(), payload));
         }
-
         for (_k, vals) in pictures.into_iter() {
             for v in vals {
                 if let TagValue::Picture {

@@ -66,7 +66,11 @@ impl V2_2 {
         }
         let mut single_map: HashMap<FrameKey, TagValue> = HashMap::new();
         for (k, vals) in updated.clone().into_iter() {
-            if vals.is_empty() || matches!(k, FrameKey::UserDefinedText | FrameKey::UserDefinedURL)
+            if vals.is_empty()
+                || matches!(
+                    k,
+                    FrameKey::UserDefinedText | FrameKey::UserDefinedURL | FrameKey::Comments
+                )
             {
                 continue;
             }
@@ -147,31 +151,23 @@ impl V2_2 {
                 }
                 _ => { /*Hnandle other types later */ }
             }
-
-            for (key, value) in updated.iter() {
-                if *key == FrameKey::Comments {
-                    if let Some(TagValue::Comment {
-                        encoding,
-                        language,
-                        description,
-                        text,
-                    }) = value.first()
-                    {
-                        let enc_byte = match encoding.as_str() {
-                            "UTF-16" => 0x01,
-                            _ => 0x00,
-                        };
-                        let mut payload = Vec::new();
-                        payload.push(enc_byte);
-                        payload.extend_from_slice(&language.as_bytes()[..3.min(language.len())]);
-                        payload.extend_from_slice(description.as_bytes());
-                        payload.push(0x00);
-                        payload.extend_from_slice(text.as_bytes());
-                        raw.retain(|(id, _)| id != "COM");
-                        raw.push(("COM".to_string(), payload));
-                    }
-                }
-            }
+        }
+        for (index, value) in updated
+            .get(&FrameKey::Comments)
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            let payload = crate::tag_manager::id3::lyrics::encode_comment(value, index).map_err(
+                |message| {
+                    BackendError::WriteFailed(TagError {
+                        path: file_path.to_string_lossy().into_owned(),
+                        public_message: "Invalid comment".into(),
+                        internal_message: message,
+                    })
+                },
+            )?;
+            raw.push(("COM".to_string(), payload));
         }
         raw.extend(crate::tag_manager::id3::v2_common::custom_frames(
             &updated, true,

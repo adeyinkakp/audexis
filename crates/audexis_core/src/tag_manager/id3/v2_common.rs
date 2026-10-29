@@ -148,7 +148,7 @@ pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
         {
             return Err("Invalid ID3 frame identifier".into());
         }
-        if header[3] == 2 && !ids.insert(id.to_vec()) && id != b"TXX" && id != b"WXX" {
+        if header[3] == 2 && !ids.insert(id.to_vec()) && !matches!(id, b"TXX" | b"WXX" | b"COM") {
             return Err("Editing duplicate ID3v2.2 frames is not supported safely".into());
         }
         if header_len == 10 && data[pos + 8..pos + 10] != [0, 0] {

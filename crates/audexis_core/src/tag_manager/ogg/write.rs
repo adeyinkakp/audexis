@@ -11,41 +11,6 @@ pub(super) fn write_tags(
             internal_message: error.to_string(),
         })
     })?;
-    let packet = utils::extract_comment_packet(input).map_err(|_| {
-        BackendError::WriteFailed(TagError {
-            path: file_path.to_string_lossy().into_owned(),
-            public_message: "Could not read comments".into(),
-            internal_message: "Failed to extract comment packet".into(),
-        })
-    })?;
-    let original = packet
-        .strip_prefix(b"\x03vorbis")
-        .or_else(|| packet.strip_prefix(b"OpusTags"))
-        .ok_or_else(|| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_string_lossy().into_owned(),
-                public_message: "Unsupported comments".into(),
-                internal_message: "Unknown comment packet".into(),
-            })
-        })?;
-    let generic_payload =
-        vorbis_comments::utils::update_comments(original, &tags, true).map_err(|error| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_string_lossy().into_owned(),
-                public_message: "Could not update comments".into(),
-                internal_message: error.to_string(),
-            })
-        })?;
-    let new_vorbis_comment_packet = utils::make_vorbis_comment_packet(&generic_payload);
-    let new_opus_tags_packet = utils::make_opus_tags_packet(&generic_payload);
-
-    let input = crate::library_files::open(file_path).map_err(|_| {
-        BackendError::WriteFailed(TagError {
-            path: file_path.to_str().unwrap_or("").to_string(),
-            public_message: "Could not open file".to_string(),
-            internal_message: "Failed to open file".to_string(),
-        })
-    })?;
     let mut r = BufReader::new(input);
 
     let tmp_path = temp_path_for(file_path);
@@ -117,11 +82,6 @@ pub(super) fn write_tags(
         let st_next = out_state.entry(serial).or_default().next_seq;
         let st_bos = out_state.entry(serial).or_default().bos_written;
 
-        let mut chunker = PacketChunker::new();
-        for pkt in header_packets {
-            chunker.push_packet(serial, pkt);
-        }
-
         let mut mux = SerialMuxState {
             next_seq: st_next,
             bos_emitted: st_bos,
@@ -129,12 +89,15 @@ pub(super) fn write_tags(
             _prev_page_ended_mid_packet: false,
         };
 
-        let mut first = true;
-        while chunker.has_data(serial) {
-            let page =
-                build_page_for_serial(serial, 0, first, false, &mut mux, &mut chunker).ok_or(())?;
-            write_page(w, &page).map_err(|_| ())?;
-            first = false;
+        for (index, packet) in header_packets.into_iter().enumerate() {
+            let mut chunker = PacketChunker::new();
+            chunker.push_packet(serial, packet);
+            while chunker.has_data(serial) {
+                let page =
+                    build_page_for_serial(serial, 0, index == 0, false, &mut mux, &mut chunker)
+                        .ok_or(())?;
+                write_page(w, &page).map_err(|_| ())?;
+            }
         }
 
         {
@@ -182,7 +145,9 @@ pub(super) fn write_tags(
                         }
                     } else if utils::is_vorbis_comment(&pkt.data) {
                         es.seen_vorbis_comment = true;
-                        es.header_packets.push(new_vorbis_comment_packet.clone());
+                        let payload = update_comments(file_path, &pkt.data[7..], &tags)?;
+                        es.header_packets
+                            .push(utils::make_vorbis_comment_packet(&payload));
                     } else if utils::is_vorbis_setup(&pkt.data) {
                         es.seen_vorbis_setup = true;
                         es.header_packets.push(pkt.data.clone());
@@ -200,7 +165,9 @@ pub(super) fn write_tags(
                         }
                     } else if utils::is_opus_tags(&pkt.data) {
                         es.seen_opus_tags = true;
-                        es.header_packets.push(new_opus_tags_packet.clone());
+                        let payload = update_comments(file_path, &pkt.data[8..], &tags)?;
+                        es.header_packets
+                            .push(utils::make_opus_tags_packet(&payload));
                         es.header_ready = true;
                         es.header_end_input_seq = Some(page.page_sequence_number);
                     }
@@ -293,4 +260,18 @@ pub(super) fn write_tags(
         })
     })?;
     Ok(())
+}
+
+fn update_comments(
+    path: &std::path::Path,
+    original: &[u8],
+    tags: &HashMap<FrameKey, Vec<TagValue>>,
+) -> Result<Vec<u8>, BackendError> {
+    vorbis_comments::utils::update_comments(original, tags, true).map_err(|error| {
+        BackendError::WriteFailed(TagError {
+            path: path.to_string_lossy().into_owned(),
+            public_message: "Could not update comments".into(),
+            internal_message: error.to_string(),
+        })
+    })
 }
