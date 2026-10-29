@@ -182,6 +182,7 @@ final class CloudLibrary {
       playback.updateArtwork(trackID: track.id, file: artworkCache.file(for: track))
     }
     loadArtwork(track)
+    let streamingQuality = AudioQualityPreferences.streaming
     playbackTask = Task {
       do {
         let localURL: URL?
@@ -192,7 +193,8 @@ final class CloudLibrary {
           localURL = URL(fileURLWithPath: local)
           media = nil
         } else {
-          let plan: MediaPlan = try await core.call(.init(op: "media_plan", id: track.id))
+          let plan: MediaPlan = try await core.call(
+            .init(op: "media_plan", id: track.id, quality: streamingQuality.rawValue))
           media = try await api.playableMedia(plan)
           localURL = nil
         }
@@ -212,10 +214,12 @@ final class CloudLibrary {
     else { return }
     downloads[track.id] = 0
     loadArtwork(track)
+    let downloadQuality = AudioQualityPreferences.download
     downloadTasks[track.id] = Task {
       defer { downloadTasks[track.id] = nil }
       do {
-        let plan: MediaPlan = try await core.call(.init(op: "media_plan", id: track.id))
+        let plan: MediaPlan = try await core.call(
+          .init(op: "media_plan", id: track.id, quality: downloadQuality.rawValue))
         let media = try await api.playableMedia(plan)
         try Task.checkCancellation()
         guard !closed else { return }

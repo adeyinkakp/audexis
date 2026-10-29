@@ -235,10 +235,20 @@ impl MobileCore {
             }
             "media_plan" => {
                 let track = self.track(string(&request, "id")?)?;
-                let quality = if native_format(&audio_format(track)) {
+                let automatic = if native_format(&audio_format(track)) {
                     "original"
                 } else {
                     "aac_256"
+                };
+                let quality = match request.get("quality") {
+                    None | Some(Value::Null) => automatic,
+                    Some(Value::String(quality)) if quality == "automatic" => automatic,
+                    Some(Value::String(quality))
+                        if matches!(quality.as_str(), "original" | "aac_128" | "aac_256") =>
+                    {
+                        quality.as_str()
+                    }
+                    _ => return Err("Unknown audio quality".into()),
                 };
                 return Ok(
                     json!({"path":format!("/api/tracks/{}/audio?quality={quality}", track.id),"quality":quality}),
@@ -353,6 +363,16 @@ fn extension(format: &str) -> &'static str {
         "aac" => "aac",
         "wav" => "wav",
         "aiff" | "aif" => "aiff",
+        "flac" => "flac",
+        "ogg" | "oga" => "ogg",
+        "opus" => "opus",
+        "mp1" => "mp1",
+        "mp2" => "mp2",
+        "spx" => "spx",
+        "m4b" => "m4b",
+        "mov" => "mov",
+        "m4v" => "m4v",
+        "ogv" => "ogv",
         _ => "m4a",
     }
 }

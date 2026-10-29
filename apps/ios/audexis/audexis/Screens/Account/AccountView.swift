@@ -12,6 +12,10 @@ struct AccountView: View {
   @Environment(CloudLibrary.self) private var library
   @Environment(\.dismiss) private var dismiss
   @State private var showServerSettings = false
+  @AppStorage(AudioQualityPreferences.streamingKey) private var streamingQuality = AudioQuality
+    .automatic
+  @AppStorage(AudioQualityPreferences.downloadKey) private var downloadQuality = AudioQuality
+    .automatic
 
   private var custom: Bool { authManager.connection?.kind == .custom }
 
@@ -43,6 +47,24 @@ struct AccountView: View {
               .textSelection(.enabled)
           }
           if custom { Button("Edit server details") { showServerSettings = true } }
+        }
+        Section {
+          Picker("Streaming quality", selection: $streamingQuality) {
+            ForEach(AudioQuality.allCases) { quality in
+              Text(quality.label).tag(quality)
+            }
+          }
+          Picker("Download quality", selection: $downloadQuality) {
+            ForEach(AudioQuality.allCases) { quality in
+              Text(quality.label).tag(quality)
+            }
+          }
+        } header: {
+          Text("Audio quality")
+        } footer: {
+          Text(
+            "Original keeps the source audio. AAC usually uses less data and storage. Automatic chooses by file format. Changes apply to the next stream or new download. Downloaded songs are used first when available."
+          )
         }
         Section("On this device") {
           LabeledContent("Library", value: "\(library.snapshot.tracks.count) songs")

@@ -71,10 +71,10 @@ actor CloudAPI {
       else {
         throw CloudError.message("The server returned invalid audio information.")
       }
-      if plan.quality == "original" || media.quality == plan.quality { return media }
+      if media.quality == plan.quality { return media }
       guard media.preparing else {
         throw CloudError.message(
-          "This format needs AAC streaming. Enable FFmpeg on your music server, then try again."
+          "The server could not provide the selected audio quality. Choose Original or try a different quality."
         )
       }
       if attempt < 29 { try await Task.sleep(for: .seconds(2)) }

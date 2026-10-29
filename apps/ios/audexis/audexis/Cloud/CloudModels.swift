@@ -141,6 +141,7 @@ nonisolated struct MobileCommand: Encodable, Sendable {
   var path: String? = nil
   var playback_revision: UInt64? = nil
   var position_ms: UInt64? = nil
+  var quality: String? = nil
 }
 
 nonisolated struct MobilePlaybackState: Decodable, Sendable {
@@ -160,4 +161,33 @@ nonisolated struct MobileRemoteAction: Decodable, Sendable {
   let kind: String
   let position_ms: UInt64?
   let offset_ms: Int64?
+}
+
+nonisolated enum AudioQuality: String, CaseIterable, Identifiable, Sendable {
+  case automatic
+  case original
+  case aac256 = "aac_256"
+  case aac128 = "aac_128"
+
+  var id: String { rawValue }
+  var label: String {
+    switch self {
+    case .automatic: "Automatic"
+    case .original: "Original"
+    case .aac256: "AAC 256 kbps"
+    case .aac128: "AAC 128 kbps"
+    }
+  }
+}
+
+enum AudioQualityPreferences {
+  static let streamingKey = "audio.streamingQuality"
+  static let downloadKey = "audio.downloadQuality"
+
+  static var streaming: AudioQuality {
+    AudioQuality(rawValue: UserDefaults.standard.string(forKey: streamingKey) ?? "") ?? .automatic
+  }
+  static var download: AudioQuality {
+    AudioQuality(rawValue: UserDefaults.standard.string(forKey: downloadKey) ?? "") ?? .automatic
+  }
 }
