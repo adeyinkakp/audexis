@@ -9,6 +9,24 @@ pub(super) struct CoreLibrary {
 }
 
 impl CoreLibrary {
+    pub(super) fn rewind(&self, year: i32, month: Option<u32>) -> Result<Value, String> {
+        self.runtime.block_on(async {
+            let rewind =
+                audexis_core::database::rewind::read(&self.database.pool, year, month).await?;
+            let links: Vec<(i64, String)> = sqlx::query_as(
+                "SELECT file_id,cloud_track_id FROM file_cloud_links WHERE connection_id='mobile'",
+            )
+            .fetch_all(&self.database.pool)
+            .await
+            .map_err(|error| error.to_string())?;
+            let track_ids: std::collections::BTreeMap<_, _> = links
+                .into_iter()
+                .map(|(file_id, track_id)| (file_id.to_string(), track_id))
+                .collect();
+            Ok(json!({"summary": rewind, "track_ids": track_ids}))
+        })
+    }
+
     pub(super) fn open(directory: &Path) -> Result<Self, String> {
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)

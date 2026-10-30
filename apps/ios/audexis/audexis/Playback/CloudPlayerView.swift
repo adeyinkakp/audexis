@@ -21,6 +21,7 @@ struct CloudPlayerView: View {
         || (geometry.size.width >= 500 && geometry.size.width > geometry.size.height)
       VStack(spacing: 12) {
         header
+        FavoriteErrorNotice().padding(.horizontal, 20)
         if let track = library.playback.track {
           if wide {
             HStack(spacing: 0) {
@@ -142,6 +143,16 @@ struct CloudPlayerView: View {
           .foregroundStyle(.secondary).lineLimit(1)
       }
       Spacer(minLength: 0)
+      Button {
+        library.toggleFavorite(track)
+      } label: {
+        Image(systemName: library.isFavorite(track) ? "heart.fill" : "heart")
+          .font(.title3).foregroundStyle(AudexisStyle.primary)
+          .frame(width: 44, height: 44)
+      }
+      .buttonStyle(.plain)
+      .disabled(library.favoriteUpdates.contains(track.id))
+      .accessibilityLabel(library.isFavorite(track) ? "Remove from Favorites" : "Add to Favorites")
       CloudDownloadIndicator(track: track)
     }
     .padding(.horizontal, compact ? 24 : 0)

@@ -12,6 +12,8 @@ struct CloudTrackCollectionPage: View {
   let title: String
   let subtitle: String
   let trackIDs: [String]
+  var emptyTitle = "No songs"
+  var emptyDescription: String? = nil
 
   private var tracks: [CloudTrack] {
     let byID = Dictionary(
@@ -54,7 +56,11 @@ struct CloudTrackCollectionPage: View {
       }
     }
     .overlay {
-      if tracks.isEmpty { ContentUnavailableView("No songs", systemImage: "music.note") }
+      if tracks.isEmpty {
+        ContentUnavailableView(
+          emptyTitle, systemImage: "music.note",
+          description: emptyDescription.map { Text($0) }, )
+      }
     }
   }
 }

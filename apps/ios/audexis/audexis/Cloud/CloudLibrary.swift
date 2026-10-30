@@ -21,6 +21,8 @@ final class CloudLibrary {
   private(set) var downloads: [String: Double] = [:]
   let artworkCache = CloudArtworkCache()
   var error: String?
+  var favoriteError: String?
+  private(set) var favoriteUpdates: Set<String> = []
   private(set) var playback: CloudPlayback
   @ObservationIgnored private let core: MobileCore
   @ObservationIgnored private var api: CloudAPI?
@@ -134,6 +136,35 @@ final class CloudLibrary {
       self.error = nil
     } catch is CancellationError {} catch {
       if !closed { self.error = error.localizedDescription }
+    }
+  }
+  func rewind(year: Int, month: Int?) async throws -> CloudRewind {
+    try await core.call(.init(op: "rewind", year: year, month: month))
+  }
+  func isFavorite(_ track: CloudTrack) -> Bool {
+    snapshot.tracks.first { $0.id == track.id }?.metadata.loved ?? track.metadata.loved
+  }
+  func toggleFavorite(_ track: CloudTrack) {
+    guard !closed, !favoriteUpdates.contains(track.id), let api,
+      let current = snapshot.tracks.first(where: { $0.id == track.id })
+    else { return }
+    favoriteUpdates.insert(track.id)
+    favoriteError = nil
+    let lifecycle = self.lifecycle
+    let request = CloudTrackMutation(track: current, loved: !current.metadata.loved)
+    Task {
+      defer { if self.lifecycle == lifecycle { favoriteUpdates.remove(track.id) } }
+      do {
+        let result: CloudMutationResult = try await api.post("/api/sync/mutations", body: request)
+        guard !closed, self.lifecycle == lifecycle else { return }
+        guard let updated = result.value.track, updated.id == track.id, !updated.deleted else {
+          throw CloudError.message("The server returned an invalid favorite update.")
+        }
+        snapshot = try await core.call(.init(op: "updated_track", id: track.id, track: updated))
+      } catch {
+        guard !closed, self.lifecycle == lifecycle else { return }
+        favoriteError = error.localizedDescription
+      }
     }
   }
   func play(_ track: CloudTrack, among tracks: [CloudTrack]) {
@@ -343,6 +374,8 @@ final class CloudLibrary {
     downloadTasks.removeAll()
     artworkTasks.removeAll()
     playback.tearDown()
+    favoriteUpdates.removeAll()
+    favoriteError = nil
     directory = nil
     api = nil
     isLoading = true

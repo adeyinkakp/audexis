@@ -88,12 +88,20 @@ struct LibraryPage: View {
         .listRowBackground(Color.clear)
       }
       if category == .playlists {
+        let showFavorites =
+          (search.isEmpty || "Favorites".localizedCaseInsensitiveContains(search))
+          && (!downloadedOnly
+            || library.snapshot.favorites.contains { library.snapshot.downloads[$0.id] != nil })
         let playlists = library.snapshot.playlists.filter { playlist in
           (search.isEmpty || playlist.name.localizedCaseInsensitiveContains(search))
             && (!downloadedOnly
               || playlist.track_ids.contains { library.snapshot.downloads[$0] != nil })
         }
-        if playlists.isEmpty {
+        if showFavorites {
+          FavoritesPlaylistLink(_chevHidden: true, _downloadOnly: downloadedOnly)
+            .listRowBackground(Color.clear).listRowSeparator(.hidden)
+        }
+        if playlists.isEmpty && !showFavorites {
           ContentUnavailableView(
             "No playlists yet", systemImage: "music.note.list",
             description: Text("Playlists you create on Desktop will sync here."),
@@ -124,15 +132,7 @@ struct LibraryPage: View {
     .listStyle(.plain)
     .scrollContentBackground(.hidden)
     .navigationTitle(downloadedOnly ? "Downloaded" : "Library")
-    .toolbar {
-      ToolbarItem(placement: .topBarLeading) {
-        Button {
-          showQueue = true
-        } label: {
-          Image(systemName: "list.bullet")
-        }.accessibilityLabel("Playback queue")
-      }
-    }
+
     .sheet(isPresented: $showQueue) { CloudPlayerView(panel: .queue) }
     .searchable(text: $search, prompt: "Your music")
     .refreshable {

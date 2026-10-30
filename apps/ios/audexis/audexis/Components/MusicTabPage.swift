@@ -15,6 +15,7 @@ struct MusicTabPage<Content: View>: View {
   var body: some View {
     NavigationStack {
       content()
+        .safeAreaInset(edge: .top) { FavoriteErrorNotice().padding(.horizontal, 20) }
         .background(AudexisStyle.background)
         .navigationTitle(title)
         .toolbar {

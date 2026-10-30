@@ -74,6 +74,41 @@ impl MobileCore {
 
     fn call_open(&mut self, request: &Value, op: &str, previous: &State) -> Result<Value, String> {
         match op {
+            "updated_track" => {
+                let id = string(request, "id")?;
+                let current = self.track(id)?;
+                let track: Track = serde_json::from_value(request["track"].clone())
+                    .map_err(|_| "Invalid updated track")?;
+                if track.id != id || track.deleted {
+                    return Err("The updated song does not match this request".into());
+                }
+                if track.revision > current.revision {
+                    if track.sha256 != current.sha256 {
+                        self.remove_download(id)?;
+                    }
+                    self.state.tracks.insert(id.to_owned(), track);
+                }
+            }
+            "rewind" => {
+                let year = request["year"]
+                    .as_i64()
+                    .and_then(|year| i32::try_from(year).ok())
+                    .ok_or("Choose a valid year")?;
+                let month = match request.get("month") {
+                    None | Some(Value::Null) => None,
+                    Some(value) => Some(
+                        value
+                            .as_u64()
+                            .and_then(|month| u32::try_from(month).ok())
+                            .ok_or("Choose a valid month")?,
+                    ),
+                };
+                return self
+                    .library
+                    .as_ref()
+                    .ok_or("Library is not open")?
+                    .rewind(year, month);
+            }
             "songs" => {
                 let search = request["search"].as_str().unwrap_or("");
                 let offset = match request.get("offset") {

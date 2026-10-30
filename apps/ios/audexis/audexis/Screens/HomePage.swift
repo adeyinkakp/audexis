@@ -43,6 +43,7 @@ struct HomePage: View {
                   AudexisStyle.card, in: RoundedRectangle(cornerRadius: 14), )
             }
           }
+          FavoritesPlaylistLink(_chevHidden: true, _downloadOnly: false)
           if let track = library.playback.track {
             VStack(alignment: .leading, spacing: 14) {
               Text("Now playing").font(.title2.bold())

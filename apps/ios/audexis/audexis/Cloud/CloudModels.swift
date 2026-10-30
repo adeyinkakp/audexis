@@ -99,6 +99,25 @@ nonisolated struct CloudIdentity: Decodable, Sendable {
   let authenticated: Bool
   let user_id: String
 }
+nonisolated struct CloudTrackMutation: Encodable, Sendable {
+  struct Edit: Encodable, Sendable {
+    let kind = "track"
+    let track_id: String
+    var metadata: CloudMetadata
+  }
+  let operation_id = UUID().uuidString
+  let base_revision: Int64
+  var edit: Edit
+
+  init(track: CloudTrack, loved: Bool) {
+    base_revision = track.revision
+    edit = Edit(track_id: track.id, metadata: track.metadata)
+    edit.metadata.loved = loved
+  }
+}
+nonisolated struct CloudMutationResult: Decodable, Sendable {
+  let value: CloudChange.Payload
+}
 nonisolated struct MediaPlan: Decodable, Sendable {
   let path: String
   let quality: String
@@ -110,6 +129,7 @@ nonisolated struct CloudSnapshot: Decodable, Sendable {
   var queue: [String] = []
   var current: Int? = nil
   var downloads: [String: String] = [:]
+  var favorites: [CloudTrack] { tracks.filter { $0.metadata.loved } }
   var currentTrack: CloudTrack? {
     guard let current, queue.indices.contains(current) else { return nil }
     return tracks.first { $0.id == queue[current] }
@@ -142,6 +162,27 @@ nonisolated struct MobileCommand: Encodable, Sendable {
   var playback_revision: UInt64? = nil
   var position_ms: UInt64? = nil
   var quality: String? = nil
+  var year: Int? = nil
+  var month: Int? = nil
+  var track: CloudTrack? = nil
+}
+
+nonisolated struct CloudRewind: Decodable, Sendable {
+  struct Entry: Decodable, Sendable {
+    let file_id: Int64
+    let listened_us: Int64
+    let name: String?
+    let artist: String?
+  }
+  struct Summary: Decodable, Sendable {
+    let years: [Int]
+    let total_us: Int64
+    let songs: [Entry]
+    let artists: [Entry]
+    let albums: [Entry]
+  }
+  let summary: Summary
+  let track_ids: [String: String]
 }
 
 nonisolated struct MobilePlaybackState: Decodable, Sendable {

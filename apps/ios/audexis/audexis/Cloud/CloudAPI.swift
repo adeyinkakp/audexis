@@ -36,10 +36,23 @@ actor CloudAPI {
     self.session = URLSession(configuration: config, delegate: NoRedirect(), delegateQueue: nil)
   }
   func get<T: Decodable & Sendable>(_ path: String, as type: T.Type = T.self) async throws -> T {
+    try await send(path, method: "GET", body: nil)
+  }
+  func post<T: Decodable & Sendable, Body: Encodable & Sendable>(
+    _ path: String, body: Body, as type: T.Type = T.self,
+  ) async throws -> T {
+    try await send(path, method: "POST", body: JSONEncoder().encode(body))
+  }
+  private func send<T: Decodable & Sendable>(
+    _ path: String, method: String, body: Data?,
+  ) async throws -> T {
     guard path.hasPrefix("/api/"), let url = URL(string: origin + path) else {
       throw CloudError.message("The music server address is invalid.")
     }
     var request = URLRequest(url: url)
+    request.httpMethod = method
+    request.httpBody = body
+    if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
     request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
     let (data, response) = try await session.data(for: request)
     guard let response = response as? HTTPURLResponse else {
@@ -50,6 +63,8 @@ actor CloudAPI {
       switch response.statusCode {
       case 401: message = "Your session expired. Sign out and sign in again."
       case 403: message = "Your account does not have access to this library."
+      case 409:
+        message = "This song changed on another device. Refresh your library and try again."
       case 429, 503:
         message =
           "Cloud transfers are temporarily unavailable. Try again later; downloaded music is still available."

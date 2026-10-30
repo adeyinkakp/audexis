@@ -35,6 +35,14 @@ struct CloudTrackActions: View {
       library.enqueue(track, next: false)
     }
     Divider()
+    Button(
+      library.isFavorite(track) ? "Remove from Favorites" : "Add to Favorites",
+      systemImage: library.isFavorite(track) ? "heart.slash" : "heart",
+    ) {
+      library.toggleFavorite(track)
+    }
+    .disabled(library.favoriteUpdates.contains(track.id))
+    Divider()
     if library.snapshot.downloads[track.id] != nil {
       Button("Remove download", systemImage: "trash", role: .destructive) {
         library.removeDownload(track)
