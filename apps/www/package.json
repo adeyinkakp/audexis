@@ -6,16 +6,30 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --host 0.0.0.0",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/node": "^11.1.8",
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.3.5"
+    "@better-auth/drizzle-adapter": "^1.7.10",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.5",
+    "better-auth": "^1.7.10",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "stripe": "^23.0.0"
   },
-  "allowScripts": {
-    "esbuild": true
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "dotenv": "^18.0.8",
+    "drizzle-kit": "^0.31.11"
   }
 }

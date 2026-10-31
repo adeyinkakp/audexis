@@ -1,0 +1,34 @@
+[package]
+name = "audexis_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+sqlx.workspace = true
+notify.workspace = true
+notify-debouncer-full.workspace = true
+walkdir.workspace = true
+uuid.workspace = true
+
+symphonia.workspace = true
+log = "0.4.34"
+
+bytes = "1"
+lru = "0.12"
+sha2 = "0.10"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
+
+base64 = "0.22"
+
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+audexis_protocol = { path = "../audexis_protocol" }

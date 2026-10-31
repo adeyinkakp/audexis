@@ -1,0 +1,26 @@
+[package]
+name = "audexis_audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+thiserror.workspace = true
+
+symphonia.workspace = true
+cpal.workspace = true
+crossbeam-channel.workspace = true
+ringbuf.workspace = true
+rubato.workspace = true
+audioadapter-buffers.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+souvlaki.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+sha2 = "0.10"

@@ -1,0 +1,119 @@
+:root {
+    --radius: 0.5rem;
+}
+
+html:not([data-theme="dark"]) {
+    --background: #fff;
+    --foreground: #2a2523;
+    --hover: #e0d6d3;
+    --hover-foreground: #2a2523;
+    --card: #fafafa;
+    --card-foreground: #2a2523;
+    --popover: #ededed;
+    --active: #e0e0e0;
+    --popover-foreground: #2a2523;
+    --primary: #c44d4d;
+    --primary-foreground: #fff;
+    --secondary: #e6e0de;
+    --secondary-foreground: #2a2523;
+    --muted: #ebe6e4;
+    --muted-foreground: #756e6c;
+    --destructive: #d1453c;
+    --destructive-foreground: #ffffff;
+    --border: #ddd6d4;
+    --input: #ddd6d4;
+    --accent: #eb6e6e;
+    --accent-foreground: #ffffff;
+    --ring: #eb6e6e;
+    --scrollbar-track: #e6e0de;
+    --scrollbar-thumb: #c44d4d;
+    --primary-washed: #c44d4d1a;
+    --accent-washed: #eb6e6e1a;
+    --heading: #1a1614;
+}
+[data-theme="dark"] {
+    --heading: #f1f1f1;
+    --background: #0f0f0f;
+    --foreground: #f1f1f1;
+
+    --card: #181818;
+    --card-foreground: #f1f1f1;
+
+    --popover: #212121;
+    --popover-foreground: #f1f1f1;
+
+    --hover: #272727;
+    --hover-foreground: #f1f1f1;
+    --active: #3f3f3f;
+
+    --primary: #e06464;
+    --primary-foreground: #ffffff;
+
+    --secondary: #272727;
+    --secondary-foreground: #f1f1f1;
+
+    --muted: #212121;
+    --muted-foreground: #aaaaaa;
+
+    --destructive: #f05248;
+    --destructive-foreground: #ffffff;
+
+    --border: #303030;
+    --input: #303030;
+
+    --accent: #f07878;
+    --accent-foreground: #1b1110;
+    --ring: #f07878;
+
+    --scrollbar-track: #0f0f0f;
+    --scrollbar-thumb: #717171;
+
+    --primary-washed: #e064641f;
+    --accent-washed: #f078781f;
+}
+
+@theme {
+    --font-sans:
+        system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+        "Segoe UI", "Noto Sans", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+
+    --font-mono: "JetBrains Mono", monospace;
+    --font-serif:
+        system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
+        "Segoe UI", "Noto Sans", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+
+    --color-headings: var(--heading);
+    --color-active: var(--active);
+    --color-border: var(--border);
+    --color-hover-foreground: var(--hover-foreground);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-background: var(--background);
+    --color-hover: var(--hover);
+    --color-foreground: var(--foreground);
+    --color-primary-washed: var(--primary-washed);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+}

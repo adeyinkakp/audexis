@@ -1,0 +1,167 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+export const prerender = true;
+---
+
+<Layout>
+    <main class="mx-auto w-full flex-1 max-w-3xl px-6 py-16 sm:py-24">
+        <a
+            href="/"
+            class="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground no-underline transition-colors"
+        >
+            &larr; Back to Audexis
+        </a>
+
+        <header class="mb-12 border-b border-border pb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-headings">
+                Privacy Policy
+            </h1>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Effective Date: October 19, 2026
+            </p>
+        </header>
+
+        <div class="space-y-10 text-sm leading-relaxed text-muted-foreground">
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    1. Core Philosophy: Zero Telemetry
+                </h2>
+                <p>
+                    Audexis is designed with a strict privacy-first principle.
+                    We believe software should simply perform its function
+                    without surveilling its users.
+                    <strong>
+                        The Audexis desktop application does not collect, track,
+                        log, or transmit any listening habits, analytics,
+                        behavioral telemetry, device identifiers, or usage logs.
+                    </strong>
+                    Your local library and playback activity remain entirely on
+                    your physical hardware.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    2. Information We Process for Audexis Cloud
+                </h2>
+                <p class="mb-3">
+                    If you voluntarily subscribe to the optional{" "}
+                    <strong>Audexis Cloud</strong> service, we process only the
+                    strictly necessary technical data required to maintain your
+                    account, handle payments, and serve your files:
+                </p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>
+                        <strong>Account Credentials:</strong> Your email address
+                        and basic profile identifier provided via OAuth
+                        authentication (GitHub or Google) or standard
+                        registration to authenticate your identity.
+                    </li>
+                    <li>
+                        <strong>Payment & Billing Information:</strong> Payment
+                        transactions are handled directly by our PCI-compliant
+                        payment processor, Stripe. Audexis never sees, stores,
+                        or processes your raw credit card numbers or banking
+                        credentials. We receive only confirmation of payment
+                        status, subscription renewal dates, and randomized
+                        customer tokens from Stripe.
+                    </li>
+                    <li>
+                        <strong>Personal Audio & Metadata:</strong> WWhen you
+                        upload audio tracks to your Audexis Cloud storage, we
+                        host your audio files and their parsed metadata (track
+                        names, artist names, album titles, durations) strictly
+                        to provide remote playback to your authorized devices.
+                        Files are protected using industry-standard encryption
+                        at rest (AES-256 storage-level encryption) and TLS
+                        encryption in transit.
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    3. How Your Files Are Handled
+                </h2>
+                <p>Your audio library is treated as strictly private data:</p>
+                <ul class="list-disc pl-5 space-y-2 mt-2">
+                    <li>
+                        We do not analyze, data-mine, fingerprint, or run
+                        machine learning algorithms on your uploaded audio
+                        content.
+                    </li>
+                    <li>
+                        Your files are never shared with, licensed to, or
+                        accessible by third parties.
+                    </li>
+                    <li>
+                        Your audio streams are accessible only to devices
+                        authenticated with your personal API keys or account
+                        session tokens.
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    4. Third-Party Service Providers
+                </h2>
+                <p class="mb-3">
+                    To provide the cloud infrastructure and authentication
+                    services, we partner with trusted infrastructure providers
+                    who adhere to strict data security standards:
+                </p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>
+                        <strong>Authentication:</strong> GitHub and Google
+                        (strictly for identity verification during OAuth login).
+                    </li>
+                    <li>
+                        <strong>Billing:</strong> Stripe, Inc. (for secure
+                        billing and subscription lifecycle management).
+                    </li>
+                    <li>
+                        <strong>Cloud Infrastructure:</strong> Cloud
+                        Infrastructure: Managed cloud servers and secure object
+                        storage providers for housing audio storage and
+                        operational databases with encryption at rest and
+                        isolated tenant access controls. databases.
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    5. Data Retention & Deletion
+                </h2>
+                <p>
+                    You retain absolute ownership of your account and personal
+                    data. You may delete your account, revoke device API keys,
+                    or cancel your subscription at any time via your dashboard.
+                    Upon account deletion, all personal records, active keys,
+                    and associated cloud audio files are permanently purged from
+                    our primary database and storage infrastructure.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-semibold text-foreground mb-3">
+                    6. Contact Information
+                </h2>
+                <p>
+                    If you have questions regarding this Privacy Policy or our
+                    zero-telemetry architecture, you can contact the project
+                    maintainer directly at{" "}
+                    <a
+                        href="mailto:support@audexis.app"
+                        class="text-primary hover:underline"
+                    >
+                        support@audexis.app
+                    </a>{" "}
+                    or open an issue on our official GitHub repository.
+                </p>
+            </section>
+        </div>
+    </main>
+</Layout>
