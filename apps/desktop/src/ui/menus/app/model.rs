@@ -77,6 +77,9 @@ pub(super) fn groups(
         group(
             "Playback",
             vec![
+                app("Expand Player", AppAction::ExpandedPlayer),
+                app("Open Mini Player", AppAction::MiniPlayer),
+                Entry::separator(),
                 enabled(app("Play", AppAction::Play), playing && player.paused),
                 enabled(app("Pause", AppAction::Pause), playing && !player.paused),
                 enabled(app("Previous Track", AppAction::Previous), playing),

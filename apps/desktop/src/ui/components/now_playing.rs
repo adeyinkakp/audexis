@@ -1,14 +1,18 @@
 mod details;
 use details::*;
 
-use super::Artwork;
+use super::{
+    Artwork,
+    player_controls::{
+        ControlSize, PlaybackAction, PlaybackButton, PlaybackTimes, player_button_sized,
+    },
+};
 use crate::ui::{
     hooks::{PlaybackPanelView, use_playback},
     theme::use_audexis_colors,
 };
-use audexis_audio::{PlayerCmd, RepeatMode};
 use freya::{icons::lucide, prelude::*};
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 #[derive(PartialEq)]
 pub struct NowPlaying;
@@ -28,6 +32,8 @@ impl Component for NowPlaying {
             .clone()
             .filter(|_| state.id > 0)
             .map(|path| super::media::MediaTarget::track(state.id, path));
+        let fullscreen_services = services.clone();
+        let fullscreen_runtime = runtime.clone();
         let song_menu = EventHandler::new(move |event: Event<PressEventData>| {
             event.stop_propagation();
             event.prevent_default();
@@ -45,31 +51,10 @@ impl Component for NowPlaying {
             }
         });
         let context_menu = song_menu.clone();
-        let previous = playback.clone();
-        let toggle = playback.clone();
-        let next = playback.clone();
-        let shuffle = playback.clone();
-        let repeat = playback.clone();
-        let lyrics_panel = playback.clone();
-        let queue_panel = playback.clone();
-        let panel = *playback.panel.read();
+        let mini_services = fullscreen_services.clone();
+        let mini_runtime = fullscreen_runtime.clone();
         let message = playback.error.read().clone().or(state.error.clone());
         let mut seeking = use_state(|| false);
-        let repeat_label = match state.repeat_mode {
-            RepeatMode::Off => "Repeat: off",
-            RepeatMode::Queue => "Repeat: queue",
-            RepeatMode::Track => "Repeat: track",
-        };
-        let icon = |name, bytes, active| {
-            SvgViewer::new((name, bytes))
-                .width(Size::px(15.0))
-                .height(Size::px(15.0))
-                .color(if active {
-                    colors.primary
-                } else {
-                    colors.muted_foreground
-                })
-        };
         rect()
             .position(Position::new_absolute().bottom(16.0))
             .layer(20)
@@ -95,39 +80,19 @@ impl Component for NowPlaying {
                         rect()
                             .horizontal()
                             .cross_align(Alignment::Center)
-                            .spacing(4.0)
-                            .child(control(
-                                "Previous",
-                                enabled,
-                                icon("skip-back", lucide::skip_back(), false),
-                                move |_| previous.send(PlayerCmd::Previous),
-                            ))
-                            .child(control(
-                                if state.paused { "Resume" } else { "Pause" },
-                                enabled,
-                                icon(
-                                    if state.paused { "play" } else { "pause" },
-                                    if state.paused {
-                                        lucide::play()
-                                    } else {
-                                        lucide::pause()
-                                    },
-                                    false,
-                                ),
-                                move |_| {
-                                    toggle.send(if state.paused {
-                                        PlayerCmd::Play { resuming: true }
-                                    } else {
-                                        PlayerCmd::Pause
-                                    })
-                                },
-                            ))
-                            .child(control(
-                                "Next",
-                                enabled,
-                                icon("skip-forward", lucide::skip_forward(), false),
-                                move |_| next.send(PlayerCmd::Next),
-                            )),
+                            .spacing(4.)
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Previous,
+                                size: ControlSize::Bar,
+                            })
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Toggle,
+                                size: ControlSize::Bar,
+                            })
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Next,
+                                size: ControlSize::Bar,
+                            }),
                     )
                     .child(
                         rect()
@@ -156,17 +121,11 @@ impl Component for NowPlaying {
                                             .corner_radius(8.0)
                                             .background(colors.surface_panel)
                                             .border(Border::new().width(1.0).fill(colors.highlight))
-                                            .child(
-                                                label()
-                                                    .text(format_time(state.current_position))
-                                                    .font_size(11.0),
-                                            )
-                                            .child(rect().width(Size::flex(1.0)))
-                                            .child(
-                                                label()
-                                                    .text(format_time(state.duration))
-                                                    .font_size(11.0),
-                                            )
+                                            .child(PlaybackTimes {
+                                                position: state.current_position,
+                                                duration: state.duration,
+                                                muted: false,
+                                            })
                                     })),
                             )
                             .child(super::compact_seek::CompactSeek {
@@ -180,57 +139,53 @@ impl Component for NowPlaying {
                         rect()
                             .horizontal()
                             .cross_align(Alignment::Center)
-                            .spacing(4.0)
-                            .child(control(
-                                if state.shuffled {
-                                    "Disable shuffle"
-                                } else {
-                                    "Enable shuffle"
-                                },
-                                enabled,
-                                icon("shuffle", lucide::shuffle(), state.shuffled),
-                                move |_| shuffle.send(PlayerCmd::ToggleShuffle),
-                            ))
-                            .child(control(
-                                repeat_label,
-                                enabled,
-                                icon(
-                                    repeat_label,
-                                    if state.repeat_mode == RepeatMode::Track {
-                                        lucide::repeat_1()
-                                    } else {
-                                        lucide::repeat()
-                                    },
-                                    state.repeat_mode != RepeatMode::Off,
-                                ),
-                                move |_| repeat.send(PlayerCmd::CycleRepeat),
-                            ))
-                            .child(control(
-                                "Expand player ",
+                            .spacing(4.)
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Shuffle,
+                                size: ControlSize::Bar,
+                            })
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Repeat,
+                                size: ControlSize::Bar,
+                            })
+                            .child(player_button_sized(
+                                "Fullscreen player",
+                                lucide::maximize_2(),
+                                true,
                                 false,
-                                icon("maximize-2", lucide::maximize_2(), false),
-                                |_| {},
+                                ControlSize::Bar,
+                                move |_| {
+                                    crate::ui::windows::player::open(
+                                        fullscreen_services.clone(),
+                                        fullscreen_runtime.clone(),
+                                        false,
+                                        None,
+                                    )
+                                },
                             ))
-                            .child(control(
-                                "Lyrics",
+                            .child(player_button_sized(
+                                "Mini player",
+                                lucide::picture_in_picture_2(),
                                 true,
-                                icon(
-                                    "message-square-text",
-                                    lucide::message_square_text(),
-                                    panel == Some(PlaybackPanelView::Lyrics),
-                                ),
-                                move |_| lyrics_panel.toggle_panel(PlaybackPanelView::Lyrics),
+                                false,
+                                ControlSize::Bar,
+                                move |_| {
+                                    crate::ui::windows::player::open(
+                                        mini_services.clone(),
+                                        mini_runtime.clone(),
+                                        true,
+                                        None,
+                                    )
+                                },
                             ))
-                            .child(control(
-                                "Queue",
-                                true,
-                                icon(
-                                    "list-music",
-                                    lucide::list_music(),
-                                    panel == Some(PlaybackPanelView::Queue),
-                                ),
-                                move |_| queue_panel.toggle_panel(PlaybackPanelView::Queue),
-                            )),
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Panel(PlaybackPanelView::Lyrics),
+                                size: ControlSize::Bar,
+                            })
+                            .child(PlaybackButton {
+                                action: PlaybackAction::Panel(PlaybackPanelView::Queue),
+                                size: ControlSize::Bar,
+                            }),
                     ),
             )
             .maybe_child(message.map(|message| {
@@ -241,30 +196,4 @@ impl Component for NowPlaying {
                     .color(colors.destructive)
             }))
     }
-}
-
-fn control(
-    label: &'static str,
-    enabled: bool,
-    icon: SvgViewer,
-    action: impl FnMut(Event<PressEventData>) + 'static,
-) -> impl IntoElement {
-    TooltipContainer::new(Tooltip::new(label)).child(
-        Button::new()
-            .compact()
-            .flat()
-            .enabled(enabled)
-            .theme_layout(ButtonLayoutThemePartial {
-                width: Some(Preference::Specific(Size::px(27.0))),
-                height: Some(Preference::Specific(Size::px(27.0))),
-                padding: Some(Preference::Specific(Gaps::new_all(0.0))),
-                ..Default::default()
-            })
-            .child(rect().expanded().center().a11y_alt(label).child(icon))
-            .on_press(action),
-    )
-}
-fn format_time(milliseconds: u64) -> String {
-    let seconds = milliseconds / 1000;
-    format!("{}:{:02}", seconds / 60, seconds % 60)
 }

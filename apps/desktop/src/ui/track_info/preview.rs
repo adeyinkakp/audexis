@@ -122,7 +122,6 @@ impl Component for Controls {
         let s = session.read();
         let title = s.text(FrameKey::Title);
         let artist = s.text(FrameKey::Artist);
-        let time = |ms: u64| format!("{}:{:02}", ms / 60000, ms / 1000 % 60);
         rect()
             .width(Size::fill())
             .padding(16.)
@@ -162,8 +161,8 @@ impl Component for Controls {
                         label()
                             .text(format!(
                                 "{} / {}",
-                                time(status.position_ms),
-                                time(status.duration_ms)
+                                crate::ui::format_time(status.position_ms),
+                                crate::ui::format_time(status.duration_ms)
                             ))
                             .font_size(12.)
                             .color(colors.muted_foreground),

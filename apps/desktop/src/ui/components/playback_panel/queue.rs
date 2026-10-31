@@ -106,17 +106,9 @@ impl Component for QueueRow {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let playback = use_playback();
-        let songs = use_songs(&[self.file_id]);
-        let song = songs.data.as_ref().and_then(|s| s.first());
-        let title = song.map(|s| s.title.clone()).unwrap_or_else(|| {
-            Path::new(&self.path)
-                .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_else(|| self.path.clone())
-        });
-        let artist = song
-            .map(|s| s.artist.clone())
-            .unwrap_or_else(|| "Local audio".into());
+        let metadata = crate::ui::hooks::use_track_metadata(self.file_id, Some(&self.path));
+        let title = metadata.title;
+        let artist = metadata.artist;
         let play = playback.clone();
         let remove = playback.clone();
         let play_id = self.queue_id.clone();
@@ -206,6 +198,7 @@ impl Component for QueueRow {
                             "Remove from queue",
                             SvgViewer::new(("x", lucide::x())),
                             true,
+                            ControlSize::Panel,
                             move |event: Event<PressEventData>| {
                                 event.stop_propagation();
                                 if dragging.peek().is_some() {

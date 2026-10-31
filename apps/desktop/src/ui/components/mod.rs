@@ -1,4 +1,7 @@
+mod favorite_button;
 mod now_playing;
+pub(crate) mod player_controls;
+pub(crate) use favorite_button::FavoriteButton;
 mod sidebar;
 
 pub use now_playing::NowPlaying;
@@ -10,6 +13,7 @@ pub use discovery_shelf::DiscoveryShelf;
 
 mod artwork;
 pub use artwork::Artwork;
+pub(crate) use artwork::ArtworkBackdrop;
 
 mod smooth_scroll;
 pub use smooth_scroll::SmoothScroll;
@@ -20,10 +24,11 @@ pub use visibility::VisibilityViewport;
 mod library_controls;
 pub use library_controls::LibraryControls;
 
-mod compact_seek;
+pub(crate) mod compact_seek;
 
 mod playback_panel;
 
+pub(crate) use playback_panel::ExpandedPlaybackPanel;
 pub use playback_panel::PlaybackPanel;
 mod lyrics_scroll;
 

@@ -12,6 +12,7 @@ pub enum PlaybackPanelView {
 
 #[derive(Clone)]
 pub struct Playback {
+    pub expanded: State<bool>,
     pub state: State<PlaybackState>,
     pub queue: State<QueueInfo>,
     pub panel: State<Option<PlaybackPanelView>>,
@@ -74,6 +75,13 @@ pub(super) fn provide_playback(services: Arc<AppServices>) {
     let error = use_state(|| None);
     let cloud_track = use_state(|| None::<(String, audexis_core::cloud_sync::protocol::Track)>);
     let panel = use_state(|| None);
+    let mut expanded = use_state(|| false);
+    use_future(move || async move {
+        let mut requests = expanded_requests().subscribe();
+        while requests.changed().await.is_ok() {
+            expanded.set(true);
+        }
+    });
     let mut queue = use_state(|| {
         services
             .player
@@ -171,6 +179,7 @@ pub(super) fn provide_playback(services: Arc<AppServices>) {
         }
     });
     use_provide_context(move || Playback {
+        expanded,
         state,
         queue,
         panel,
@@ -228,4 +237,13 @@ impl Drop for AbortLibraryLoad {
     fn drop(&mut self) {
         self.0.abort();
     }
+}
+
+fn expanded_requests() -> &'static tokio::sync::watch::Sender<u64> {
+    static REQUESTS: std::sync::OnceLock<tokio::sync::watch::Sender<u64>> =
+        std::sync::OnceLock::new();
+    REQUESTS.get_or_init(|| tokio::sync::watch::channel(0).0)
+}
+pub(crate) fn request_expanded_player() {
+    expanded_requests().send_modify(|revision| *revision = revision.wrapping_add(1));
 }

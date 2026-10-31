@@ -10,40 +10,9 @@ impl Component for TrackDetails {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let song_menu = self.song_menu.clone();
-        let songs = crate::ui::hooks::use_songs(&[self.id]);
-        let info = songs.data.as_ref().and_then(|songs| songs.first()).cloned();
-        let fallback = self
-            .path
-            .as_deref()
-            .and_then(|path| Path::new(path).file_stem())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Nothing is playing".into());
-        let mut title = info
-            .as_ref()
-            .map(|info| info.title.clone())
-            .unwrap_or(fallback);
-        let mut subtitle = info
-            .map(|info| {
-                [info.artist, info.album]
-                    .into_iter()
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>()
-                    .join(" · ")
-            })
-            .unwrap_or_else(|| {
-                if self.path.is_some() {
-                    "Local audio".into()
-                } else {
-                    String::new()
-                }
-            });
-        let cloud = use_playback().cloud_track;
-        if let Some((path, track)) = &*cloud.read() {
-            if self.path.as_ref() == Some(path) {
-                title = track.title();
-                subtitle = track.artist();
-            }
-        }
+        let metadata = crate::ui::hooks::use_track_metadata(self.id, self.path.as_deref());
+        let subtitle = metadata.subtitle();
+        let title = metadata.title;
         rect()
             .width(Size::fill())
             .horizontal()
@@ -78,22 +47,13 @@ impl Component for TrackDetails {
                             .color(colors.muted_foreground),
                     ),
             )
-            .child(control(
-                "Favorite",
-                false,
-                SvgViewer::new(("heart", lucide::heart()))
-                    .width(Size::px(15.0))
-                    .height(Size::px(15.0))
-                    .color(colors.muted_foreground),
-                |_| {},
-            ))
-            .child(control(
+            .child(crate::ui::components::FavoriteButton { id: self.id })
+            .child(player_button_sized(
                 "Song options",
+                lucide::ellipsis(),
                 self.path.is_some(),
-                SvgViewer::new(("song-menu", lucide::ellipsis()))
-                    .width(Size::px(15.0))
-                    .height(Size::px(15.0))
-                    .color(colors.muted_foreground),
+                false,
+                ControlSize::Bar,
                 move |event| song_menu.call(event),
             ))
     }

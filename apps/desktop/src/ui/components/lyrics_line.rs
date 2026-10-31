@@ -11,6 +11,8 @@ pub(super) struct LyricText {
 impl Component for LyricText {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
+        let expanded =
+            use_try_consume::<crate::ui::windows::player::ExpandedPlayerContext>().is_some();
         let mut hovering = use_state(|| false);
         let target = if self.active { 1.0f32 } else { 0.0 };
         let state = use_reactive(&(target, self.reduce_motion));
@@ -61,10 +63,14 @@ impl Component for LyricText {
                         label()
                             .text(crate::ui::display_text(self.text.clone()))
                             .width(Size::fill())
-                            .font_size(24.0)
+                            .font_size(if expanded { 40.0 } else { 24.0 })
                             .font_weight(FontWeight::BOLD)
                             .color(if self.active {
-                                colors.primary
+                                if expanded {
+                                    colors.foreground
+                                } else {
+                                    colors.primary
+                                }
                             } else {
                                 colors.muted_foreground
                             }),

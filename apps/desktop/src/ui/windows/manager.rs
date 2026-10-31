@@ -5,6 +5,7 @@ use std::sync::{
 };
 
 pub struct WindowManager {
+    player_windows: Mutex<std::collections::HashMap<bool, WindowId>>,
     settings_open: AtomicBool,
     settings_window: Mutex<Option<WindowId>>,
 }
@@ -12,6 +13,7 @@ pub struct WindowManager {
 impl Default for WindowManager {
     fn default() -> Self {
         Self {
+            player_windows: Mutex::new(Default::default()),
             settings_open: AtomicBool::new(false),
             settings_window: Mutex::new(None),
         }
@@ -19,6 +21,19 @@ impl Default for WindowManager {
 }
 
 impl WindowManager {
+    pub fn player_window(&self, compact: bool) -> Option<WindowId> {
+        self.player_windows.lock().ok()?.get(&compact).copied()
+    }
+    pub fn set_player_window(&self, compact: bool, window_id: WindowId) {
+        if let Ok(mut windows) = self.player_windows.lock() {
+            windows.insert(compact, window_id);
+        }
+    }
+    pub fn close_player_window(&self, compact: bool) {
+        if let Ok(mut windows) = self.player_windows.lock() {
+            windows.remove(&compact);
+        }
+    }
     pub fn open_settings(&self) -> Option<WindowId> {
         if let Ok(window) = self.settings_window.lock() {
             if let Some(window_id) = *window {

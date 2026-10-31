@@ -13,6 +13,19 @@ impl Component for Shell {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let panel_open = crate::ui::hooks::use_playback().panel.read().is_some();
+        if *crate::ui::hooks::use_playback().expanded.read() {
+            return rect()
+                .expanded()
+                .content(Content::Flex)
+                .child(super::menus::app::AppMenuBar)
+                .child(
+                    rect()
+                        .width(Size::fill())
+                        .height(Size::flex(1.))
+                        .child(crate::ui::windows::player::ExpandedPlayer),
+                )
+                .into_element();
+        }
         rect()
             .expanded()
             .content(Content::Flex)
@@ -50,5 +63,6 @@ impl Component for Shell {
                     ),
                 ),
             )
+            .into_element()
     }
 }

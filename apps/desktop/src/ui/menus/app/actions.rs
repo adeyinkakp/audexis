@@ -8,6 +8,8 @@ pub(crate) async fn dispatch(
     router: Option<RouterContext>,
 ) -> Result<(), String> {
     match action {
+        AppAction::ExpandedPlayer => crate::ui::hooks::request_expanded_player(),
+        AppAction::MiniPlayer => crate::ui::windows::player::open(services, runtime, true, None),
         AppAction::LibrarySettings | AppAction::Logs => {
             crate::ui::settings::request_section(if action == AppAction::Logs {
                 crate::ui::settings::Section::Logs

@@ -20,6 +20,7 @@ impl App for AudexisApp {
 
         use_app_theme(self.services.clone());
         super::hooks::use_app_state(self.services.clone(), self.runtime.clone());
+        let expanded = *super::hooks::use_playback().expanded.read();
 
         rect()
             .expanded()
@@ -27,10 +28,12 @@ impl App for AudexisApp {
             .theme_color()
             .content(Content::Flex)
             .maybe_child(
-                (cfg!(target_os = "macos") && !crate::ui::windows::title_bar::windows_title_bar())
-                    .then_some(crate::ui::windows::title_bar::TitleBar {
-                        child: label().text("").into_element(),
-                    }),
+                (!expanded
+                    && cfg!(target_os = "macos")
+                    && !crate::ui::windows::title_bar::windows_title_bar())
+                .then_some(crate::ui::windows::title_bar::TitleBar {
+                    child: label().text("").into_element(),
+                }),
             )
             .maybe_child(
                 (!cfg!(any(target_os = "macos", target_os = "windows")))

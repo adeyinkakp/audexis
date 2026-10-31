@@ -24,6 +24,8 @@ pub enum AppAction {
     Next,
     Shuffle,
     Repeat(RepeatMode),
+    ExpandedPlayer,
+    MiniPlayer,
     Issue,
 }
 mod actions;

@@ -1,4 +1,5 @@
 use super::media::MediaTarget;
+use super::player_controls::{ControlSize, icon_button};
 use super::{Artwork, VisibilityViewport};
 
 mod lines;
@@ -11,16 +12,36 @@ use queue::QueuePanel;
 use crate::{
     services::AppServices,
     ui::{
-        hooks::{PlaybackPanelView, use_library, use_playback, use_songs},
+        hooks::{PlaybackPanelView, use_library, use_playback},
         theme::use_audexis_colors,
     },
 };
 use audexis_audio::{PlayerCmd, QueueInfo};
 use freya::{icons::lucide, prelude::*};
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 #[derive(PartialEq)]
 pub struct PlaybackPanel;
+#[derive(PartialEq)]
+pub(crate) struct ExpandedPlaybackPanel {
+    pub stacked: bool,
+}
+impl Component for ExpandedPlaybackPanel {
+    fn render(&self) -> impl IntoElement {
+        rect()
+            .width(if self.stacked {
+                Size::fill()
+            } else {
+                Size::flex(1.)
+            })
+            .height(if self.stacked {
+                Size::flex(1.)
+            } else {
+                Size::fill()
+            })
+            .child(PanelContent)
+    }
+}
 impl Component for PlaybackPanel {
     fn render(&self) -> impl IntoElement {
         let playback = use_playback();
@@ -76,6 +97,7 @@ impl Component for PlaybackPanel {
                         "Close panel",
                         SvgViewer::new(("x", lucide::x())),
                         true,
+                        ControlSize::Panel,
                         move |_| panel.set(None),
                     )),
             )
@@ -83,10 +105,7 @@ impl Component for PlaybackPanel {
                 rect()
                     .width(Size::fill())
                     .height(Size::flex(1.0))
-                    .child(match view {
-                        PlaybackPanelView::Queue => QueuePanel.into_element(),
-                        PlaybackPanelView::Lyrics => LyricsPanel.into_element(),
-                    }),
+                    .child(PanelContent),
             )
             .maybe_child(
                 playback
@@ -98,22 +117,14 @@ impl Component for PlaybackPanel {
             .into_element()
     }
 }
-fn icon_button(
-    title: &'static str,
-    icon: SvgViewer,
-    enabled: bool,
-    action: impl FnMut(Event<PressEventData>) + 'static,
-) -> impl IntoElement {
-    TooltipContainer::new(Tooltip::new(title)).child(
-        Button::new()
-            .compact()
-            .flat()
-            .enabled(enabled)
-            .child(
-                icon.width(Size::px(13.0))
-                    .height(Size::px(13.0))
-                    .a11y_alt(title),
-            )
-            .on_press(action),
-    )
+#[derive(PartialEq)]
+struct PanelContent;
+impl Component for PanelContent {
+    fn render(&self) -> impl IntoElement {
+        match *use_playback().panel.read() {
+            Some(PlaybackPanelView::Queue) => QueuePanel.into_element(),
+            Some(PlaybackPanelView::Lyrics) => LyricsPanel.into_element(),
+            None => rect().into_element(),
+        }
+    }
 }

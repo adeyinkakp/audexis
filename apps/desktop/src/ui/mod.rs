@@ -67,3 +67,8 @@ pub(crate) fn display_text(mut text: String) -> String {
     text.retain(|character| character != '\0');
     text
 }
+
+pub(crate) fn format_time(milliseconds: u64) -> String {
+    let seconds = milliseconds / 1000;
+    format!("{}:{:02}", seconds / 60, seconds % 60)
+}

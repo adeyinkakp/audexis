@@ -48,7 +48,7 @@ logs/
 # IDEs
 .idea/
 *.swp
-.zed
+
 
 # Lock files
 yarn.lock

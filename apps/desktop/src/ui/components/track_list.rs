@@ -182,9 +182,7 @@ impl Component for TrackList {
                                     label()
                                         .text(
                                             song.duration_ms
-                                                .map(|ms| {
-                                                    format!("{}:{:02}", ms / 60000, ms / 1000 % 60)
-                                                })
+                                                .map(|ms| crate::ui::format_time(ms.max(0) as u64))
                                                 .unwrap_or_else(|| "—".into()),
                                         )
                                         .width(Size::px(42.))
