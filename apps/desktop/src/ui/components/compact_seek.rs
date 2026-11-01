@@ -7,7 +7,6 @@ pub struct CompactSeek {
     pub position: u64,
     pub duration: u64,
     pub enabled: bool,
-    pub hovering: State<bool>,
 }
 impl Component for CompactSeek {
     fn render(&self) -> impl IntoElement {
@@ -15,9 +14,7 @@ impl Component for CompactSeek {
         let playback = use_playback();
         let mut bounds = use_state(|| (0.0f64, 1.0f64));
         let mut draft = use_state(|| None::<u64>);
-        let mut hovering = self.hovering;
         let a11y = use_a11y();
-        let focus = use_focus(a11y);
         let duration = self.duration;
         let enabled = self.enabled && duration > 0;
         let value = (*draft.read()).unwrap_or(self.position).min(duration);
@@ -44,7 +41,6 @@ impl Component for CompactSeek {
             .on_sized(move |event: Event<SizedEventData>| {
                 bounds.set((event.area.min_x() as f64, event.area.width() as f64));
             })
-            .on_pointer_enter(move |_| hovering.set(true))
             .maybe(enabled, |element| {
                 element
                     .on_pointer_down(move |event: Event<PointerEventData>| {
@@ -53,7 +49,6 @@ impl Component for CompactSeek {
                         }
                         event.stop_propagation();
                         a11y.request_focus();
-                        hovering.set(true);
                         draft.set(Some(preview(event.element_location().x)));
                     })
                     .on_global_pointer_move(move |event: Event<PointerEventData>| {
@@ -79,7 +74,6 @@ impl Component for CompactSeek {
                             _ => return,
                         };
                         event.stop_propagation();
-                        hovering.set(true);
                         playback.send(PlayerCmd::SeekMilliseconds { milliseconds });
                     })
             })
@@ -96,21 +90,6 @@ impl Component for CompactSeek {
                             .corner_radius(99.0)
                             .background(colors.primary),
                     ),
-            )
-            .maybe_child(
-                (enabled
-                    && (*hovering.read() || draft.read().is_some() || focus() == Focus::Keyboard))
-                    .then(|| {
-                        rect()
-                            .position(Position::new_absolute().top(2.0))
-                            .offset_x((bounds.peek().1 as f32 - 12.0).max(0.0) * progress / 100.0)
-                            .width(Size::px(12.0))
-                            .height(Size::px(12.0))
-                            .corner_radius(99.0)
-                            .background(colors.primary)
-                            .border(Border::new().width(2.0).fill(colors.background))
-                            .interactive(Interactive::No)
-                    }),
             )
     }
 }

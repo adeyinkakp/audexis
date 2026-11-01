@@ -4,7 +4,7 @@ use details::*;
 use super::{
     Artwork,
     player_controls::{
-        ControlSize, PlaybackAction, PlaybackButton, PlaybackTimes, player_button_sized,
+        ControlSize, InlinePlaybackProgress, PlaybackAction, PlaybackButton, player_button_sized,
     },
 };
 use crate::ui::{
@@ -54,7 +54,6 @@ impl Component for NowPlaying {
         let mini_services = fullscreen_services.clone();
         let mini_runtime = fullscreen_runtime.clone();
         let message = playback.error.read().clone().or(state.error.clone());
-        let mut seeking = use_state(|| false);
         rect()
             .position(Position::new_absolute().bottom(16.0))
             .layer(20)
@@ -74,7 +73,6 @@ impl Component for NowPlaying {
                     .background(colors.popover)
                     .border(Border::new().width(1.0).fill(colors.border))
                     .shadow(Shadow::new().y(8.0).blur(15.0).color(colors.shade))
-                    .on_pointer_leave(move |_| seeking.set(false))
                     .on_secondary_down(move |event| context_menu.call(event))
                     .child(
                         rect()
@@ -103,36 +101,20 @@ impl Component for NowPlaying {
                                 rect()
                                     .width(Size::fill())
                                     .height(Size::px(40.0))
-                                    .padding((2.0, 4.0))
-                                    .child(TrackDetails {
-                                        id: state.id,
-                                        path: state.path.clone(),
-                                        song_menu: song_menu.clone(),
-                                    })
-                                    .maybe_child((*seeking.read()).then(|| {
-                                        rect()
-                                            .position(Position::new_absolute().top(0.0).left(0.0))
-                                            .expanded()
-                                            .interactive(Interactive::No)
-                                            .horizontal()
-                                            .content(Content::Flex)
-                                            .cross_align(Alignment::Center)
-                                            .padding((0.0, 12.0))
-                                            .corner_radius(8.0)
-                                            .background(colors.surface_panel)
-                                            .border(Border::new().width(1.0).fill(colors.highlight))
-                                            .child(PlaybackTimes {
-                                                position: state.current_position,
-                                                duration: state.duration,
-                                                muted: false,
-                                            })
-                                    })),
+                                    .corner_radius(8.0)
+                                    .overflow(Overflow::Clip)
+                                    .child(rect().expanded().padding((2.0, 4.0)).child(
+                                        TrackDetails {
+                                            id: state.id,
+                                            path: state.path.clone(),
+                                            song_menu: song_menu.clone(),
+                                        },
+                                    )),
                             )
-                            .child(super::compact_seek::CompactSeek {
+                            .child(InlinePlaybackProgress {
                                 position: state.current_position,
                                 duration: state.duration,
                                 enabled,
-                                hovering: seeking,
                             }),
                     )
                     .child(

@@ -296,7 +296,7 @@ impl Component for Songs {
                     .child(TrackSelectionScope {
                         items: selection_items,
                         fill: true,
-                        on_select_all: Some(EventHandler::new(move |()| selecting_all.set(true))),
+                        on_select_all: Some(EventHandler::new(move |all| selecting_all.set(all))),
                         child: track_list.into_element(),
                     }),
             )

@@ -30,6 +30,8 @@ impl SelectedTrack {
             format!("queue:{id}")
         } else if let Some(p) = self.playlist {
             format!("playlist:{}:{}:{}", p.playlist, p.ord, p.file)
+        } else if self.track.id > 0 {
+            format!("file:{}", self.track.id)
         } else {
             format!("file:{}:{}", self.track.id, self.track.path)
         }
