@@ -1,93 +1,21 @@
-use super::*;
-use serde_json::Value;
-use std::time::Duration;
+mod api;
+mod fields;
+mod review;
 
-pub fn import_image(data: Vec<u8>) -> Result<TagValue, String> {
-    if data.is_empty() || data.len() > 20 * 1024 * 1024 {
-        return Err("Artwork must be between 1 byte and 20 MB.".into());
-    }
-    let format = image::guess_format(&data).map_err(|e| e.to_string())?;
-    let mime = match format {
-        image::ImageFormat::Jpeg => "image/jpeg",
-        image::ImageFormat::Png => "image/png",
-        _ => return Err("Use a JPEG or PNG image.".into()),
-    };
-    let mut reader = image::ImageReader::new(std::io::Cursor::new(&data));
-    reader.set_format(format);
-    let (width, height) = reader.into_dimensions().map_err(|e| e.to_string())?;
-    if u64::from(width) * u64::from(height) > 40_000_000 {
-        return Err("Artwork is too large (maximum 40 megapixels).".into());
-    }
-    Ok(TagValue::Picture {
-        mime: mime.into(),
-        data,
-        picture_type: Some(3),
-        description: Some("Front cover".into()),
-    })
-}
-async fn bytes(url: &str) -> Result<Vec<u8>, String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(20))
-        .user_agent("Audexis/0.20.0")
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|e| e.to_string())?;
-    let mut response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?
-        .error_for_status()
-        .map_err(|e| e.to_string())?;
-    let mut data = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
-        if data.len() + chunk.len() > 20 * 1024 * 1024 {
-            return Err("Response exceeds 20 MB.".into());
-        }
-        data.extend_from_slice(&chunk);
-    }
-    Ok(data)
-}
-async fn search(kind: Tab, term: String) -> Result<Vec<Value>, String> {
-    let mut url = reqwest::Url::parse(if kind == Tab::Details {
-        "https://itunes.apple.com/search"
-    } else {
-        "https://lrclib.net/api/search"
-    })
-    .unwrap();
-    if kind == Tab::Details {
-        url.query_pairs_mut()
-            .append_pair("term", &term)
-            .append_pair("media", "music")
-            .append_pair("entity", "song")
-            .append_pair("limit", "50");
-    } else {
-        url.query_pairs_mut().append_pair("q", &term);
-    }
-    let data = bytes(url.as_str()).await?;
-    let value: Value = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
-    let values = if kind == Tab::Details {
-        value.get("results")
-    } else {
-        Some(&value)
-    }
-    .and_then(Value::as_array)
-    .ok_or("Invalid search response")?;
-    Ok(values
-        .iter()
-        .filter(|v| kind != Tab::Details || v["kind"] == "song")
-        .cloned()
-        .collect())
-}
+use super::*;
+pub use api::import_image;
+use fields::{availability, fields, subtitle, title};
+use serde_json::Value;
+
 #[derive(PartialEq)]
 pub struct Lookup {
     pub kind: Tab,
 }
 impl Component for Lookup {
     fn render(&self) -> impl IntoElement {
-        let mut session = use_consume::<State<Session>>();
+        let session = use_consume::<State<Session>>();
         let runtime = use_consume::<Handle>();
-        let colors = super::super::theme::use_audexis_colors();
+        let colors = crate::ui::theme::use_audexis_colors();
         let kind = self.kind;
         let mut open = use_state(|| false);
         let query = use_state(|| {
@@ -96,238 +24,190 @@ impl Component for Lookup {
                 session.peek().text(FrameKey::Title),
                 session.peek().text(FrameKey::Artist)
             )
+            .trim()
+            .to_owned()
         });
         let mut results = use_state(Vec::<Value>::new);
         let mut selected = use_state(|| None::<usize>);
+        let mut chosen = use_state(Vec::<FrameKey>::new);
         let mut searching = use_state(|| false);
+        let mut searched = use_state(|| false);
         let mut error = use_state(String::new);
         let busy = session.read().busy;
-        let search_runtime = runtime.clone();
-        let mut body = rect().width(Size::fill()).spacing(8.).child(
-            Button::new()
-                .enabled(!busy)
-                .child(if *open.read() {
-                    "Hide online lookup"
-                } else if kind == Tab::Details {
-                    "Find metadata online"
-                } else {
-                    "Find lyrics online"
-                })
-                .on_press(move |_| open.toggle()),
-        );
+        let run_search = EventHandler::new(move |_: ()| {
+            let term = query.peek().trim().to_owned();
+            if term.is_empty() || *searching.peek() || session.peek().busy {
+                return;
+            }
+            let runtime = runtime.clone();
+            searching.set(true);
+            searched.set(true);
+            selected.set(None);
+            chosen.set(Vec::new());
+            results.set(Vec::new());
+            error.set(String::new());
+            spawn(async move {
+                match runtime.spawn(api::search(kind, term)).await {
+                    Ok(Ok(matches)) => results.set(matches),
+                    Ok(Err(message)) => error.set(message),
+                    Err(_) => error.set("Search could not finish. Please try again.".into()),
+                }
+                searching.set(false);
+            });
+        });
+        let heading = if kind == Tab::Details {
+            "Find metadata online"
+        } else {
+            "Find lyrics online"
+        };
         if !*open.read() {
-            return body.into_element();
+            return Button::new()
+                .outline()
+                .enabled(!busy)
+                .child(heading)
+                .on_press(move |_| open.set(true))
+                .into_element();
         }
-        body = body
-            .padding(16.)
-            .corner_radius(12.)
-            .background(colors.surface_subtle)
+        let submit = run_search.clone();
+        let mut body = rect().width(Size::fill()).padding(20.).spacing(16.)
+            .corner_radius(16.).background(colors.surface_subtle)
             .border(Border::new().fill(colors.border).width(1.))
-            .child(
+            .child(rect().horizontal().width(Size::fill()).content(Content::Flex)
+                .cross_align(Alignment::Center)
+                .child(rect().width(Size::flex(1.)).spacing(4.)
+                    .child(label().text(heading).font_size(18.))
+                    .child(label().text(if kind == Tab::Details {
+                        "Apple Music · Choose a match, then select the fields to use."
+                    } else {
+                        "LRCLIB · Choose a match and review the lyrics before applying."
+                    }).font_size(12.).color(colors.muted_foreground)))
+                .child(Button::new().flat().compact().child("Close").on_press(move |_| open.set(false))))
+            .child(rect().horizontal().width(Size::fill()).content(Content::Flex).spacing(10.)
+                .child(Input::new(query).enabled(!busy && !*searching.read())
+                    .width(Size::flex(1.)).placeholder("Search by song title and artist")
+                    .on_submit(move |_: String| submit.call(())))
+                .child(Button::new().filled().enabled(!busy && !*searching.read())
+                    .child(if *searching.read() { "Searching…" } else { "Search" })
+                    .on_press(move |_| run_search.call(()))));
+        if !error.read().is_empty() {
+            body = body.child(
                 label()
-                    .text("Song and artist")
-                    .font_size(12.)
-                    .color(colors.muted_foreground),
-            )
-            .child(
-                rect()
-                    .horizontal()
-                    .spacing(8.)
-                    .content(Content::Flex)
-                    .child(
-                        Input::new(query)
-                            .width(Size::flex(1.))
-                            .placeholder("Song and artist"),
-                    )
-                    .child(
-                        Button::new()
-                            .enabled(!busy && !*searching.read())
-                            .child("Search")
-                            .on_press(move |_| {
-                                let term = query.peek().trim().to_string();
-                                if term.is_empty() {
-                                    return;
-                                }
-                                let runtime = search_runtime.clone();
-                                searching.set(true);
-                                selected.set(None);
-                                error.set(String::new());
-                                spawn(async move {
-                                    match runtime.spawn(search(kind, term)).await {
-                                        Ok(Ok(matches)) => results.set(matches),
-                                        other => error.set(format!("Search failed: {other:?}")),
-                                    };
-                                    searching.set(false);
-                                });
-                            }),
-                    ),
-            )
-            .child(label().text(if *searching.read() {
-                "Searching…".into()
-            } else if results.read().is_empty() {
-                "No results. Try a song title and artist.".into()
-            } else {
-                format!("{} results", results.read().len())
-            }))
-            .child(label().text(error.read().clone()));
-        body = body.child(ScrollView::new().height(Size::px(140.)).children(
-            results.read().iter().enumerate().map(|(index, item)| {
-                Button::new()
-                    .flat()
-                    .child(format!(
-                        "{} — {} · {}",
-                        item["trackName"].as_str().unwrap_or("Unknown track"),
-                        item["artistName"].as_str().unwrap_or(""),
-                        item[if kind == Tab::Details {
-                            "collectionName"
-                        } else {
-                            "albumName"
-                        }]
-                        .as_str()
-                        .unwrap_or("")
-                    ))
-                    .on_press(move |_| selected.set(Some(index)))
-                    .into_element()
-            }),
-        ));
-        if let Some(item) = selected.read().and_then(|i| results.read().get(i).cloned()) {
-            let lyric_key = if kind == Tab::Synced {
-                "syncedLyrics"
-            } else {
-                "plainLyrics"
-            };
-            let preview = if kind == Tab::Details {
-                format!(
-                    "{}\n{}\n{}\nGenre: {} · Year: {}",
-                    item["trackName"],
-                    item["artistName"],
-                    item["collectionName"],
-                    item["primaryGenreName"],
-                    item["releaseDate"]
-                )
-            } else {
-                item[lyric_key]
-                    .as_str()
-                    .unwrap_or("No lyrics of this type available.")
-                    .to_string()
-            };
-            body = body.child(label().text(preview)).child(
-                Button::new()
-                    .enabled(
-                        !busy
-                            && (kind == Tab::Details
-                                || item[lyric_key].as_str().is_some_and(|s| !s.is_empty())),
-                    )
-                    .child("Use selected result")
-                    .on_press(move |_| {
-                        if kind != Tab::Details {
-                            let text = item[lyric_key].as_str().unwrap_or_default().to_string();
-                            if kind == Tab::Synced {
-                                if let Err(e) = metadata_editor::parse_lrc(&text) {
-                                    session.write().message = e;
-                                    return;
-                                }
-                            }
-                            session.write().set_values(
-                                if kind == Tab::Synced {
-                                    FrameKey::SynchronizedLyrics
-                                } else {
-                                    FrameKey::UnsyncedLyrics
-                                },
-                                vec![TagValue::Text(text)],
-                            );
-                            session.write().revision += 1;
-                        } else {
-                            let item = item.clone();
-                            let runtime = runtime.clone();
-                            session.write().busy = true;
-                            spawn(async move {
-                                let artwork_url =
-                                    item["artworkUrl100"].as_str().map(str::to_string);
-                                let artwork = if let Some(url) = artwork_url {
-                                    runtime
-                                        .spawn(async move {
-                                            let parsed = reqwest::Url::parse(&url)
-                                                .map_err(|e| e.to_string())?;
-                                            if parsed.scheme() != "https"
-                                                || !parsed
-                                                    .host_str()
-                                                    .is_some_and(|h| h.ends_with(".mzstatic.com"))
-                                                || !parsed.username().is_empty()
-                                                || parsed.password().is_some()
-                                                || parsed.port().is_some()
-                                            {
-                                                return Err("Unsupported artwork URL".into());
-                                            }
-                                            import_image(
-                                                bytes(&url.replace("100x100bb", "1000x1000bb"))
-                                                    .await?,
-                                            )
-                                        })
-                                        .await
-                                        .map_err(|e| e.to_string())
-                                        .and_then(|r| r)
-                                        .map(Some)
-                                } else {
-                                    Ok(None)
-                                };
-                                let mut s = session.write();
-                                for (field, source) in [
-                                    (FrameKey::Title, "trackName"),
-                                    (FrameKey::Artist, "artistName"),
-                                    (FrameKey::Album, "collectionName"),
-                                    (FrameKey::Genre, "primaryGenreName"),
-                                    (FrameKey::Year, "releaseDate"),
-                                    (FrameKey::TrackNumber, "trackNumber"),
-                                    (FrameKey::DiscNumber, "discNumber"),
-                                ] {
-                                    let value = &item[source];
-                                    let mut text = value
-                                        .as_str()
-                                        .map(str::to_string)
-                                        .or_else(|| value.as_u64().map(|v| v.to_string()))
-                                        .unwrap_or_default();
-                                    if field == FrameKey::Year {
-                                        text = text.chars().take(4).collect();
-                                    }
-                                    if !text.trim().is_empty() {
-                                        s.set_values(field, vec![TagValue::Text(text)]);
-                                    }
-                                }
-                                match artwork {
-                                    Ok(Some(image)) => {
-                                        for file in &mut s.files {
-                                            let images = file
-                                                .tags
-                                                .entry(FrameKey::AttachedPicture)
-                                                .or_default();
-                                            images.retain(|v| {
-                                                !matches!(
-                                                    v,
-                                                    TagValue::Picture {
-                                                        picture_type: Some(3),
-                                                        ..
-                                                    }
-                                                )
-                                            });
-                                            images.insert(0, image.clone());
-                                        }
-                                    }
-                                    Ok(None) => {}
-                                    Err(e) => {
-                                        s.message = format!(
-                                            "Metadata imported, but cover download failed: {e}"
-                                        )
-                                    }
-                                }
-                                s.busy = false;
-                                s.revision += 1;
-                            });
-                        }
-                    }),
+                    .text(error.read().clone())
+                    .color(colors.destructive)
+                    .font_size(12.),
             );
         }
-        body.into_element()
+        if results.read().is_empty() {
+            return body
+                .child(
+                    rect()
+                        .width(Size::fill())
+                        .padding(24.)
+                        .spacing(6.)
+                        .child(
+                            label()
+                                .text(if *searching.read() {
+                                    "Looking for matches…"
+                                } else if !error.read().is_empty() {
+                                    "Try searching again."
+                                } else if *searched.read() {
+                                    "No matches found"
+                                } else {
+                                    "Find the right match for your music"
+                                })
+                                .font_size(14.),
+                        )
+                        .child(
+                            label()
+                                .text(if *searched.read() {
+                                    "Try a shorter title or a different artist spelling."
+                                } else {
+                                    "Search above to see results here."
+                                })
+                                .font_size(12.)
+                                .color(colors.muted_foreground),
+                        ),
+                )
+                .into_element();
+        }
+        let current = *selected.read();
+        let matches = results.read().clone();
+        let mut list = rect().width(Size::flex(1.)).spacing(8.).child(
+            label()
+                .text(format!("{} matches", matches.len()))
+                .font_size(12.)
+                .color(colors.muted_foreground),
+        );
+        list = list.child(
+            ScrollView::new()
+                .width(Size::fill())
+                .height(Size::px(350.))
+                .spacing(6.)
+                .children(matches.iter().enumerate().map(|(index, item)| {
+                    let keys: Vec<_> = fields(kind, item).iter().map(|field| field.key).collect();
+                    Button::new()
+                        .flat()
+                        .width(Size::fill())
+                        .enabled(!busy)
+                        .theme_colors(ButtonColorsThemePartial {
+                            background: Some(
+                                (if current == Some(index) {
+                                    colors.primary_washed
+                                } else {
+                                    colors.background
+                                })
+                                .into(),
+                            ),
+                            ..Default::default()
+                        })
+                        .child(
+                            rect()
+                                .width(Size::fill())
+                                .spacing(5.)
+                                .padding(6.)
+                                .child(label().text(title(item)).max_lines(2).font_size(14.))
+                                .child(
+                                    label()
+                                        .text(subtitle(kind, item))
+                                        .max_lines(2)
+                                        .font_size(12.)
+                                        .color(colors.muted_foreground),
+                                )
+                                .child(
+                                    label()
+                                        .text(availability(kind, item))
+                                        .max_lines(2)
+                                        .font_size(11.)
+                                        .color(colors.muted_foreground),
+                                ),
+                        )
+                        .on_press(move |_| {
+                            if *selected.peek() != Some(index) {
+                                let first_selection = selected.peek().is_none();
+                                selected.set(Some(index));
+                                if first_selection || kind != Tab::Details {
+                                    chosen.set(keys.clone());
+                                }
+                            }
+                        })
+                        .into_element()
+                })),
+        );
+        let preview = current.and_then(|index| matches.get(index).cloned());
+        body.child(
+            rect()
+                .horizontal()
+                .width(Size::fill())
+                .content(Content::Flex)
+                .spacing(16.)
+                .child(list)
+                .child(rect().width(Size::flex(1.)).child(review::Review {
+                    kind,
+                    item: preview,
+                    chosen,
+                })),
+        )
+        .into_element()
     }
     fn render_key(&self) -> DiffKey {
         (&self.kind.title()).into()

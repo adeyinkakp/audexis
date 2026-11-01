@@ -72,7 +72,7 @@ fn new_key() -> (String, String) {
 
 fn show_key(name: &str, key: &str) {
     println!(
-        "User: {name}\nAPI key: {key}\n\nSave this key now; it cannot be displayed again.\nEnter it with your server URL in Audexis's custom-server settings."
+        "API key: {key}\n\nSave this key now; it cannot be displayed again.\nEnter it with your server URL in Audexis's custom-server settings."
     );
 }
 
@@ -122,10 +122,7 @@ pub async fn run(pool: &sqlx::PgPool, command: Command) -> Result<()> {
             } else {
                 println!("NAME\tSTATUS\tQUOTA (BYTES)");
                 for (name, disabled, quota) in rows {
-                    println!(
-                        "{name}\t{}\t{quota}",
-                        if disabled { "disabled" } else { "active" }
-                    );
+                    println!("{}\t{quota}", if disabled { "disabled" } else { "active" });
                 }
             }
         }
@@ -147,7 +144,7 @@ pub async fn run(pool: &sqlx::PgPool, command: Command) -> Result<()> {
                 .bind(id)
                 .execute(pool)
                 .await?;
-            println!("Quota for {name} is now {bytes} bytes. Existing files are kept.");
+            println!("Quota for user is now {bytes} bytes. Existing files are kept.");
         }
         Command::Disabled { name, disabled } => {
             let id = user_id(pool, &name).await?;
@@ -157,7 +154,7 @@ pub async fn run(pool: &sqlx::PgPool, command: Command) -> Result<()> {
                 .execute(pool)
                 .await?;
             println!(
-                "User {name} is now {}.",
+                "User is now {}.",
                 if disabled { "disabled" } else { "enabled" }
             );
         }
