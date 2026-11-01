@@ -257,6 +257,16 @@ pub(crate) async fn process(
             sha256: hash.clone(),
             size,
             file_name: request.file_name,
+            added_at: {
+                let now: i64 = sqlx::query_scalar("SELECT extract(epoch FROM now())::bigint")
+                    .fetch_one(&mut *tx)
+                    .await?;
+                if request.added_at > 0 && request.added_at <= now {
+                    request.added_at
+                } else {
+                    now
+                }
+            },
             format,
             duration_ms: None,
             metadata: metadata.clone(),

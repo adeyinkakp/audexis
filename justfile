@@ -5,6 +5,9 @@ default:
 # Run the desktop app.
 dev:
     cargo run -p audexis
+# run the server
+server:
+    cargo run -p audexis_server
 hotreload:
     dx serve --hot-patch --features hotreload
 

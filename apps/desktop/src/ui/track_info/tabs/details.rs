@@ -96,24 +96,21 @@ impl Component for TextField {
     fn render(&self) -> impl IntoElement {
         let mut session = use_consume::<State<Session>>();
         let s = session.read().clone();
-        let values = s.values(self.field);
+        let mixed = s.mixed(self.field);
+        let values = s.common_values(self.field);
         let field = self.field;
         let mut rows = rect().width(Size::fill()).spacing(6.).child(
             label()
                 .font_size(12.)
                 .color(crate::ui::theme::use_audexis_colors().muted_foreground)
-                .text(if s.mixed(field) {
-                    format!("{} · Mixed values (showing first track)", self.title)
-                } else {
-                    self.title.clone()
-                }),
+                .text(self.title.clone()),
         );
         for index in 0..values.len().max(1) {
             rows = rows.child(TextValue {
                 field,
                 index,
-                mixed: s.mixed(field),
-                removable: self.multi || values.len() > 1,
+                mixed,
+                removable: mixed || self.multi || values.len() > 1,
             });
         }
         rows.maybe_child(self.multi.then(|| {
@@ -124,7 +121,7 @@ impl Component for TextField {
                 .child("+ Add value")
                 .on_press(move |_| {
                     let mut s = session.write();
-                    let mut values = s.values(field);
+                    let mut values = s.common_values(field);
                     values.push(TagValue::Text(String::new()));
                     s.set_values(field, values);
                 })
@@ -147,7 +144,7 @@ impl Component for TextValue {
         let (field, index) = (self.field, self.index);
         let s = session.read().clone();
         let initial = s
-            .values(field)
+            .common_values(field)
             .get(index)
             .map(text_value)
             .unwrap_or_default();
@@ -163,17 +160,13 @@ impl Component for TextValue {
                 Input::new(value)
                     .enabled(!s.busy)
                     .width(Size::flex(1.))
-                    .placeholder(if self.mixed {
-                        "Mixed values — editing applies to all tracks"
-                    } else {
-                        "Not set"
-                    })
+                    .placeholder(if self.mixed { "..." } else { "Not set" })
                     .on_validate(move |v: InputValidator| {
                         if *v.text() == *value.peek() {
                             return;
                         }
                         let mut s = session.write();
-                        let mut values = s.values(field);
+                        let mut values = s.common_values(field);
                         if values.len() <= index {
                             values.resize_with(index + 1, || TagValue::Text(String::new()));
                         }
@@ -191,7 +184,7 @@ impl Component for TextValue {
                     .child("Remove")
                     .on_press(move |_| {
                         let mut s = session.write();
-                        let mut values = s.values(field);
+                        let mut values = s.common_values(field);
                         if index < values.len() {
                             values.remove(index);
                         }

@@ -3,9 +3,10 @@ pub use crate::config::SongColumn as SongSort;
 use sqlx::{QueryBuilder, Sqlite};
 use std::collections::HashMap;
 
-pub(super) const SONG_SOURCE: &str = "SELECT f.id,f.path,f.file_name,f.size,f.modified_at,
+pub(super) const SONG_SOURCE: &str = "SELECT f.id,f.path,f.file_name,f.size,f.modified_at,f.added_at,
             (SELECT d.path FROM cloud_downloads d JOIN file_cloud_links l ON l.connection_id=d.connection_id AND l.cloud_track_id=d.track_id WHERE l.file_id=f.id AND d.connection_id=f.cloud_connection_id AND d.sha256=f.hash LIMIT 1) AS download_path,
             COALESCE(strftime('%Y-%m-%d %H:%M',NULLIF(f.modified_at,0),'unixepoch','localtime'),'—') AS modified_label,
+            COALESCE(strftime('%Y-%m-%d %H:%M',NULLIF(f.added_at,0),'unixepoch','localtime'),'—') AS added_label,
             COALESCE((SELECT NULLIF(TRIM(value),'') FROM metadata_texts WHERE file_id=f.id AND key='title' ORDER BY ord LIMIT 1),f.file_name) AS title,
             COALESCE((SELECT NULLIF(TRIM(value),'') FROM metadata_texts WHERE file_id=f.id AND key='artist' ORDER BY ord LIMIT 1),'Unknown artist') AS artist,
             COALESCE((SELECT NULLIF(TRIM(value),'') FROM metadata_texts WHERE file_id=f.id AND key='album' ORDER BY ord LIMIT 1),'') AS album,
@@ -24,6 +25,8 @@ pub struct SongRow {
     pub size: i64,
     pub modified_at: i64,
     pub modified_label: String,
+    pub added_at: i64,
+    pub added_label: String,
     pub plays: i64,
     pub loved: bool,
     pub title: String,
@@ -60,6 +63,7 @@ impl SongRow {
             }
             SongSort::Size => format!("{:.1} MB", self.size as f64 / 1_000_000.0),
             SongSort::Modified => self.modified_label.clone(),
+            SongSort::Added => self.added_label.clone(),
             SongSort::Plays => self.plays.to_string(),
             SongSort::Loved => if self.loved { "♥" } else { "" }.into(),
             column => column
@@ -120,6 +124,7 @@ fn order(sql: &mut QueryBuilder<'_, Sqlite>, sort: &SongSort, descending: bool) 
         }
         SongSort::Size => Some("size"),
         SongSort::Modified => Some("NULLIF(modified_at, 0)"),
+        SongSort::Added => Some("NULLIF(added_at, 0)"),
         SongSort::Plays => Some("plays"),
         SongSort::Loved => Some("loved"),
         _ => None,

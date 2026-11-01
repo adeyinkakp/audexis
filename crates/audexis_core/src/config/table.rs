@@ -12,6 +12,7 @@ pub enum SongColumn {
     Path,
     Size,
     Modified,
+    Added,
     Plays,
     Loved,
     Metadata(String),

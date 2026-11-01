@@ -10,6 +10,7 @@ import SwiftUI
 struct SearchPage: View {
   @Environment(CloudLibrary.self) private var library
   @State private var query = ""
+  @State private var selectedCollection: CloudCollectionDestination?
   private var search: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
   private var matches: [CloudTrack] {
     library.snapshot.tracks.filter {
@@ -31,7 +32,8 @@ struct SearchPage: View {
         Section("Browse albums") {
           CloudCollectionGrid(
             collections: Array(
-              MusicCollection.albums(in: library.snapshot.tracks).prefix(12))
+              MusicCollection.albums(in: library.snapshot.tracks).prefix(12)),
+            selection: $selectedCollection
           )
           .padding(.vertical, 8).listRowBackground(Color.clear).listRowSeparator(.hidden)
         }
@@ -43,7 +45,7 @@ struct SearchPage: View {
         }
         if !albums.isEmpty {
           Section("Albums") {
-            CloudCollectionGrid(collections: Array(albums.prefix(6)))
+            CloudCollectionGrid(collections: Array(albums.prefix(6)), selection: $selectedCollection)
               .padding(.vertical, 8).listRowBackground(Color.clear).listRowSeparator(
                 .hidden)
           }
@@ -55,6 +57,10 @@ struct SearchPage: View {
     }
     .listStyle(.plain).scrollContentBackground(.hidden)
     .searchable(text: $query, prompt: "Songs, artists, albums")
+    .navigationDestination(item: $selectedCollection) { collection in
+      CloudTrackCollectionPage(
+        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs)
+    }
     .autocorrectionDisabled()
   }
 }

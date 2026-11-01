@@ -62,6 +62,7 @@ impl CoreLibrary {
                     "download_path": song.download_path,
                     "duration_ms": song.duration_ms,
                     "format": song.format,
+                    "added_at": song.added_at,
                 })
             })
             .collect();

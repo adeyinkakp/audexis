@@ -81,7 +81,7 @@ fn entries(column: Option<SongColumn>, settings: &TableSettings) -> Vec<Entry> {
             .enabled(!visible || table.columns.len() > 1)
     };
     let mut catalog = column_catalog();
-    let mut metadata = catalog.split_off(11);
+    let mut metadata = catalog.split_off(12);
     result.push(Entry::group(
         "Columns",
         catalog

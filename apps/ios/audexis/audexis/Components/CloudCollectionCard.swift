@@ -37,18 +37,29 @@ struct CloudCollectionCard: View {
   }
 }
 
+struct CloudCollectionDestination: Hashable {
+  let title: String
+  let subtitle: String
+  let trackIDs: [String]
+
+  init(_ collection: MusicCollection) {
+    title = collection.title
+    subtitle = collection.subtitle
+    trackIDs = collection.tracks.map(\.id)
+  }
+}
+
 struct CloudCollectionGrid: View {
   let collections: [MusicCollection]
+  @Binding var selection: CloudCollectionDestination?
   var body: some View {
     LazyVGrid(
       columns: [GridItem(.adaptive(minimum: 140, maximum: 230), spacing: 18, alignment: .top)],
       alignment: .leading, spacing: 24,
     ) {
       ForEach(collections) { collection in
-        NavigationLink {
-          CloudTrackCollectionPage(
-            title: collection.title, subtitle: collection.subtitle,
-            trackIDs: collection.tracks.map(\.id), )
+        Button {
+          selection = CloudCollectionDestination(collection)
         } label: {
           CloudCollectionCard(
             title: collection.title, subtitle: collection.subtitle, tracks: collection.tracks, )

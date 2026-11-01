@@ -63,6 +63,20 @@ pub(super) async fn refresh(db: &Database, connection: &str) -> Result<bool> {
             .await?;
             let local: Option<i64> = sqlx::query_scalar("SELECT f.id FROM files f WHERE f.cloud_connection_id IS NULL AND f.status='ok' AND f.missing_since IS NULL AND (EXISTS(SELECT 1 FROM file_cloud_links l WHERE l.file_id=f.id AND l.connection_id=? AND l.cloud_track_id=?) OR (f.hash=? AND f.size=?)) ORDER BY f.id LIMIT 1")
                 .bind(connection).bind(&track.id).bind(&track.sha256).bind(track.size).fetch_optional(&mut *tx).await?;
+            if !track.deleted {
+                let added_at = track.added_at;
+                for file in local.into_iter().chain(existing.map(|(id, _)| id)) {
+                    changed |=
+                        sqlx::query("UPDATE files SET added_at=? WHERE id=? AND added_at IS NOT ?")
+                            .bind(added_at)
+                            .bind(file)
+                            .bind(added_at)
+                            .execute(&mut *tx)
+                            .await?
+                            .rows_affected()
+                            > 0;
+                }
+            }
             if let Some(local) = local.filter(|_| !track.deleted) {
                 sqlx::query("INSERT INTO file_cloud_links(file_id,connection_id,cloud_track_id) VALUES (?,?,?) ON CONFLICT(file_id,connection_id) DO NOTHING")
                     .bind(local).bind(connection).bind(&track.id).execute(&mut *tx).await?;
@@ -92,8 +106,8 @@ pub(super) async fn refresh(db: &Database, connection: &str) -> Result<bool> {
                 }
                 file
             } else {
-                let file = sqlx::query("INSERT INTO files(path,file_name,status,metadata_status,size,hash,duration_ms,format,last_validated,cloud_connection_id) VALUES (?,?,'ok','ok',?,?,?,?,unixepoch(),?)")
-                    .bind(&path).bind(&track.file_name).bind(track.size).bind(&track.sha256).bind(track.duration_ms).bind(&track.format).bind(connection)
+                let file = sqlx::query("INSERT INTO files(path,file_name,status,metadata_status,size,hash,duration_ms,format,last_validated,cloud_connection_id,added_at) VALUES (?,?,'ok','ok',?,?,?,?,unixepoch(),?,?)")
+                    .bind(&path).bind(&track.file_name).bind(track.size).bind(&track.sha256).bind(track.duration_ms).bind(&track.format).bind(connection).bind(track.added_at)
                     .execute(&mut *tx).await?.last_insert_rowid();
                 sqlx::query("INSERT INTO file_cloud_links(file_id,connection_id,cloud_track_id) VALUES (?,?,?)")
                     .bind(file).bind(connection).bind(&track.id).execute(&mut *tx).await?;

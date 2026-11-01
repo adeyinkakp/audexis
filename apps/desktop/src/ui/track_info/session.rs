@@ -74,6 +74,13 @@ impl Session {
             .iter()
             .any(|f| f.tags.get(&key).cloned().unwrap_or_default() != first)
     }
+    pub(super) fn common_values(&self, key: FrameKey) -> Vec<TagValue> {
+        if self.mixed(key) {
+            Vec::new()
+        } else {
+            self.values(key)
+        }
+    }
     pub(super) fn set_values(&mut self, key: FrameKey, values: Vec<TagValue>) {
         for file in &mut self.files {
             file.tags.insert(key, values.clone());

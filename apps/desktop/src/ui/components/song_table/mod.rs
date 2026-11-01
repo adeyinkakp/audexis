@@ -67,6 +67,7 @@ pub fn column_title(column: &SongColumn, definitions: &[CustomFieldDefinition]) 
         SongColumn::Path => "Path",
         SongColumn::Size => "Size",
         SongColumn::Modified => "Date modified",
+        SongColumn::Added => "Date added",
         SongColumn::Plays => "Plays",
         SongColumn::Loved => "Loved",
         SongColumn::Metadata(key) => {
@@ -97,6 +98,7 @@ pub fn column_catalog() -> Vec<(String, SongColumn)> {
         SongColumn::Path,
         SongColumn::Size,
         SongColumn::Modified,
+        SongColumn::Added,
         SongColumn::Plays,
         SongColumn::Loved,
     ]

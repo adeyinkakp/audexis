@@ -18,11 +18,32 @@ nonisolated struct CloudTrack: Codable, Identifiable, Sendable {
   let sha256: String
   let size: Int64
   let file_name: String
+  let added_at: Int64
   let format: String
   let duration_ms: Int64?
   let metadata: CloudMetadata
   let artwork: Bool
   let deleted: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case id, revision, sha256, size, file_name, added_at, format, duration_ms, metadata, artwork, deleted
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    id = try values.decode(String.self, forKey: .id)
+    revision = try values.decode(Int64.self, forKey: .revision)
+    sha256 = try values.decode(String.self, forKey: .sha256)
+    size = try values.decode(Int64.self, forKey: .size)
+    file_name = try values.decode(String.self, forKey: .file_name)
+    added_at = try values.decodeIfPresent(Int64.self, forKey: .added_at)
+      ?? Int64(Date().timeIntervalSince1970)
+    format = try values.decode(String.self, forKey: .format)
+    duration_ms = try values.decodeIfPresent(Int64.self, forKey: .duration_ms)
+    metadata = try values.decode(CloudMetadata.self, forKey: .metadata)
+    artwork = try values.decode(Bool.self, forKey: .artwork)
+    deleted = try values.decode(Bool.self, forKey: .deleted)
+  }
 
   var title: String { tag("title").isEmpty ? file_name : tag("title") }
   var artist: String { tag("artist").isEmpty ? "Unknown artist" : tag("artist") }

@@ -69,14 +69,15 @@ impl FileWatcher {
         let mut changed = Vec::new();
         for chunk in rows.chunks(200) {
             let mut query = QueryBuilder::<Sqlite>::new(
-                "INSERT INTO files(path,file_name,size,modified_at,status) ",
+                "INSERT INTO files(path,file_name,size,modified_at,status,added_at) ",
             );
             query.push_values(chunk, |mut row, (path, name, size, modified)| {
                 row.push_bind(path)
                     .push_bind(name)
                     .push_bind(size)
                     .push_bind(modified)
-                    .push_bind("pending");
+                    .push_bind("pending")
+                    .push("unixepoch()");
             });
             query.push(" ON CONFLICT(path) DO UPDATE SET file_name=excluded.file_name, size=excluded.size, modified_at=excluded.modified_at, status='pending', metadata_status='ok', missing_since=NULL, hash=NULL WHERE files.size != excluded.size OR files.modified_at != excluded.modified_at OR files.missing_since IS NOT NULL RETURNING id");
             changed.extend(

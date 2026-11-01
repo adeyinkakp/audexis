@@ -1,6 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+fn added_at_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
+}
+
 pub type Tags = BTreeMap<String, Vec<String>>;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Metadata {
@@ -72,6 +79,8 @@ pub struct Track {
     pub sha256: String,
     pub size: i64,
     pub file_name: String,
+    #[serde(default = "added_at_now")]
+    pub added_at: i64,
     pub format: String,
     pub duration_ms: Option<i64>,
     pub metadata: Metadata,
@@ -130,6 +139,8 @@ pub struct UploadRequest {
     pub sha256: String,
     pub size: i64,
     pub file_name: String,
+    #[serde(default = "added_at_now")]
+    pub added_at: i64,
     pub metadata: Metadata,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]

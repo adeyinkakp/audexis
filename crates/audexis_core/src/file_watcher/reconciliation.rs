@@ -178,7 +178,7 @@ impl FileWatcher {
 
         for chunk in changed.chunks(999) {
             let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(
-                "INSERT INTO files (path, file_name, size, modified_at, status) ",
+                "INSERT INTO files (path, file_name, size, modified_at, status, added_at) ",
             );
             query_builder.push_values(chunk, |mut builder, (path, modified_at, size)| {
                 let file_name = Path::new(path)
@@ -190,7 +190,8 @@ impl FileWatcher {
                     .push_bind(file_name)
                     .push_bind(*size)
                     .push_bind(*modified_at)
-                    .push_bind("pending");
+                    .push_bind("pending")
+                    .push("unixepoch()");
             });
             query_builder.push(
                 " ON CONFLICT(path) DO UPDATE SET

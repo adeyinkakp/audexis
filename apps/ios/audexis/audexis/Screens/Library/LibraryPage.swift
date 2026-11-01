@@ -15,17 +15,32 @@ struct LibraryPage: View {
     case playlists = "Playlists"
   }
   @Environment(CloudLibrary.self) private var library
+  @AppStorage("librarySongSort") private var songSort = "title"
   @State private var search = ""
   @State var downloadedOnly = false
   @State private var category = Category.songs
   @State private var showQueue = false
+  @State private var selectedCollection: CloudCollectionDestination?
 
   private var tracks: [CloudTrack] {
-    library.snapshot.tracks.filter {
+    let filtered = library.snapshot.tracks.filter {
       (!downloadedOnly || library.snapshot.downloads[$0.id] != nil)
         && (search.isEmpty
           || "\($0.title) \($0.artist) \($0.album)".localizedCaseInsensitiveContains(
             search))
+    }
+    return filtered.sorted { left, right in
+      if songSort != "title" {
+        let lhs = left.added_at
+        let rhs = right.added_at
+        if lhs != rhs {
+          if lhs <= 0 { return false }
+          if rhs <= 0 { return true }
+          return songSort == "newest" ? lhs > rhs : lhs < rhs
+        }
+      }
+      let titleOrder = left.title.localizedStandardCompare(right.title)
+      return titleOrder == .orderedSame ? left.id < right.id : titleOrder == .orderedAscending
     }
   }
 
@@ -52,6 +67,14 @@ struct LibraryPage: View {
           }
         }
         .scrollIndicators(.hidden).listRowBackground(Color.clear)
+        if category == .songs {
+          Picker("Sort by", selection: $songSort) {
+            Text("Title").tag("title")
+            Text("Date added · Newest first").tag("newest")
+            Text("Date added · Oldest first").tag("oldest")
+          }
+          .listRowBackground(Color.clear)
+        }
         Toggle(isOn: $downloadedOnly) {
           Label("Downloaded", systemImage: "arrow.down.circle")
         }
@@ -62,15 +85,14 @@ struct LibraryPage: View {
           Section {
             CloudCollectionActions(tracks: tracks).listRowBackground(Color.clear)
             ForEach(tracks) { CloudTrackRow(track: $0, context: tracks) }
-          } header: {
-            Text("\(tracks.count) songs")
           }
         } else if category == .albums || category == .artists {
           Section {
             CloudCollectionGrid(
               collections: category == .albums
                 ? MusicCollection.albums(in: tracks)
-                : MusicCollection.artists(in: tracks)
+                : MusicCollection.artists(in: tracks),
+              selection: $selectedCollection
             )
             .padding(.vertical, 8).listRowBackground(Color.clear).listRowSeparator(
               .hidden)
@@ -133,6 +155,10 @@ struct LibraryPage: View {
     .scrollContentBackground(.hidden)
     .navigationTitle(downloadedOnly ? "Downloaded" : "Library")
 
+    .navigationDestination(item: $selectedCollection) { collection in
+      CloudTrackCollectionPage(
+        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs)
+    }
     .sheet(isPresented: $showQueue) { CloudPlayerView(panel: .queue) }
     .searchable(text: $search, prompt: "Your music")
     .refreshable {

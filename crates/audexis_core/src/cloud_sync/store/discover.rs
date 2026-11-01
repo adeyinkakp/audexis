@@ -7,7 +7,7 @@ pub async fn discover_with_uploads(
 ) -> Result<()> {
     let mut cursor = 0_i64;
     loop {
-        let rows=sqlx::query("SELECT f.id,f.path,f.file_name,f.hash,f.size,l.cloud_track_id FROM files f LEFT JOIN file_cloud_links l ON l.file_id=f.id AND l.connection_id=? WHERE f.id>? AND (f.cloud_connection_id IS NULL OR f.cloud_connection_id=?) AND f.status='ok' AND f.metadata_status='ok' AND f.missing_since IS NULL ORDER BY f.id LIMIT 200").bind(connection).bind(cursor).bind(connection).fetch_all(pool).await?;
+        let rows=sqlx::query("SELECT f.id,f.path,f.file_name,f.hash,f.size,f.added_at,l.cloud_track_id FROM files f LEFT JOIN file_cloud_links l ON l.file_id=f.id AND l.connection_id=? WHERE f.id>? AND (f.cloud_connection_id IS NULL OR f.cloud_connection_id=?) AND f.status='ok' AND f.metadata_status='ok' AND f.missing_since IS NULL ORDER BY f.id LIMIT 200").bind(connection).bind(cursor).bind(connection).fetch_all(pool).await?;
         if rows.is_empty() {
             break;
         }
@@ -71,6 +71,7 @@ pub async fn discover_with_uploads(
                     sha256: hash,
                     size,
                     file_name: row.get("file_name"),
+                    added_at: row.get("added_at"),
                     metadata,
                 };
                 enqueue(
