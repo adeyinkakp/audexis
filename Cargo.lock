@@ -564,6 +564,7 @@ dependencies = [
 name = "audexis_audio"
 version = "0.20.0"
 dependencies = [
+ "audexis_protocol",
  "audioadapter-buffers",
  "cpal",
  "crossbeam-channel",

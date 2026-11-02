@@ -1,10 +1,11 @@
 use std::path::PathBuf;
+pub use audexis_protocol::equalizer;
 pub mod table;
 pub use table::*;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UserConfig {
     pub songs_table: SongsTableConfig,
@@ -18,6 +19,7 @@ pub struct UserConfig {
     pub auto_sync: bool,
     pub cloud_audio_quality: CloudAudioQuality,
     pub playback_cache_mb: u64,
+    pub equalizer: equalizer::Settings,
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -76,6 +78,7 @@ impl Default for UserConfig {
             auto_sync: false,
             cloud_audio_quality: CloudAudioQuality::Original,
             playback_cache_mb: 2048,
+            equalizer: equalizer::Settings::default(),
         }
     }
 }

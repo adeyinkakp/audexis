@@ -7,6 +7,7 @@ use std::sync::{
 pub struct WindowManager {
     player_windows: Mutex<std::collections::HashMap<bool, WindowId>>,
     settings_open: AtomicBool,
+    equalizer_window: Mutex<Option<WindowId>>,
     settings_window: Mutex<Option<WindowId>>,
 }
 
@@ -15,12 +16,22 @@ impl Default for WindowManager {
         Self {
             player_windows: Mutex::new(Default::default()),
             settings_open: AtomicBool::new(false),
+            equalizer_window: Mutex::new(None),
             settings_window: Mutex::new(None),
         }
     }
 }
 
 impl WindowManager {
+    pub fn equalizer_window(&self) -> Option<WindowId> {
+        *self.equalizer_window.lock().ok()?
+    }
+    pub fn set_equalizer_window(&self, id: Option<WindowId>) {
+        if let Ok(mut window) = self.equalizer_window.lock() {
+            *window = id;
+        }
+    }
+
     pub fn player_window(&self, compact: bool) -> Option<WindowId> {
         self.player_windows.lock().ok()?.get(&compact).copied()
     }

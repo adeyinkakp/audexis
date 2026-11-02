@@ -8,6 +8,7 @@ pub(crate) async fn dispatch(
     router: Option<RouterContext>,
 ) -> Result<(), String> {
     match action {
+        AppAction::Equalizer => crate::ui::windows::equalizer::open(services, runtime),
         AppAction::ExpandedPlayer => crate::ui::hooks::request_expanded_player(),
         AppAction::MiniPlayer => crate::ui::windows::player::open(services, runtime, true, None),
         AppAction::LibrarySettings | AppAction::Logs => {

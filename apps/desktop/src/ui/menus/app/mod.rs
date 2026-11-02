@@ -26,6 +26,7 @@ pub enum AppAction {
     Repeat(RepeatMode),
     ExpandedPlayer,
     MiniPlayer,
+    Equalizer,
     Issue,
 }
 mod actions;

@@ -14,6 +14,9 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
     let database_path = dirs.data_local_dir().join("audexis_test.db");
     let user_config_path = dirs.data_local_dir().join("user_config.json");
     let mut user_config = UserConfig::load_config(&user_config_path);
+    if user_config.equalizer.validate().is_err() {
+        user_config.equalizer = Default::default();
+    }
     let db = Database::init(&database_path).await?;
     let credential_config = user_config.clone();
     let mut cloud = match tokio::task::spawn_blocking(move || {
@@ -61,7 +64,7 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
         controls,
         db.pool.clone(),
         tokio::runtime::Handle::current(),
-        audexis_audio::equalizer::Settings::default(),
+        user_config.equalizer,
     ) {
         Ok(audio) => {
             let handle = audio.lock().unwrap().handle();
@@ -114,12 +117,15 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
         .0,
         player,
         audio_error,
+        equalizer_updates: tokio::sync::watch::channel(user_config.equalizer).0,
+        equalizer_error: tokio::sync::watch::channel(None).0,
         artwork: Arc::new(audexis_core::artwork::ArtworkCache::new(db.pool.clone())),
         db,
         user_config_path,
         config_updates: tokio::sync::broadcast::channel(16).0,
         user_config: Mutex::new(user_config),
     });
+    services.start_equalizer_persistence();
     services.install_library_playback();
     services.start_cloud_sync();
     Ok(services)

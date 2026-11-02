@@ -79,6 +79,7 @@ pub(super) fn groups(
             vec![
                 app("Expand Player", AppAction::ExpandedPlayer),
                 app("Open Mini Player", AppAction::MiniPlayer),
+                app("Equalizer…", AppAction::Equalizer),
                 Entry::separator(),
                 enabled(app("Play", AppAction::Play), playing && player.paused),
                 enabled(app("Pause", AppAction::Pause), playing && !player.paused),

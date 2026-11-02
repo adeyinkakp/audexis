@@ -3,6 +3,7 @@ pub use credentials::*;
 
 mod account;
 
+mod equalizer;
 mod playback;
 
 use audexis_audio::{AudioPlayer, PlayerHandle};
@@ -22,6 +23,8 @@ pub struct AppServices {
     pub audio: Option<Arc<Mutex<AudioPlayer>>>,
     pub player: Option<PlayerHandle>,
     pub audio_error: Option<String>,
+    pub equalizer_updates: tokio::sync::watch::Sender<audexis_audio::equalizer::Settings>,
+    pub equalizer_error: tokio::sync::watch::Sender<Option<String>>,
     pub cloud: Mutex<Option<CloudDetails>>,
     pub sync_worker: Mutex<Option<audexis_core::cloud_sync::CloudWorker>>,
     pub sync_status: tokio::sync::watch::Sender<audexis_core::cloud_sync::CloudSyncStatus>,
