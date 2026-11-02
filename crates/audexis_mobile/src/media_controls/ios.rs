@@ -84,6 +84,14 @@ pub(super) fn update(
         }
         let _: () = msg_send![center, setNowPlayingInfo: info];
         let commands: id = msg_send![class!(MPRemoteCommandCenter), sharedCommandCenter];
+        let play: id = msg_send![commands, playCommand];
+        let pause: id = msg_send![commands, pauseCommand];
+        let toggle: id = msg_send![commands, togglePlayPauseCommand];
+        let stop: id = msg_send![commands, stopCommand];
+        let _: () = msg_send![play, setEnabled: YES];
+        let _: () = msg_send![pause, setEnabled: YES];
+        let _: () = msg_send![toggle, setEnabled: YES];
+        let _: () = msg_send![stop, setEnabled: YES];
         let next: id = msg_send![commands, nextTrackCommand];
         let previous: id = msg_send![commands, previousTrackCommand];
         let seek: id = msg_send![commands, changePlaybackPositionCommand];

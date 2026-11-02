@@ -92,7 +92,7 @@ struct LibraryPage: View {
               collections: category == .albums
                 ? MusicCollection.albums(in: tracks)
                 : MusicCollection.artists(in: tracks),
-              selection: $selectedCollection
+              selection: $selectedCollection,
             )
             .padding(.vertical, 8).listRowBackground(Color.clear).listRowSeparator(
               .hidden)
@@ -157,7 +157,7 @@ struct LibraryPage: View {
 
     .navigationDestination(item: $selectedCollection) { collection in
       CloudTrackCollectionPage(
-        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs)
+        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs,)
     }
     .sheet(isPresented: $showQueue) { CloudPlayerView(panel: .queue) }
     .searchable(text: $search, prompt: "Your music")

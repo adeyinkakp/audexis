@@ -28,9 +28,9 @@ struct ServerConnection: Codable {
         || (octets[0] == 169 && octets[1] == 254)
         || (octets[0] == 172 && (16...31).contains(octets[1])))
     let local = host == "localhost" || host == "[::1]" || host.hasSuffix(".local") || privateIPv4
-    guard parts.scheme == "https" || (parts.scheme == "http" && local) else {
-      throw ServerSettingsError.requiresHTTPS
-    }
+    //    guard parts.scheme == "https" || (parts.scheme == "http" && local) else {
+    //      throw ServerSettingsError.requiresHTTPS
+    //    }
     return url
   }
 }

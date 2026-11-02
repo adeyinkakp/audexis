@@ -14,6 +14,10 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     server: {
+      allowedHosts: [
+        "my-macbook-air.tail5c4e82.ts.net",
+        "my-macbook-air.tail5c4e82.ts.net:443",
+      ],
       fs: {
         allow: ["../../shared"],
       },

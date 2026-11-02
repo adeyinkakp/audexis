@@ -14,7 +14,14 @@ import UIKit
 @Observable @MainActor
 final class CloudLibrary {
   private(set) var snapshot = CloudSnapshot() {
-    didSet { playback.updateQueue() }
+    didSet {
+      if let current = playback.track,
+        let latest = snapshot.tracks.first(where: { $0.id == current.id && !$0.deleted })
+      {
+        playback.refreshTrack(latest)
+      }
+      playback.updateQueue()
+    }
   }
   private(set) var isLoading = true
   private(set) var isRefreshing = false

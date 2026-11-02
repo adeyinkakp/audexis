@@ -21,7 +21,10 @@ const allowedOrigins = [
 export const auth = betterAuth({
   baseURL: import.meta.env.DEV
     ? {
-        allowedHosts: allowedOrigins.map((origin) => new URL(origin).host),
+        allowedHosts: [
+          "my-macbook-air.tail5c4e82.ts.net",
+          ...allowedOrigins.map((origin) => new URL(origin).host),
+        ],
         protocol: "auto",
       }
     : configuredOrigin,

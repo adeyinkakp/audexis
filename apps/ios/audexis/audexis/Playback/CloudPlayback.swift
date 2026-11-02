@@ -139,6 +139,16 @@ final class CloudPlayback {
     startPolling()
   }
 
+  func refreshTrack(_ latest: CloudTrack) {
+    guard let current = track, current.id == latest.id,
+      current.revision != latest.revision
+        || current.metadata.tags != latest.metadata.tags
+        || current.metadata.loved != latest.metadata.loved
+    else { return }
+    track = latest
+    updateNowPlaying()
+  }
+
   func play(_ track: CloudTrack, localURL: URL?, media: CloudMedia?) async throws {
     guard self.track?.id == track.id else { return }
     var request = command("player_load")

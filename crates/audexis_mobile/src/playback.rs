@@ -236,6 +236,8 @@ impl MobileCore {
                     &track,
                     request,
                 )?;
+
+                self.playback.controls.select(track)?;
             }
             _ if revision != self.playback.revision => return Ok(self.playback.snapshot()),
             "player_pause" => self.playback.send(PlayerCmd::Pause)?,

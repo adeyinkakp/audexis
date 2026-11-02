@@ -116,10 +116,19 @@ private struct PlayerLyrics {
   init() {}
 
   init(track: CloudTrack) {
-    let synced = track.metadata.tags["lyrics"]?.joined(separator: "\n") ?? ""
-    let unsynced = track.metadata.tags["unsyncedLyrics"]?.joined(separator: "\n") ?? ""
-    let text =
-      synced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? unsynced : synced
+    for key in ["synchronizedLyrics", "lyrics", "unsyncedLyrics"] {
+      for text in track.metadata.tags[key] ?? [] {
+        let candidate = Self(text: text)
+        if !candidate.lines.isEmpty {
+          self = candidate
+          return
+        }
+        if plain.isEmpty { plain = candidate.plain }
+      }
+    }
+  }
+
+  private init(text: String) {
     guard let pattern = try? NSRegularExpression(pattern: #"\[(\d+):(\d{2})(?:\.(\d{1,3}))?\]"#)
     else {
       plain = text

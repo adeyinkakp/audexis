@@ -42,6 +42,11 @@ struct CloudPlayerControls: View {
         Text(error).font(.caption).foregroundStyle(AudexisStyle.destructive)
           .lineLimit(3).accessibilityLabel("Playback error: \(error)")
       }
+      if let error = library.playback.mediaControlsError {
+        Text("System playback controls: \(error)")
+          .font(.caption).foregroundStyle(AudexisStyle.destructive)
+          .lineLimit(3).accessibilityLabel("System playback controls error: \(error)")
+      }
     }
   }
 

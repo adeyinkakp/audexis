@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 pub use audexis_protocol::equalizer;
+use std::path::PathBuf;
 pub mod table;
 pub use table::*;
 

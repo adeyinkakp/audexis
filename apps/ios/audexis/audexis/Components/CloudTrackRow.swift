@@ -21,7 +21,7 @@ struct CloudTrackRow: View {
   }
 
   var body: some View {
-    HStack(spacing: 12) {
+    HStack(spacing: 8) {
       Button {
         if let onPlay {
           onPlay()
@@ -29,12 +29,14 @@ struct CloudTrackRow: View {
           library.play(track, among: context.isEmpty ? [track] : context)
         }
       } label: {
-        HStack(spacing: 12) {
-          CloudArtwork(track: track)
+        HStack(spacing: 10) {
+          CloudArtwork(track: track, size: 36)
           CloudTrackDetails(
-            track: track, highlighted: isCurrent ?? (library.playback.track?.id == track.id), )
+            track: track, titleFont: .subheadline,
+            highlighted: isCurrent ?? (library.playback.track?.id == track.id), )
           Spacer(minLength: 0)
         }
+        .frame(minHeight: 44)
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
@@ -49,7 +51,7 @@ struct CloudTrackRow: View {
       .accessibilityLabel("Options for \(track.title)")
     }
     .contextMenu { actions }
-    .padding(.vertical, 4)
-    .listRowBackground(AudexisStyle.card)
+    .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 12))
+    .listRowBackground(Color.clear)
   }
 }

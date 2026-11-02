@@ -26,7 +26,8 @@ nonisolated struct CloudTrack: Codable, Identifiable, Sendable {
   let deleted: Bool
 
   enum CodingKeys: String, CodingKey {
-    case id, revision, sha256, size, file_name, added_at, format, duration_ms, metadata, artwork, deleted
+    case id, revision, sha256, size, file_name, added_at, format, duration_ms, metadata, artwork,
+      deleted
   }
 
   init(from decoder: Decoder) throws {
@@ -36,7 +37,8 @@ nonisolated struct CloudTrack: Codable, Identifiable, Sendable {
     sha256 = try values.decode(String.self, forKey: .sha256)
     size = try values.decode(Int64.self, forKey: .size)
     file_name = try values.decode(String.self, forKey: .file_name)
-    added_at = try values.decodeIfPresent(Int64.self, forKey: .added_at)
+    added_at =
+      try values.decodeIfPresent(Int64.self, forKey: .added_at)
       ?? Int64(Date().timeIntervalSince1970)
     format = try values.decode(String.self, forKey: .format)
     duration_ms = try values.decodeIfPresent(Int64.self, forKey: .duration_ms)
