@@ -1,5 +1,14 @@
 use super::*;
 
+static HTTP_CLIENT: LazyLock<Result<reqwest::blocking::Client, String>> = LazyLock::new(|| {
+    reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Could not initialize audio streaming".into())
+});
+
 pub(super) struct Fetcher {
     source: Arc<StreamRegistration>,
     client: reqwest::blocking::Client,
@@ -9,6 +18,7 @@ pub(super) struct Fetcher {
     pub(super) buffer: Vec<u8>,
     cache: Option<Cache>,
     next_size: u64,
+    next_position: u64,
     stopping: Arc<AtomicBool>,
 }
 impl Fetcher {
@@ -16,12 +26,7 @@ impl Fetcher {
         source: Arc<StreamRegistration>,
         stopping: Arc<AtomicBool>,
     ) -> Result<Self, String> {
-        let client = reqwest::blocking::Client::builder()
-            .connect_timeout(Duration::from_secs(5))
-            .timeout(Duration::from_secs(15))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .map_err(|_| "Could not initialize audio streaming")?;
+        let client = HTTP_CLIENT.as_ref().map_err(Clone::clone)?.clone();
         let cache = Cache::new(&source.options);
         Ok(Self {
             source,
@@ -32,11 +37,25 @@ impl Fetcher {
             buffer: Vec::new(),
             cache,
             next_size: PAGE,
+            next_position: 0,
             stopping,
         })
     }
     pub(super) fn fill(&mut self) -> io::Result<()> {
+        self.fill_interruptibly(|| false)
+    }
+    pub(super) fn fill_interruptibly(&mut self, interrupted: impl Fn() -> bool) -> io::Result<()> {
+        let cancelled = || self.stopping.load(Ordering::Relaxed) || interrupted();
+        if cancelled() {
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "Playback request superseded",
+            ));
+        }
         let start = self.position / PAGE * PAGE;
+        if start != self.next_position {
+            self.next_size = PAGE;
+        }
         if let Some(cache) = &self.cache {
             if let Some(buffer) = cache.read(start, (self.source.size - start).min(PAGE) as usize) {
                 self.start = start;
@@ -54,7 +73,7 @@ impl Fetcher {
             .saturating_add(self.next_size - 1)
             .min(self.source.size - 1);
         for attempt in 0..2 {
-            if self.stopping.load(Ordering::Relaxed) {
+            if cancelled() {
                 return Err(io::Error::new(
                     io::ErrorKind::Interrupted,
                     "Playback stopped",
@@ -81,7 +100,7 @@ impl Fetcher {
                 }
                 self.url = Some((url, Instant::now()));
             }
-            if self.stopping.load(Ordering::Relaxed) {
+            if cancelled() {
                 return Err(io::Error::new(
                     io::ErrorKind::Interrupted,
                     "Playback stopped",
@@ -164,7 +183,7 @@ impl Fetcher {
                 let mut input = (&mut response).take(expected + 1);
                 let mut bytes = [0u8; 65536];
                 loop {
-                    if self.stopping.load(Ordering::Relaxed) {
+                    if cancelled() {
                         return Err(io::Error::new(
                             io::ErrorKind::Interrupted,
                             "Playback stopped",
@@ -178,6 +197,11 @@ impl Fetcher {
                 }
                 Ok(())
             })();
+            if let Err(error) = &read {
+                if error.kind() == io::ErrorKind::Interrupted {
+                    return read;
+                }
+            }
             if read.is_err() || buffer.len() as u64 != expected {
                 if attempt == 0 {
                     continue;
@@ -191,6 +215,7 @@ impl Fetcher {
                 }
             }
             self.buffer = buffer;
+            self.next_position = end + 1;
             let rate = expected as f64 / issued.elapsed().as_secs_f64().max(0.001);
             self.next_size = ((rate * 0.25) as u64 / PAGE * PAGE).clamp(PAGE, MAX_WINDOW);
             return Ok(());

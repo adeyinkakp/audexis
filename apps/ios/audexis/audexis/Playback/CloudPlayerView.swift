@@ -99,7 +99,6 @@ struct CloudPlayerView: View {
           .contextMenu { CloudTrackActions(track: track) }
         songHeading(track, compact: false)
           .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
-        Spacer(minLength: 0)
       }
       .padding(.horizontal, 20)
       .frame(width: space.size.width, height: space.size.height)

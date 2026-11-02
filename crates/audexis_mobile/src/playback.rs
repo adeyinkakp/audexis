@@ -53,6 +53,7 @@ impl MobilePlayback {
     fn load(
         &mut self,
         library: &CoreLibrary,
+        cache_dir: std::path::PathBuf,
         track: &Track,
         request: &Value,
     ) -> Result<(), String> {
@@ -76,12 +77,16 @@ impl MobilePlayback {
                 "m4a".into()
             };
             let url = media.url;
+            let cache_key = format!("{}:{}:{}", media.sha256, media.quality, media.size);
             let source = StreamRegistration::with_options(
                 media.size as u64,
                 track.duration_ms.unwrap_or(0).max(0) as u64,
                 extension,
                 StreamOptions {
-                    prefetch: false,
+                    cache_dir: Some(cache_dir),
+                    cache_key,
+                    cache_bytes: 256 * 1024 * 1024,
+                    prefetch: true,
                     ..Default::default()
                 },
                 move || Ok(url.clone()),
@@ -233,6 +238,7 @@ impl MobileCore {
                 }
                 self.playback.load(
                     self.library.as_ref().ok_or("Library is not open")?,
+                    self.root()?.join("stream-cache"),
                     &track,
                     request,
                 )?;

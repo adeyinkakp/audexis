@@ -21,6 +21,7 @@ pub(super) enum RemoteAction {
     Stop,
     Next,
     Previous,
+    ToggleFavorite,
     Seek { position_ms: u64 },
     Skip { offset_ms: i64 },
 }
@@ -38,6 +39,8 @@ struct Metadata {
 pub(super) struct MobileMediaControls {
     controls: Option<MediaControls>,
     events: Option<Receiver<MediaControlEvent>>,
+    #[cfg(target_os = "ios")]
+    favorite_events: Option<Receiver<()>>,
     track: Option<Track>,
     artwork: Option<PathBuf>,
     metadata: Option<Metadata>,
@@ -65,7 +68,12 @@ impl MobileMediaControls {
                 })
                 .map_err(|error| error.to_string())?;
             #[cfg(target_os = "ios")]
-            ios::attach_stop(stop_sender);
+            {
+                ios::attach_stop(stop_sender);
+                let (sender, events) = mpsc::sync_channel(16);
+                ios::attach_favorite(sender);
+                self.favorite_events = Some(events);
+            }
             self.controls = Some(controls);
             self.events = Some(events);
         }
@@ -139,12 +147,20 @@ impl MobileMediaControls {
             })
             .map_err(|error| error.to_string())?;
         #[cfg(target_os = "ios")]
-        ios::update(playing, position_ms, duration, self.index, self.count);
+        ios::update(
+            playing,
+            position_ms,
+            duration,
+            self.index,
+            self.count,
+            track.metadata.loved,
+        );
         Ok(())
     }
 
     pub(super) fn drain(&self) -> Vec<RemoteAction> {
-        self.events
+        let actions = self
+            .events
             .iter()
             .flat_map(|events| events.try_iter())
             .filter_map(|event| match event {
@@ -176,7 +192,19 @@ impl MobileMediaControls {
                 }
                 _ => None,
             })
-            .collect()
+            .collect();
+        #[cfg(target_os = "ios")]
+        let actions = {
+            let mut actions: Vec<RemoteAction> = actions;
+            actions.extend(
+                self.favorite_events
+                    .iter()
+                    .flat_map(|events| events.try_iter())
+                    .map(|_| RemoteAction::ToggleFavorite),
+            );
+            actions
+        };
+        actions
     }
 
     pub(super) fn clear(&mut self) {
@@ -191,6 +219,10 @@ impl MobileMediaControls {
         #[cfg(target_os = "ios")]
         ios::clear();
         self.events = None;
+        #[cfg(target_os = "ios")]
+        {
+            self.favorite_events = None;
+        }
         self.track = None;
         self.artwork = None;
         self.metadata = None;

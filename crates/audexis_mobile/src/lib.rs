@@ -1,4 +1,8 @@
 mod library;
+#[cfg(not(target_os = "ios"))]
+mod media_controls;
+#[cfg(target_os = "ios")]
+#[path = "media_controls/ios.rs"]
 mod media_controls;
 mod persistence;
 mod playback;

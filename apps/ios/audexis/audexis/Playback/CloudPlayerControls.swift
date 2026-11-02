@@ -11,7 +11,14 @@ struct CloudPlayerControls: View {
   @Environment(CloudLibrary.self) private var library
 
   var body: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 8) {
+      if let quality = library.playback.audioQuality {
+        Text(quality)
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .accessibilityLabel("Audio quality: \(quality)")
+      }
       CloudPlayerSeekBar(
         position: library.playback.position, duration: library.playback.duration,
       ) {

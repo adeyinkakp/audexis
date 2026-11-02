@@ -11,6 +11,12 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+static WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+pub fn wake() {
+    WAKE.notify_one();
+}
+
 fn input_root() -> PathBuf {
     std::env::var("AUDEXIS_VARIANT_INPUT_DIR")
         .unwrap_or_else(|_| "./data/variant-input".into())
@@ -67,9 +73,15 @@ pub async fn run(state: Arc<AppState>) {
     if state.ffmpeg.is_none() {
         return;
     }
-    let mut tick = tokio::time::interval(Duration::from_secs(10));
+    let mut wait = false;
     loop {
-        tick.tick().await;
+        if wait {
+            tokio::select! {
+                _ = WAKE.notified() => {},
+                _ = tokio::time::sleep(Duration::from_secs(10)) => {},
+            }
+        }
+        wait = true;
         if crate::storage::cooldown_error().is_some() {
             continue;
         }
@@ -77,6 +89,7 @@ pub async fn run(state: Arc<AppState>) {
             .fetch_optional(&state.db).await;
         match row {
             Ok(Some(row)) => {
+                wait = false;
                 let hash: String = row.get("object_hash");
                 let quality: String = row.get("quality");
                 let attempts: i32 = row.get("attempts");

@@ -7,7 +7,9 @@
 
 import AVFAudio
 import Foundation
+import MediaPlayer
 import Observation
+import UIKit
 
 @Observable @MainActor
 final class CloudPlayback {
@@ -16,15 +18,18 @@ final class CloudPlayback {
   private(set) var isLoading = false
   private(set) var position: Double = 0
   private(set) var duration: Double = 0
+  private(set) var audioQuality: String?
   var error: String?
   private(set) var mediaControlsError: String?
   @ObservationIgnored var onNext: (() -> Void)?
   @ObservationIgnored var onPrevious: (() -> Void)?
   @ObservationIgnored var onStop: (() -> Void)?
+  @ObservationIgnored var onToggleFavorite: ((CloudTrack) -> Void)?
   @ObservationIgnored var onResumeQueue: (() -> Void)?
   @ObservationIgnored private let core: MobileCore
   @ObservationIgnored private let audioSession = IOSAudioSession.shared
   private static var revisionCounter: UInt64 = 0
+  private static weak var systemPlayer: CloudPlayback?
   @ObservationIgnored private var sessionRevision: UInt64 = 0
   @ObservationIgnored private var wantsPlayback = false
   @ObservationIgnored private var hasLoaded = false
@@ -34,6 +39,10 @@ final class CloudPlayback {
   @ObservationIgnored private var pollingTask: Task<Void, Never>?
   @ObservationIgnored private var notifications: [NSObjectProtocol] = []
   @ObservationIgnored private var resumeAfterInterruption = false
+  @ObservationIgnored private var remoteTargets: [(MPRemoteCommand, Any)] = []
+  @ObservationIgnored private var queueIndex: Int?
+  @ObservationIgnored private var queueCount = 0
+  @ObservationIgnored private var systemArtwork: MPMediaItemArtwork?
 
   init(core: MobileCore) {
     self.core = core
@@ -115,6 +124,8 @@ final class CloudPlayback {
     completionHandled = false
     preparedCommand = nil
     enqueue(command("player_stop"))
+    audioQuality = nil
+    if self.track?.id != track.id { systemArtwork = nil }
     self.track = track
     position = 0
     duration = Double(track.duration_ms ?? 0) / 1000
@@ -122,6 +133,7 @@ final class CloudPlayback {
     mediaControlsError = nil
     isLoading = true
     isPlaying = false
+    registerRemoteCommands()
     updateNowPlaying()
     startPolling()
   }
@@ -135,6 +147,7 @@ final class CloudPlayback {
 
   func refreshMediaControls() {
     guard track != nil else { return }
+    registerRemoteCommands()
     updateNowPlaying()
     startPolling()
   }
@@ -151,6 +164,21 @@ final class CloudPlayback {
 
   func play(_ track: CloudTrack, localURL: URL?, media: CloudMedia?) async throws {
     guard self.track?.id == track.id else { return }
+    let sourceFormat = (track.file_name as NSString).pathExtension.uppercased()
+    let originalQuality = sourceFormat.isEmpty ? "Original" : "\(sourceFormat) · Original"
+    if let media {
+      switch media.quality {
+      case "aac_128": audioQuality = "AAC · 128 kbps"
+      case "aac_256": audioQuality = "AAC · 256 kbps"
+      default: audioQuality = originalQuality
+      }
+    } else if let localURL {
+      // Download filenames contain the actual audio hash. Converted copies
+      // have a different hash; older downloads do not retain their bitrate.
+      audioQuality =
+        localURL.deletingPathExtension().lastPathComponent == track.sha256
+        ? originalQuality : "AAC"
+    }
     var request = command("player_load")
     request.id = track.id
     request.path = localURL?.path
@@ -189,6 +217,7 @@ final class CloudPlayback {
           if state.duration_ms > 0 { self.duration = Double(state.duration_ms) / 1000 }
           self.isPlaying = state.is_playing && self.wantsPlayback
           self.isLoading = state.is_loading && self.wantsPlayback
+          self.updateNowPlaying()
           if let error = state.error { self.error = error }
           if let error = state.controls_error { self.mediaControlsError = error }
           if state.remote_actions.contains(where: {
@@ -264,28 +293,118 @@ final class CloudPlayback {
     duration = 0
     isPlaying = false
     isLoading = false
+    audioQuality = nil
+    systemArtwork = nil
+    updateNowPlaying()
     Task {
       await stopped.value
       await audioSession.deactivate(revision: revision)
     }
   }
   private func updateNowPlaying() {
-    guard let track else { return }
-    var request = command("player_metadata")
-    request.id = track.id
-    enqueue(request)
+    guard Self.systemPlayer === self else { return }
+    updateRemoteAvailability()
+    let center = MPNowPlayingInfoCenter.default()
+    guard let track else {
+      center.nowPlayingInfo = nil
+      return
+    }
+    var info: [String: Any] = [
+      MPMediaItemPropertyTitle: track.title,
+      MPMediaItemPropertyArtist: track.artist,
+      MPMediaItemPropertyAlbumTitle: track.album,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
+      MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+      MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
+      MPNowPlayingInfoPropertyIsLiveStream: false,
+      MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+      MPNowPlayingInfoPropertyPlaybackQueueCount: queueCount,
+    ]
+    if duration > 0 { info[MPMediaItemPropertyPlaybackDuration] = duration }
+    if let queueIndex { info[MPNowPlayingInfoPropertyPlaybackQueueIndex] = queueIndex }
+    if let systemArtwork { info[MPMediaItemPropertyArtwork] = systemArtwork }
+    center.nowPlayingInfo = info
   }
 
-  func updateQueue() {
-    if track != nil { enqueue(command("player_queue")) }
+  func updateQueue(index: Int?, count: Int) {
+    queueIndex = index
+    queueCount = count
+    updateNowPlaying()
   }
 
   func updateArtwork(trackID: String, file: URL?) {
-    guard track?.id == trackID, let file else { return }
-    var request = command("player_artwork")
-    request.id = trackID
-    request.path = file.path
-    enqueue(request)
+    guard track?.id == trackID, let file,
+      let image = UIImage(contentsOfFile: file.path)
+    else { return }
+    systemArtwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    updateNowPlaying()
+  }
+
+  private func registerRemoteCommands() {
+    Self.systemPlayer = self
+    guard remoteTargets.isEmpty else { return }
+    let center = MPRemoteCommandCenter.shared()
+    register(center.playCommand) { $0.resume() }
+    register(center.pauseCommand) { $0.pause() }
+    register(center.togglePlayPauseCommand) { $0.toggle() }
+    register(center.stopCommand) { player in
+      if let stop = player.onStop { stop() } else { player.stop() }
+    }
+    register(center.nextTrackCommand) { player in
+      player.completionHandled = true
+      player.onNext?()
+    }
+    register(center.previousTrackCommand) { player in
+      player.completionHandled = true
+      player.onPrevious?()
+    }
+    register(center.likeCommand) { player in
+      if let track = player.track { player.onToggleFavorite?(track) }
+    }
+    center.likeCommand.localizedTitle = "Favorite"
+    center.likeCommand.localizedShortTitle = "Favorite"
+    let seek = center.changePlaybackPositionCommand
+    let target = seek.addTarget { [weak self] event in
+      guard let event = event as? MPChangePlaybackPositionCommandEvent,
+        event.positionTime.isFinite
+      else { return .commandFailed }
+      let position = event.positionTime
+      Task { @MainActor [weak self] in
+        guard let self, Self.systemPlayer === self else { return }
+        self.seek(position)
+      }
+      return .success
+    }
+    remoteTargets.append((seek, target))
+    updateRemoteAvailability()
+  }
+
+  private func register(
+    _ command: MPRemoteCommand,
+    action: @escaping @MainActor (CloudPlayback) -> Void,
+  ) {
+    let target = command.addTarget { [weak self] _ in
+      Task { @MainActor [weak self] in
+        guard let self, Self.systemPlayer === self, self.track != nil else { return }
+        action(self)
+      }
+      return .success
+    }
+    remoteTargets.append((command, target))
+  }
+
+  private func updateRemoteAvailability() {
+    let center = MPRemoteCommandCenter.shared()
+    let selected = track != nil
+    center.playCommand.isEnabled = selected
+    center.pauseCommand.isEnabled = selected
+    center.togglePlayPauseCommand.isEnabled = selected
+    center.stopCommand.isEnabled = selected
+    center.nextTrackCommand.isEnabled = selected && queueIndex.map { $0 + 1 < queueCount } == true
+    center.previousTrackCommand.isEnabled = selected
+    center.changePlaybackPositionCommand.isEnabled = selected && hasLoaded && duration > 0
+    center.likeCommand.isEnabled = selected && onToggleFavorite != nil
+    center.likeCommand.isActive = track?.metadata.loved == true
   }
 
   private func handleRemote(_ action: MobileRemoteAction) {
@@ -294,6 +413,8 @@ final class CloudPlayback {
     case "play": resume()
     case "pause": pause()
     case "toggle": toggle()
+    case "toggle_favorite":
+      if let track { onToggleFavorite?(track) }
     case "stop":
       if let onStop { onStop() } else { stop() }
     case "next": onNext?()
@@ -308,7 +429,15 @@ final class CloudPlayback {
 
   func tearDown() {
     stop()
+    for (command, target) in remoteTargets { command.removeTarget(target) }
+    remoteTargets.removeAll()
+    if Self.systemPlayer === self { Self.systemPlayer = nil }
     for token in notifications { NotificationCenter.default.removeObserver(token) }
     notifications.removeAll()
+  }
+
+  isolated deinit {
+    for (command, target) in remoteTargets { command.removeTarget(target) }
+    for token in notifications { NotificationCenter.default.removeObserver(token) }
   }
 }

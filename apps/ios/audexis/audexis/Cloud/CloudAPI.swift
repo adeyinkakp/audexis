@@ -78,7 +78,9 @@ actor CloudAPI {
     return try JSONDecoder().decode(T.self, from: data)
   }
   func playableMedia(_ plan: MediaPlan) async throws -> CloudMedia {
-    for attempt in 0..<30 {
+    let deadline = ContinuousClock.now.advanced(by: .seconds(60))
+    var delay = 250
+    while ContinuousClock.now < deadline {
       try Task.checkCancellation()
       let media: CloudMedia = try await get(plan.path)
       guard let url = URL(string: media.url), ["http", "https"].contains(url.scheme),
@@ -92,7 +94,8 @@ actor CloudAPI {
           "The server could not provide the selected audio quality. Choose Original or try a different quality."
         )
       }
-      if attempt < 29 { try await Task.sleep(for: .seconds(2)) }
+      try await Task.sleep(for: .milliseconds(delay))
+      delay = min(delay * 2, 1000)
     }
     throw CloudError.message("The server is still preparing this song. Try again later.")
   }

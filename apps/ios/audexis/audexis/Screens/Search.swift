@@ -61,7 +61,7 @@ struct SearchPage: View {
     .searchable(text: $query, prompt: "Songs, artists, albums")
     .navigationDestination(item: $selectedCollection) { collection in
       CloudTrackCollectionPage(
-        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs,)
+        title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs, )
     }
     .autocorrectionDisabled()
   }

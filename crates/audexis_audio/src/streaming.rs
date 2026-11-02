@@ -14,8 +14,9 @@ use symphonia::core::io::MediaSource;
 mod cache;
 use cache::Cache;
 use std::sync::atomic::{AtomicBool, Ordering};
-const PAGE: u64 = 256 * 1024;
-const MAX_WINDOW: u64 = 4 * 1024 * 1024;
+const PAGE: u64 = 64 * 1024;
+const MAX_WINDOW: u64 = 512 * 1024;
+
 #[derive(Clone)]
 pub struct StreamOptions {
     pub cache_dir: Option<std::path::PathBuf>,
@@ -169,7 +170,7 @@ impl HttpSource {
                     {
                         if let Some(next) = next.filter(|next| *next < size) {
                             fetcher.position = next;
-                            if fetcher.fill().is_ok() {
+                            if fetcher.fill_interruptibly(|| !demands.is_empty()).is_ok() {
                                 ahead = Some(Window {
                                     start: fetcher.start,
                                     bytes: std::mem::take(&mut fetcher.buffer),

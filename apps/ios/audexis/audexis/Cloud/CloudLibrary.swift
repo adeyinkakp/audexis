@@ -20,7 +20,7 @@ final class CloudLibrary {
       {
         playback.refreshTrack(latest)
       }
-      playback.updateQueue()
+      playback.updateQueue(index: snapshot.current, count: snapshot.queue.count)
     }
   }
   private(set) var isLoading = true
@@ -88,6 +88,7 @@ final class CloudLibrary {
       snapshot = restored
       isLoading = false
       playback.onStop = { [weak self] in self?.stopPlayback() }
+      playback.onToggleFavorite = { [weak self] track in self?.toggleFavorite(track) }
       playback.onNext = { [weak self] in self?.advance() }
       playback.onResumeQueue = { [weak self] in self?.prepareCurrent() }
       playback.onPrevious = { [weak self] in
@@ -239,6 +240,23 @@ final class CloudLibrary {
         try Task.checkCancellation()
         guard !closed, playbackGeneration == generation else { return }
         try await playback.play(track, localURL: localURL, media: media)
+        // Request the next song's selected quality while this one plays. This
+        // starts server-side conversion ahead of time without downloading audio.
+        if let index = snapshot.current, index + 1 < snapshot.queue.count,
+          snapshot.downloads[snapshot.queue[index + 1]] == nil
+        {
+          do {
+            let nextPlan: MediaPlan = try await core.call(
+              .init(
+                op: "media_plan", id: snapshot.queue[index + 1], quality: streamingQuality.rawValue,
+              ))
+            try Task.checkCancellation()
+            guard !closed, playbackGeneration == generation else { return }
+            let _: CloudMedia = try await api.get(nextPlan.path)
+          } catch {
+            // Preparation is optional; a failure must not interrupt this song.
+          }
+        }
       } catch is CancellationError {} catch {
         if !closed && playbackGeneration == generation {
           playback.error = error.localizedDescription
