@@ -55,6 +55,7 @@ impl CloudSyncContext {
                         playlist_id: playlist.id.clone(),
                         name: playlist.name.clone(),
                         track_ids: playlist.track_ids.clone(),
+                        smart_rules: playlist.smart_rules.clone(),
                     },
                 },
             },

@@ -5,6 +5,7 @@ mod error;
 mod ingest;
 mod router;
 mod routes;
+mod smart_playlists;
 mod state;
 mod storage;
 mod transfer;

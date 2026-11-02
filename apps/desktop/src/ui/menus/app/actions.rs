@@ -25,7 +25,7 @@ pub(crate) async fn dispatch(
                 .launch_window(
                     WindowConfig::new_app(NewPlaylist { services, runtime })
                         .with_title("New Playlist")
-                        .with_size(420., 210.),
+                        .with_size(720., 650.),
                 )
                 .await;
         }

@@ -16,20 +16,36 @@ impl App for NewPlaylist {
         crate::ui::theme::use_app_theme(self.services.clone());
         let name = use_state(String::new);
         let platform = Platform::get();
+        let cancel_platform = platform.clone();
         rect()
             .expanded()
+            .content(Content::Flex)
             .theme_background()
             .theme_color()
             .padding(24.)
             .spacing(16.)
-            .child(label().text("New Playlist").font_size(20.))
-            .child(PlaylistForm {
-                name,
-                on_created: EventHandler::new(move |_| {
-                    let close = platform.clone();
-                    platform.with_window(None, move |w| close.close_window(w.id()));
-                }),
-                on_cancel: None,
-            })
+            .child(
+                label()
+                    .text("New playlist")
+                    .font_size(20.)
+                    .font_weight(FontWeight::BOLD),
+            )
+            .child(
+                ScrollView::new()
+                    .width(Size::fill())
+                    .height(Size::flex(1.))
+                    .child(PlaylistForm {
+                        playlist_id: None,
+                        name,
+                        on_saved: EventHandler::new(move |_| {
+                            let close = platform.clone();
+                            platform.with_window(None, move |w| close.close_window(w.id()));
+                        }),
+                        on_cancel: Some(EventHandler::new(move |_| {
+                            let close = cancel_platform.clone();
+                            cancel_platform.with_window(None, move |w| close.close_window(w.id()));
+                        })),
+                    }),
+            )
     }
 }

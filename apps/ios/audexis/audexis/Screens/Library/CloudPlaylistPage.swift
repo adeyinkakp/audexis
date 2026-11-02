@@ -18,7 +18,10 @@ struct CloudPlaylistPage: View {
       !downloadedOnly || library.snapshot.downloads[$0] != nil
     }
     CloudTrackCollectionPage(
-      title: current.name, subtitle: downloadedOnly ? "Downloaded playlist" : "Playlist",
+      title: current.name,
+      subtitle: current.smart_rules != nil
+        ? (downloadedOnly ? "Downloaded smart playlist" : "Smart playlist")
+        : (downloadedOnly ? "Downloaded playlist" : "Playlist"),
       trackIDs: ids, )
   }
 }

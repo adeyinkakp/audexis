@@ -1,11 +1,13 @@
 use crate::{services::AppServices, ui::theme::use_audexis_colors};
+use audexis_core::cloud_sync::protocol::SmartPlaylist;
 use freya::prelude::*;
 use std::sync::Arc;
 
 #[derive(PartialEq)]
 pub(crate) struct PlaylistForm {
+    pub playlist_id: Option<i64>,
     pub name: State<String>,
-    pub on_created: EventHandler<(i64, String)>,
+    pub on_saved: EventHandler<(i64, String)>,
     pub on_cancel: Option<EventHandler<()>>,
 }
 impl Component for PlaylistForm {
@@ -13,44 +15,132 @@ impl Component for PlaylistForm {
         let services = use_consume::<Arc<AppServices>>();
         let runtime = use_consume::<tokio::runtime::Handle>();
         let colors = use_audexis_colors();
-        let name = self.name;
+        let mut name = self.name;
+        let id = self.playlist_id;
+        let mut loaded = use_state(|| id.is_none());
         let mut busy = use_state(|| false);
         let mut error = use_state(|| None::<String>);
-        let created = self.on_created.clone();
+        let saved = self.on_saved.clone();
+        let mut smart = use_state(|| false);
+        let mut rules = use_state(SmartPlaylist::default);
+        let mut cloud = use_state(|| false);
+        let db = services.db.clone();
+        let rt = runtime.clone();
+        use_side_effect_with_deps(&id, move |id| {
+            if let Some(id) = *id {
+                let db = db.clone();
+                let rt = rt.clone();
+                spawn(async move {
+                    match rt
+                        .spawn(async move { db.playlist_settings(id).await })
+                        .await
+                    {
+                        Ok(Ok(settings)) => {
+                            name.set(settings.name);
+                            smart.set(settings.smart_rules.is_some());
+                            cloud.set(settings.cloud_enabled);
+                            rules.set(settings.smart_rules.unwrap_or_default());
+                            loaded.set(true);
+                        }
+                        Ok(Err(e)) => error.set(Some(e)),
+                        Err(e) => error.set(Some(e.to_string())),
+                    }
+                });
+            }
+        });
+        let disabled = *busy.read() || !*loaded.read();
         rect()
             .width(Size::fill())
-            .spacing(12.)
+            .spacing(18.)
             .child(
-                Input::new(name)
+                rect()
                     .width(Size::fill())
-                    .placeholder("Playlist name")
-                    .enabled(!*busy.read()),
+                    .spacing(8.)
+                    .child(label().text("Name").font_size(13.))
+                    .child(
+                        Input::new(name)
+                            .width(Size::fill())
+                            .placeholder("Playlist name")
+                            .enabled(!disabled),
+                    ),
+            )
+            .maybe_child(
+                (*loaded.read()).then(|| super::smart_playlist_editor::PlaylistOptions {
+                    smart,
+                    rules,
+                    cloud,
+                    busy: *busy.read(),
+                }),
+            )
+            .maybe_child((!*loaded.read() && error.read().is_none()).then(|| {
+                label()
+                    .text("Loading playlist…")
+                    .color(colors.muted_foreground)
+            }))
+            .maybe_child(
+                error
+                    .read()
+                    .clone()
+                    .map(|e| label().text(e).color(colors.destructive)),
             )
             .child(
                 rect()
+                    .width(Size::fill())
                     .horizontal()
+                    .content(Content::Flex)
                     .spacing(8.)
+                    .child(rect().width(Size::flex(1.)))
+                    .maybe_child(self.on_cancel.clone().map(|cancel| {
+                        Button::new()
+                            .outline()
+                            .enabled(!*busy.read())
+                            .child("Cancel")
+                            .on_press(move |_| cancel.call(()))
+                    }))
                     .child(
                         Button::new()
                             .filled()
-                            .child("Create")
-                            .enabled(!*busy.read() && !name.read().trim().is_empty())
+                            .child(if *busy.read() {
+                                "Saving…"
+                            } else if id.is_some() {
+                                "Save changes"
+                            } else {
+                                "Create playlist"
+                            })
+                            .enabled(!disabled && !name.read().trim().is_empty())
                             .on_press(move |_| {
                                 if *busy.peek() {
                                     return;
+                                }
+                                let spec = (*smart.peek()).then(|| rules.peek().clone());
+                                if let Some(spec) = &spec {
+                                    if let Err(e) = spec.validate() {
+                                        error.set(Some(e));
+                                        return;
+                                    }
                                 }
                                 busy.set(true);
                                 error.set(None);
                                 let services = services.clone();
                                 let runtime = runtime.clone();
-                                let created = created.clone();
+                                let saved = saved.clone();
                                 let title = name.peek().trim().to_string();
+                                let sync = *cloud.peek();
                                 spawn(async move {
                                     let db = services.db.clone();
                                     let requested = title.clone();
                                     let result = runtime
                                         .spawn(async move {
-                                            db.create_collection_playlist(&requested).await
+                                            match id {
+                                                Some(id) => {
+                                                    db.update_playlist(id, &requested, spec, sync)
+                                                        .await?;
+                                                    Ok(id)
+                                                }
+                                                None => {
+                                                    db.create_playlist(&requested, spec, sync).await
+                                                }
+                                            }
                                         })
                                         .await
                                         .map_err(|e| e.to_string())
@@ -60,26 +150,13 @@ impl Component for PlaylistForm {
                                         Ok(id) => {
                                             services.library_files.publish_changed(vec![]);
                                             services.sync_edits();
-                                            created.call((id, title));
+                                            saved.call((id, title));
                                         }
-                                        Err(e) => error
-                                            .set(Some(format!("Could not create playlist: {e}"))),
+                                        Err(e) => error.set(Some(e)),
                                     }
                                 });
                             }),
-                    )
-                    .maybe_child(self.on_cancel.clone().map(|cancel| {
-                        Button::new()
-                            .enabled(!*busy.read())
-                            .child("Cancel")
-                            .on_press(move |_| cancel.call(()))
-                    })),
-            )
-            .maybe_child(
-                error
-                    .read()
-                    .clone()
-                    .map(|e| label().text(e).color(colors.destructive)),
+                    ),
             )
     }
 }

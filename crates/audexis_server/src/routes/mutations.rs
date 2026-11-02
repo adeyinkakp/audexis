@@ -82,6 +82,7 @@ pub async fn mutate(
             playlist_id,
             name,
             track_ids,
+            smart_rules,
         } => {
             if uuid::Uuid::parse_str(playlist_id).is_err()
                 || name.trim().is_empty()
@@ -95,11 +96,16 @@ pub async fn mutate(
                 existing.as_ref().map(|p| p.revision).unwrap_or(0),
                 request.base_revision,
             )?;
+            let track_ids = if let Some(rules) = smart_rules {
+                crate::smart_playlists::members(&mut tx, &account.user_id, rules).await?
+            } else {
+                track_ids.clone()
+            };
             let ids: Vec<String> = sqlx::query_scalar(
                 "SELECT id FROM cloud_tracks WHERE user_id=$1 AND id=ANY($2) AND NOT deleted",
             )
             .bind(&account.user_id)
-            .bind(track_ids)
+            .bind(&track_ids)
             .fetch_all(&mut *tx)
             .await?;
             if track_ids.iter().any(|id| !ids.contains(id)) {
@@ -110,6 +116,7 @@ pub async fn mutate(
                 revision: request.base_revision + 1,
                 name: name.clone(),
                 track_ids: track_ids.clone(),
+                smart_rules: smart_rules.clone(),
                 deleted: false,
             };
             let updated = sqlx::query("INSERT INTO cloud_playlists(id,user_id,document) VALUES ($1,$2,$3) ON CONFLICT(id) DO UPDATE SET document=excluded.document WHERE cloud_playlists.user_id=excluded.user_id AND NOT cloud_playlists.deleted").bind(playlist_id).bind(&account.user_id).bind(serde_json::to_value(&playlist)?).execute(&mut *tx).await? ;

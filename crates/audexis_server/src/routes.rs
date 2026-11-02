@@ -53,6 +53,7 @@ pub async fn changes(
     if cursor.after < 0 {
         return Err(Error::bad("Invalid sync cursor"));
     }
+    crate::smart_playlists::refresh(&state, &account.user_id).await?;
     let rows = sqlx::query(
         "WITH candidates AS (SELECT seq,value FROM cloud_changes WHERE user_id=$1 AND seq>$2 ORDER BY seq LIMIT 200), bounded AS (SELECT seq,value,sum(octet_length(value::text)+64) OVER (ORDER BY seq) AS bytes FROM candidates), page AS (SELECT seq,value FROM bounded WHERE bytes<=$3) SELECT p.seq,p.value,EXISTS(SELECT 1 FROM cloud_changes WHERE user_id=$1 AND seq>COALESCE((SELECT max(seq) FROM page),$2)) AS has_more FROM (VALUES (1)) AS anchor(dummy) LEFT JOIN page p ON TRUE ORDER BY p.seq",
     )

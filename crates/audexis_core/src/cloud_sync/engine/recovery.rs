@@ -32,13 +32,15 @@ impl CloudSyncContext {
                 .await?;
                 if let Some(doc) = doc {
                     let remote: Playlist = serde_json::from_str(&doc)?;
-                    let name: Option<String> =
-                        sqlx::query_scalar("SELECT name FROM playlists WHERE id=?")
+                    let settings: Option<(String, Option<String>)> =
+                        sqlx::query_as("SELECT name,smart_rules FROM playlists WHERE id=?")
                             .bind(id)
                             .fetch_optional(&mut *tx)
                             .await?;
                     let ids:Vec<Option<String>>=sqlx::query_scalar("SELECT l.cloud_track_id FROM playlist_tracks pt LEFT JOIN file_cloud_links l ON l.file_id=pt.file_id AND l.connection_id=? WHERE pt.playlist_id=? ORDER BY pt.ord").bind(&self.connection_id).bind(id).fetch_all(&mut *tx).await?;
-                    sqlx::query("UPDATE cloud_playlist_links SET snapshot=? WHERE connection_id=? AND playlist_id=?").bind(serde_json::to_string(&(name.unwrap_or_default(),ids.into_iter().flatten().collect::<Vec<_>>()))?).bind(&self.connection_id).bind(id).execute(&mut *tx).await?;
+                    let (name, encoded) = settings.unwrap_or_default();
+                    let rules = encoded.map(|s| serde_json::from_str(&s)).transpose()?;
+                    sqlx::query("UPDATE cloud_playlist_links SET snapshot=? WHERE connection_id=? AND playlist_id=?").bind(store::playlist_snapshot(&name, &ids.into_iter().flatten().collect::<Vec<_>>(), &rules)?).bind(&self.connection_id).bind(id).execute(&mut *tx).await?;
                     restore_playlist = Some(Change {
                         cursor: 0,
                         value: ChangeValue::Playlist(remote),

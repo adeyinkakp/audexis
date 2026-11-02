@@ -47,7 +47,7 @@ impl Database {
             all_loved &= loved;
         }
         let playlists =
-            sqlx::query_as("SELECT id,name FROM library_playlists ORDER BY name COLLATE NOCASE,id")
+            sqlx::query_as("SELECT id,name FROM library_playlists WHERE smart_rules IS NULL ORDER BY name COLLATE NOCASE,id")
                 .fetch_all(&self.pool)
                 .await?;
         let disk_paths = self.library_disk_paths(&ids).await?;
@@ -92,6 +92,7 @@ impl Database {
         .bind(playlist)
         .fetch_one(&mut *tx)
         .await?;
+        super::smart_playlists::ensure_manual(&mut tx, playlist).await?;
         for id in unique(ids) {
             sqlx::query("INSERT INTO playlist_tracks(playlist_id,file_id,ord) VALUES (?,?,?)")
                 .bind(playlist)
@@ -109,6 +110,7 @@ impl Database {
     ) -> Result<(), sqlx::Error> {
         let mut transaction = self.pool.begin().await?;
         for &(playlist, ord, id) in entries {
+            super::smart_playlists::ensure_manual(&mut transaction, playlist).await?;
             let result = sqlx::query(
                 "DELETE FROM playlist_tracks WHERE playlist_id=? AND ord=? AND file_id=?",
             )
@@ -129,17 +131,19 @@ impl Database {
         ord: i64,
         id: i64,
     ) -> Result<(), sqlx::Error> {
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        super::smart_playlists::ensure_manual(&mut tx, playlist).await?;
         let result =
             sqlx::query("DELETE FROM playlist_tracks WHERE playlist_id=? AND ord=? AND file_id=?")
                 .bind(playlist)
                 .bind(ord)
                 .bind(id)
-                .execute(&self.pool)
+                .execute(&mut *tx)
                 .await?;
         if result.rows_affected() == 0 {
             return Err(sqlx::Error::RowNotFound);
         }
-        Ok(())
+        tx.commit().await
     }
     pub async fn album_for_track(&self, id: i64) -> Result<Option<Collection>, sqlx::Error> {
         let entry=sqlx::query_as::<_,(String,String)>("SELECT COALESCE((SELECT value FROM metadata_texts WHERE file_id=f.id AND key='album' AND TRIM(value)<>'' ORDER BY ord LIMIT 1),''),COALESCE((SELECT value FROM metadata_texts WHERE file_id=f.id AND key IN ('albumArtist','artist') AND TRIM(value)<>'' ORDER BY CASE key WHEN 'albumArtist' THEN 0 ELSE 1 END,ord LIMIT 1),'') FROM files f WHERE f.id=? AND f.missing_since IS NULL").bind(id).fetch_optional(&self.pool).await?;

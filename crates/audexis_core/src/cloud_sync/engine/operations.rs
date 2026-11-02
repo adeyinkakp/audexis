@@ -156,11 +156,12 @@ pub(super) async fn process(
             if let (Some(playlist_id), ChangeValue::Playlist(playlist)) =
                 (playlist_id, &result.value)
             {
-                let exists: bool =
-                    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM playlists WHERE id=?)")
-                        .bind(*playlist_id)
-                        .fetch_one(&mut *tx)
-                        .await?;
+                let exists: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM playlists WHERE id=? AND cloud_enabled=1)",
+                )
+                .bind(*playlist_id)
+                .fetch_one(&mut *tx)
+                .await?;
                 if !exists {
                     tx.commit().await?;
                     store::enqueue(
@@ -180,6 +181,9 @@ pub(super) async fn process(
                         },
                     )
                     .await?;
+                    sqlx::query("UPDATE cloud_outbox SET payload=json_set(payload,'$.request.base_revision',?) WHERE connection_id=? AND entity_key=? AND json_extract(payload,'$.request.edit.kind')='delete_playlist'")
+                        .bind(playlist.revision).bind(&context.connection_id).bind(format!("playlist-delete:{}", playlist.id))
+                        .execute(&context.db.pool).await?;
                     store::apply(
                         &context.db.pool,
                         &context.connection_id,
@@ -193,8 +197,11 @@ pub(super) async fn process(
                     return complete(context, &pending.operation_id).await;
                 }
 
-                let snapshot =
-                    serde_json::to_string(&(playlist.name.clone(), playlist.track_ids.clone()))?;
+                let snapshot = store::playlist_snapshot(
+                    &playlist.name,
+                    &playlist.track_ids,
+                    &playlist.smart_rules,
+                )?;
                 sqlx::query("INSERT INTO cloud_playlist_links(connection_id,playlist_id,cloud_id,snapshot,revision) VALUES (?,?,?,?,?) ON CONFLICT(connection_id,playlist_id) DO UPDATE SET cloud_id=excluded.cloud_id,snapshot=excluded.snapshot,revision=excluded.revision").bind(&context.connection_id).bind(*playlist_id).bind(&playlist.id).bind(snapshot).bind(playlist.revision).execute(&mut *tx).await?;
             }
             tx.commit().await?;

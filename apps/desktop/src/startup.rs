@@ -128,5 +128,29 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
     services.start_equalizer_persistence();
     services.install_library_playback();
     services.start_cloud_sync();
+    let weak = Arc::downgrade(&services);
+    let mut changes = services.library_files.subscribe();
+    tokio::spawn(async move {
+        let mut timer = tokio::time::interval(std::time::Duration::from_secs(60));
+        timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                _ = timer.tick() => {},
+                event = changes.recv() => match event {
+                    Ok(event) if event.artwork_only => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    _ => {},
+                },
+            }
+            let Some(services) = weak.upgrade() else {
+                break;
+            };
+            match audexis_core::database::smart_playlists::refresh(&services.db.pool).await {
+                Ok(true) => services.library_files.publish_changed(Vec::new()),
+                Ok(false) => {}
+                Err(error) => tracing::warn!(%error, "Could not refresh smart playlists"),
+            }
+        }
+    });
     Ok(services)
 }

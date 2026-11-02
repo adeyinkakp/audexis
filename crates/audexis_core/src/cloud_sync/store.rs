@@ -17,6 +17,28 @@ use super::{
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 
+pub(crate) fn playlist_snapshot(
+    name: &str,
+    ids: &[String],
+    rules: &Option<SmartPlaylist>,
+) -> Result<String> {
+    Ok(serde_json::to_string(&(name, ids, rules))?)
+}
+pub(crate) fn playlist_unchanged(
+    saved: &str,
+    name: &str,
+    ids: &[String],
+    rules: &Option<SmartPlaylist>,
+) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(saved) else {
+        return false;
+    };
+    let current_rules = serde_json::to_value(rules).unwrap_or_default();
+    value.get(0).and_then(|v| v.as_str()) == Some(name)
+        && value.get(2).unwrap_or(&serde_json::Value::Null) == &current_rules
+        && (rules.is_some() || value.get(1) == Some(&serde_json::json!(ids)))
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "job", rename_all = "snake_case")]
 pub enum Job {

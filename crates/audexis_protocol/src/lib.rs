@@ -1,5 +1,7 @@
 pub mod equalizer;
+pub mod smart_playlists;
 use serde::{Deserialize, Serialize};
+pub use smart_playlists::*;
 use std::collections::BTreeMap;
 
 fn added_at_now() -> i64 {
@@ -114,6 +116,8 @@ pub struct Playlist {
     pub revision: i64,
     pub name: String,
     pub track_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub smart_rules: Option<SmartPlaylist>,
     #[serde(default)]
     pub deleted: bool,
 }
@@ -168,6 +172,8 @@ pub enum Edit {
         playlist_id: String,
         name: String,
         track_ids: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        smart_rules: Option<SmartPlaylist>,
     },
     DeletePlaylist {
         playlist_id: String,

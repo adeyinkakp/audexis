@@ -75,6 +75,19 @@ nonisolated struct CloudPlaylist: Codable, Identifiable, Sendable {
   let name: String
   let track_ids: [String]
   let deleted: Bool
+  var smart_rules: CloudSmartPlaylist? = nil
+}
+
+nonisolated struct CloudSmartPlaylist: Codable, Sendable {
+  struct Rule: Codable, Sendable {
+    let field: String
+    let `operator`: String
+    let value: String
+  }
+  let match_all: Bool
+  let rules: [Rule]
+  let sort: String
+  let limit: UInt32?
 }
 
 nonisolated struct CloudChange: Codable, Sendable {

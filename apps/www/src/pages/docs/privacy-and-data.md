@@ -9,8 +9,7 @@ description: "Understand local files, library data, online requests, and backup 
 ## Your music stays where you put it
 
 Audexis reads music from the folders you select. Library browsing and playback
-use those local files; adding a folder does not upload the collection to a
-hosted library.
+use those local files.
 
 Saving tags, artwork, or lyrics changes the source file. Playlists, favorites,
 listening history, and view preferences are stored separately as app data.

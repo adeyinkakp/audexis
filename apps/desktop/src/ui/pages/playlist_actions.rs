@@ -18,70 +18,85 @@ impl Component for PlaylistActions {
         let mut error = use_state(|| None::<String>);
         let id = self.id;
         let changed = self.on_change.clone();
-        let mut body = rect().width(Size::fill()).spacing(12.).child(
-            Button::new()
-                .outline()
-                .child(if *editing.read() {
-                    "Done editing"
-                } else {
-                    "Edit playlist"
+        if *editing.read() {
+            return rect()
+                .width(Size::fill())
+                .padding(20.)
+                .spacing(18.)
+                .corner_radius(12.)
+                .background(colors.surface_subtle)
+                .child(
+                    label()
+                        .text("Edit playlist")
+                        .font_size(20.)
+                        .font_weight(FontWeight::BOLD),
+                )
+                .child(crate::ui::components::PlaylistForm {
+                    playlist_id: Some(id),
+                    name,
+                    on_saved: EventHandler::new(move |(_, title)| {
+                        editing.set(false);
+                        changed.call(Some(title));
+                    }),
+                    on_cancel: Some(EventHandler::new(move |()| editing.set(false))),
                 })
-                .on_press(move |_| editing.toggle()),
-        );
-        if !*editing.read() {
-            return body.into_element();
+                .into_element();
         }
-        let db = services.db.clone();
-        let rt = runtime.clone();
-        let callback = changed.clone();
-        let rename_services = services.clone();
-        body = body
-            .padding(20.)
-            .corner_radius(16.)
-            .background(colors.surface_subtle)
-            .child(
-                label()
-                    .text("Playlist name")
-                    .font_size(12.)
-                    .color(colors.muted_foreground),
-            )
+        rect()
+            .width(Size::fill())
+            .spacing(10.)
             .child(
                 rect()
                     .horizontal()
                     .spacing(8.)
                     .child(
-                        Input::new(name)
+                        Button::new()
+                            .outline()
                             .enabled(!*busy.read())
-                            .width(Size::px(300.)),
+                            .child("Edit playlist")
+                            .on_press(move |_| {
+                                error.set(None);
+                                editing.set(true);
+                            }),
                     )
                     .child(
                         Button::new()
-                            .filled()
+                            .flat()
                             .enabled(!*busy.read())
-                            .child("Save name")
+                            .child("Delete playlist")
                             .on_press(move |_| {
-                                let services = rename_services.clone();
-                                let db = db.clone();
-                                let rt = rt.clone();
-                                let callback = callback.clone();
-                                let value = name.peek().clone();
+                                let services = services.clone();
+                                let runtime = runtime.clone();
+                                let changed = changed.clone();
                                 busy.set(true);
+                                error.set(None);
                                 spawn(async move {
-                                    let requested = value.clone();
-                                    match rt
-                                        .spawn(async move {
-                                            db.rename_collection_playlist(id, &requested).await
-                                        })
+                                    if rfd::AsyncMessageDialog::new()
+                                        .set_title("Delete playlist?")
+                                        .set_description("Your audio files stay in your library.")
+                                        .set_buttons(rfd::MessageButtons::YesNo)
+                                        .show()
                                         .await
-                                        .map_err(|e| e.to_string())
-                                        .and_then(|r| r)
+                                        == rfd::MessageDialogResult::Yes
                                     {
-                                        Ok(()) => {
-                                            services.library_files.publish_changed(vec![]);
-                                            services.sync_edits();
-                                            callback.call(Some(value));
+                                        let db = services.db.clone();
+                                        match runtime
+                                            .spawn(async move {
+                                                db.delete_collection_playlist(id)
+                                                    .await
+                                                    .map_err(|e| e.to_string())
+                                            })
+                                            .await
+                                            .map_err(|e| e.to_string())
+                                            .and_then(|r| r)
+                                        {
+                                            Ok(()) => {
+                                                services.library_files.publish_changed(vec![]);
+                                                services.sync_edits();
+                                                changed.call(None);
+                                            }
+                                            Err(e) => error.set(Some(e)),
                                         }
-                                        Err(e) => error.set(Some(e)),
                                     }
                                     busy.set(false);
                                 });
@@ -93,52 +108,8 @@ impl Component for PlaylistActions {
                     .read()
                     .clone()
                     .map(|e| label().text(e).color(colors.destructive)),
-            );
-        let db = services.db.clone();
-        let rt = runtime.clone();
-        body.child(
-            Button::new()
-                .flat()
-                .enabled(!*busy.read())
-                .child("Delete playlist")
-                .on_press(move |_| {
-                    let services = services.clone();
-                    let db = db.clone();
-                    let rt = rt.clone();
-                    let callback = changed.clone();
-                    busy.set(true);
-                    spawn(async move {
-                        if rfd::AsyncMessageDialog::new()
-                            .set_title("Delete playlist?")
-                            .set_description("Your audio files stay in your library.")
-                            .set_buttons(rfd::MessageButtons::YesNo)
-                            .show()
-                            .await
-                            == rfd::MessageDialogResult::Yes
-                        {
-                            match rt
-                                .spawn(async move {
-                                    db.delete_collection_playlist(id)
-                                        .await
-                                        .map_err(|e| e.to_string())
-                                })
-                                .await
-                                .map_err(|e| e.to_string())
-                                .and_then(|r| r)
-                            {
-                                Ok(()) => {
-                                    services.library_files.publish_changed(vec![]);
-                                    services.sync_edits();
-                                    callback.call(None);
-                                }
-                                Err(e) => error.set(Some(e)),
-                            }
-                        }
-                        busy.set(false);
-                    });
-                }),
-        )
-        .into_element()
+            )
+            .into_element()
     }
     fn render_key(&self) -> DiffKey {
         (&("playlist-actions", self.id)).into()

@@ -1,6 +1,7 @@
 mod favorite_button;
 mod now_playing;
 pub(crate) mod player_controls;
+pub(crate) mod smart_playlist_editor;
 pub(crate) use favorite_button::FavoriteButton;
 mod sidebar;
 

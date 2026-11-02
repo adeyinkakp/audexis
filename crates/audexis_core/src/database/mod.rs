@@ -57,3 +57,4 @@ pub mod collections;
 pub mod media_actions;
 pub mod missing;
 pub mod rewind;
+pub mod smart_playlists;

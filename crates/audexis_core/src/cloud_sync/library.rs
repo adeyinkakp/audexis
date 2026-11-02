@@ -9,6 +9,14 @@ impl Database {
 
     pub async fn set_cloud_library_connection(&self, connection: Option<&str>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
+        let unbound: Vec<(i64, String, Option<String>)> = sqlx::query_as("SELECT p.id,p.cloud_connection_id,(SELECT json_extract(o.payload,'$.request.edit.playlist_id') FROM cloud_outbox o WHERE o.connection_id=p.cloud_connection_id AND json_extract(o.payload,'$.playlist_id')=p.id LIMIT 1) FROM playlists p WHERE p.cloud_enabled=1 AND p.cloud_connection_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cloud_playlist_links l WHERE l.playlist_id=p.id)")
+            .fetch_all(&mut *tx).await?;
+        for (id, owner, remote) in unbound {
+            sqlx::query("INSERT INTO cloud_playlist_links(connection_id,playlist_id,cloud_id,snapshot,revision) VALUES (?,?,?,'',0)")
+                .bind(owner).bind(id).bind(remote.unwrap_or_else(|| uuid::Uuid::new_v4().to_string())).execute(&mut *tx).await?;
+        }
+        sqlx::query("UPDATE playlists SET cloud_connection_id=NULL WHERE cloud_enabled=1 AND cloud_connection_id IS NOT NULL")
+            .execute(&mut *tx).await?;
         sqlx::query("DELETE FROM cloud_library_session")
             .execute(&mut *tx)
             .await?;

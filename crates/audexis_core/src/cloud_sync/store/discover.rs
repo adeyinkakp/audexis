@@ -5,6 +5,7 @@ pub async fn discover_with_uploads(
     connection: &str,
     uploads: bool,
 ) -> Result<()> {
+    crate::database::smart_playlists::refresh(pool).await?;
     let mut cursor = 0_i64;
     loop {
         let rows=sqlx::query("SELECT f.id,f.path,f.file_name,f.hash,f.size,f.added_at,l.cloud_track_id FROM files f LEFT JOIN file_cloud_links l ON l.file_id=f.id AND l.connection_id=? WHERE f.id>? AND (f.cloud_connection_id IS NULL OR f.cloud_connection_id=?) AND f.status='ok' AND f.metadata_status='ok' AND f.missing_since IS NULL ORDER BY f.id LIMIT 200").bind(connection).bind(cursor).bind(connection).fetch_all(pool).await?;
@@ -89,21 +90,22 @@ pub async fn discover_with_uploads(
             }
         }
     }
-    let playlists: Vec<(i64, String)> = sqlx::query_as("SELECT id,name FROM playlists WHERE cloud_connection_id IS NULL OR cloud_connection_id=? ORDER BY id")
+    let playlists: Vec<(i64, String, Option<String>)> = sqlx::query_as("SELECT id,name,smart_rules FROM playlists p WHERE cloud_enabled=1 AND (cloud_connection_id IS NULL OR cloud_connection_id=?1) AND (NOT EXISTS(SELECT 1 FROM cloud_playlist_links l WHERE l.playlist_id=p.id) OR EXISTS(SELECT 1 FROM cloud_playlist_links l WHERE l.playlist_id=p.id AND l.connection_id=?1)) ORDER BY id")
         .bind(connection)
         .fetch_all(pool)
         .await?;
-    for (id, name) in playlists {
+    for (id, name, encoded) in playlists {
+        let smart_rules: Option<SmartPlaylist> =
+            encoded.map(|s| serde_json::from_str(&s)).transpose()?;
         let members:Vec<(i64,Option<String>)>=sqlx::query_as("SELECT pt.file_id,l.cloud_track_id FROM playlist_tracks pt LEFT JOIN file_cloud_links l ON l.file_id=pt.file_id AND l.connection_id=? WHERE pt.playlist_id=? ORDER BY pt.ord").bind(connection).bind(id).fetch_all(pool).await?;
         if members.iter().any(|(_, remote)| remote.is_none()) {
             continue;
         }
         let ids: Vec<String> = members.into_iter().filter_map(|(_, id)| id).collect();
-        let snapshot = serde_json::to_string(&(name.clone(), ids.clone()))?;
         let link:Option<(String,String,i64)>=sqlx::query_as("SELECT cloud_id,snapshot,revision FROM cloud_playlist_links WHERE connection_id=? AND playlist_id=?").bind(connection).bind(id).fetch_optional(pool).await?;
         if link
             .as_ref()
-            .is_some_and(|(_, saved, _)| saved == &snapshot)
+            .is_some_and(|(_, saved, _)| playlist_unchanged(saved, &name, &ids, &smart_rules))
         {
             continue;
         }
@@ -143,6 +145,7 @@ pub async fn discover_with_uploads(
                         playlist_id: cloud_id,
                         name,
                         track_ids: ids,
+                        smart_rules,
                     },
                 },
             },

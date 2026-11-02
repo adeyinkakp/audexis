@@ -31,6 +31,11 @@ pub async fn browse_library_with_pool(
     artist: Option<String>,
     offset: i64,
 ) -> Result<CollectionPage, String> {
+    if matches!(kind, CollectionKind::Playlists) {
+        super::smart_playlists::refresh(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
     if query.len() > 500
         || query.split_whitespace().count() > 12
         || offset < 0
@@ -130,6 +135,9 @@ impl Database {
         &self,
         filter: TrackFilter,
     ) -> Result<Vec<SongRow>, sqlx::Error> {
+        if filter.playlist.is_some() {
+            super::smart_playlists::refresh(&self.pool).await?;
+        }
         let mut q = QueryBuilder::<Sqlite>::new(format!(
             "SELECT songs.* FROM ({}) songs WHERE 1=1",
             super::songs::SONG_SOURCE
@@ -215,16 +223,20 @@ impl Database {
         Ok(())
     }
     pub async fn add_collection_track(&self, playlist: i64, file: i64) -> Result<(), sqlx::Error> {
-        sqlx::query("INSERT INTO playlist_tracks(playlist_id,file_id,ord) SELECT ?,?,COALESCE(MAX(ord),-1)+1 FROM playlist_tracks WHERE playlist_id=?").bind(playlist).bind(file).bind(playlist).execute(&self.pool).await?;
-        Ok(())
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        super::smart_playlists::ensure_manual(&mut tx, playlist).await?;
+        sqlx::query("INSERT INTO playlist_tracks(playlist_id,file_id,ord) SELECT ?,?,COALESCE(MAX(ord),-1)+1 FROM playlist_tracks WHERE playlist_id=?").bind(playlist).bind(file).bind(playlist).execute(&mut *tx).await?;
+        tx.commit().await
     }
     pub async fn remove_collection_track(
         &self,
         playlist: i64,
         file: i64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("DELETE FROM playlist_tracks WHERE playlist_id=? AND ord=(SELECT MIN(ord) FROM playlist_tracks WHERE playlist_id=? AND file_id=?)").bind(playlist).bind(playlist).bind(file).execute(&self.pool).await?;
-        Ok(())
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        super::smart_playlists::ensure_manual(&mut tx, playlist).await?;
+        sqlx::query("DELETE FROM playlist_tracks WHERE playlist_id=? AND ord=(SELECT MIN(ord) FROM playlist_tracks WHERE playlist_id=? AND file_id=?)").bind(playlist).bind(playlist).bind(file).execute(&mut *tx).await?;
+        tx.commit().await
     }
     pub async fn delete_collection_playlist(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM playlists WHERE id=?")

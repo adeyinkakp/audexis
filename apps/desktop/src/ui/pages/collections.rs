@@ -130,6 +130,7 @@ impl Component for Playlist {
                 async move {
                     runtime
                         .spawn(async move {
+                            audexis_core::database::smart_playlists::refresh(&db.pool).await.map_err(|e| e.to_string())?;
                             sqlx::query_as::<_, (String, Option<i64>, i64)>(concat!(
                                 "SELECT p.name,MIN(f.id),COUNT(f.id) FROM library_playlists p LEFT JOIN ",
                                 "playlist_tracks pt ON pt.playlist_id=p.id LEFT JOIN files f ON ",

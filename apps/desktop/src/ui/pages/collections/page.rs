@@ -245,13 +245,14 @@ impl Component for LibraryPage {
                 rect()
                     .width(Size::fill())
                     .padding(20.)
-                    .spacing(12.)
+                    .spacing(18.)
                     .corner_radius(12.)
                     .background(colors.surface_subtle)
-                    .child(heading("Create Playlist", 20.))
+                    .child(heading("New playlist", 20.))
                     .child(crate::ui::components::PlaylistForm {
+                        playlist_id: None,
                         name,
-                        on_created: EventHandler::new(move |(id, title)| {
+                        on_saved: EventHandler::new(move |(id, title)| {
                             refresh_library.refresh();
                             creating.set(false);
                             name.set(String::new());
@@ -264,7 +265,10 @@ impl Component for LibraryPage {
                             }));
                             *reload.write() += 1;
                         }),
-                        on_cancel: Some(EventHandler::new(move |()| creating.set(false))),
+                        on_cancel: Some(EventHandler::new(move |()| {
+                            name.set(String::new());
+                            creating.set(false);
+                        })),
                     }),
             );
         }
