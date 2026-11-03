@@ -25,14 +25,14 @@ pub async fn members(
 }
 
 pub async fn refresh(state: &AppState, user: &str) -> Result<()> {
-    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM cloud_playlists WHERE user_id=$1 AND NOT deleted AND document->'smart_rules' IS NOT NULL AND document->'smart_rules'<>'null'::jsonb)")
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM cloud_playlists WHERE user_id=$1 AND NOT deleted AND document->'smart_rules' IS NOT NULL AND document->'smart_rules'<>'null'::jsonb AND COALESCE(document->'smart_rules'->>'live_updating','true')='true')")
         .bind(user).fetch_one(&state.db).await?;
     if !exists {
         return Ok(());
     }
     let mut tx = state.db.begin().await?;
     db::lock_account(&mut tx, user).await?;
-    let docs: Vec<serde_json::Value> = sqlx::query_scalar("SELECT document FROM cloud_playlists WHERE user_id=$1 AND NOT deleted AND document->'smart_rules' IS NOT NULL FOR UPDATE")
+    let docs: Vec<serde_json::Value> = sqlx::query_scalar("SELECT document FROM cloud_playlists WHERE user_id=$1 AND NOT deleted AND document->'smart_rules' IS NOT NULL AND COALESCE(document->'smart_rules'->>'live_updating','true')='true' FOR UPDATE")
         .bind(user).fetch_all(&mut *tx).await?;
     let tracks: Vec<serde_json::Value> = sqlx::query_scalar(
         "SELECT document FROM cloud_tracks WHERE user_id=$1 AND NOT deleted ORDER BY id",
@@ -49,6 +49,9 @@ pub async fn refresh(state: &AppState, user: &str) -> Result<()> {
         let Some(rules) = &playlist.smart_rules else {
             continue;
         };
+        if !rules.live_updating {
+            continue;
+        }
         rules.validate().map_err(Error::bad)?;
         let selected = rules.select(&tracks, audexis_core::database::smart_playlists::now());
         if selected == playlist.track_ids {

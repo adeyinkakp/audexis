@@ -3,6 +3,7 @@ pub use crate::config::SongColumn as SongSort;
 use sqlx::{QueryBuilder, Sqlite};
 use std::collections::HashMap;
 
+// dont touch
 pub(super) const SONG_SOURCE: &str = "SELECT f.id,f.path,f.file_name,f.size,f.modified_at,f.added_at,
             (SELECT d.path FROM cloud_downloads d JOIN file_cloud_links l ON l.connection_id=d.connection_id AND l.cloud_track_id=d.track_id WHERE l.file_id=f.id AND d.connection_id=f.cloud_connection_id AND d.sha256=f.hash LIMIT 1) AS download_path,
             COALESCE(strftime('%Y-%m-%d %H:%M',NULLIF(f.modified_at,0),'unixepoch','localtime'),'—') AS modified_label,

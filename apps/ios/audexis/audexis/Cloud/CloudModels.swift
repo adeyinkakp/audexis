@@ -79,6 +79,7 @@ nonisolated struct CloudPlaylist: Codable, Identifiable, Sendable {
 }
 
 nonisolated struct CloudSmartPlaylist: Codable, Sendable {
+  var live_updating: Bool? = nil
   struct Rule: Codable, Sendable {
     let field: String
     let `operator`: String

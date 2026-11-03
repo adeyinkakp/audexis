@@ -33,9 +33,13 @@ pub(crate) fn playlist_unchanged(
     let Ok(value) = serde_json::from_str::<serde_json::Value>(saved) else {
         return false;
     };
-    let current_rules = serde_json::to_value(rules).unwrap_or_default();
+    let Ok(saved_rules) =
+        serde_json::from_value::<Option<SmartPlaylist>>(value.get(2).cloned().unwrap_or_default())
+    else {
+        return false;
+    };
     value.get(0).and_then(|v| v.as_str()) == Some(name)
-        && value.get(2).unwrap_or(&serde_json::Value::Null) == &current_rules
+        && &saved_rules == rules
         && (rules.is_some() || value.get(1) == Some(&serde_json::json!(ids)))
 }
 

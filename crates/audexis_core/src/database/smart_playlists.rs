@@ -78,7 +78,9 @@ impl Database {
                 .bind(active).bind(id).bind(uuid::Uuid::new_v4().to_string()).execute(&mut *tx).await.map_err(|e| e.to_string())?;
         }
         tx.commit().await.map_err(|e| e.to_string())?;
-        refresh(&self.pool).await.map_err(|e| e.to_string())?;
+        refresh_saved(&self.pool, Some(id))
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(id)
     }
     pub async fn save_playlist_settings(
@@ -185,7 +187,9 @@ impl Database {
             return Err("Playlist no longer exists.".into());
         }
         tx.commit().await.map_err(|e| e.to_string())?;
-        refresh(&self.pool).await.map_err(|e| e.to_string())?;
+        refresh_saved(&self.pool, Some(id))
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 }
@@ -205,16 +209,21 @@ pub(crate) async fn ensure_manual(conn: &mut SqliteConnection, id: i64) -> Resul
 }
 
 pub async fn refresh(pool: &SqlitePool) -> Result<bool, sqlx::Error> {
+    refresh_saved(pool, None).await
+}
+async fn refresh_saved(pool: &SqlitePool, saved: Option<i64>) -> Result<bool, sqlx::Error> {
     let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM library_playlists WHERE smart_rules IS NOT NULL)",
+        "SELECT EXISTS(SELECT 1 FROM library_playlists WHERE smart_rules IS NOT NULL AND (COALESCE(json_extract(smart_rules,'$.live_updating'),1)=1 OR id=?))",
     )
+    .bind(saved)
     .fetch_one(pool)
     .await?;
     if !exists {
         return Ok(false);
     }
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
-    let definitions: Vec<(i64, String, bool, Option<String>)> = sqlx::query_as("SELECT p.id,p.smart_rules,p.cloud_enabled,COALESCE(p.cloud_connection_id,(SELECT l.connection_id FROM cloud_playlist_links l JOIN cloud_library_session s ON s.connection_id=l.connection_id WHERE l.playlist_id=p.id LIMIT 1)) FROM library_playlists p WHERE p.smart_rules IS NOT NULL")
+    let definitions: Vec<(i64, String, bool, Option<String>)> = sqlx::query_as("SELECT p.id,p.smart_rules,p.cloud_enabled,COALESCE(p.cloud_connection_id,(SELECT l.connection_id FROM cloud_playlist_links l JOIN cloud_library_session s ON s.connection_id=l.connection_id WHERE l.playlist_id=p.id LIMIT 1)) FROM library_playlists p WHERE p.smart_rules IS NOT NULL AND (COALESCE(json_extract(p.smart_rules,'$.live_updating'),1)=1 OR p.id=?)")
+        .bind(saved)
         .fetch_all(&mut *tx).await?;
     if definitions.is_empty() {
         return Ok(false);

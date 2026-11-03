@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SmartPlaylist {
+    #[serde(default = "live_updating_default")]
+    pub live_updating: bool,
     pub match_all: bool,
     pub rules: Vec<SmartRule>,
     pub sort: SmartSort,
@@ -11,12 +13,16 @@ pub struct SmartPlaylist {
 impl Default for SmartPlaylist {
     fn default() -> Self {
         Self {
+            live_updating: true,
             match_all: true,
             rules: vec![SmartRule::default()],
             sort: SmartSort::Title,
             limit: None,
         }
     }
+}
+fn live_updating_default() -> bool {
+    true
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SmartRule {

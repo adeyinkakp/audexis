@@ -250,6 +250,28 @@ impl Component for PlaylistOptions {
                             ),
                     ),
             );
-        body.into_element()
+        body.child(
+            Button::new()
+                .flat()
+                .enabled(!busy)
+                .child(
+                    rect()
+                        .horizontal()
+                        .spacing(8.)
+                        .child(Checkbox::new().selected(current.live_updating))
+                        .child("Live updating"),
+                )
+                .on_press(move |_| {
+                    let enabled = rules.peek().live_updating;
+                    rules.write().live_updating = !enabled;
+                }),
+        )
+        .child(
+            label()
+                .font_size(12.)
+                .color(colors.muted_foreground)
+                .text("WHen turned off results refresh only when you save this playlist."),
+        )
+        .into_element()
     }
 }
