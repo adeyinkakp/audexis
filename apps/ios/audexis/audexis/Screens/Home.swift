@@ -47,7 +47,7 @@ struct MainDashboardView: View {
       if authManager.state != .authenticated { library.shutdown() }
     }
     .tint(AudexisStyle.primary)
-    .sheet(isPresented: $showAccount) { AccountView().environment(library) }
+    .fullScreenCover(isPresented: $showAccount) { AccountView().environment(library) }
   }
 
   private func page<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content)

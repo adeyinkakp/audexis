@@ -64,7 +64,7 @@ struct LoginView: View {
     }
     .background(AudexisStyle.background).tint(AudexisStyle.primary)
     .onDisappear { authService.cancelSignIn() }
-    .sheet(isPresented: $showCustomServer) { CustomServerForm() }
+    .fullScreenCover(isPresented: $showCustomServer) { CustomServerForm() }
   }
 }
 

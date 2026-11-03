@@ -85,9 +85,8 @@ struct AccountView: View {
       .toolbar {
         ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
       }
-      .sheet(isPresented: $showServerSettings) { CustomServerForm() }
+      .fullScreenCover(isPresented: $showServerSettings) { CustomServerForm() }
     }
-    .presentationDetents([.large])
     .tint(AudexisStyle.primary)
   }
 }

@@ -77,8 +77,6 @@ struct CloudPlayerView: View {
     .foregroundStyle(panel == .lyrics ? .white : AudexisStyle.foreground)
     .tint(AudexisStyle.primary)
     .environment(\.colorScheme, panel == .lyrics ? .dark : colorScheme)
-    .presentationDetents([.large])
-    .presentationDragIndicator(.visible)
   }
 
   private var controls: some View {

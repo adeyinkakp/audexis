@@ -159,7 +159,7 @@ struct LibraryPage: View {
       CloudTrackCollectionPage(
         title: collection.title, subtitle: collection.subtitle, trackIDs: collection.trackIDs, )
     }
-    .sheet(isPresented: $showQueue) { CloudPlayerView(panel: .queue) }
+    .fullScreenCover(isPresented: $showQueue) { CloudPlayerView(panel: .queue) }
     .searchable(text: $search, prompt: "Your music")
     .refreshable {
       await library.refresh()

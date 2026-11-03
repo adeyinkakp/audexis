@@ -46,6 +46,6 @@ struct CloudMiniPlayer: View {
     .contextMenu {
       if let track = library.playback.track { CloudTrackActions(track: track) }
     }
-    .sheet(isPresented: $expanded) { CloudPlayerView() }
+    .fullScreenCover(isPresented: $expanded) { CloudPlayerView() }
   }
 }
