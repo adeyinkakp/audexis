@@ -25,7 +25,7 @@ struct CloudLyricsWaiting: View {
       ForEach(0..<3) { index in
         let fill = min(1, max(0, progress * 3 - Double(index)))
         Circle()
-          .fill(AudexisStyle.primary)
+          .fill(.white)
           .frame(width: 8, height: 8)
           .opacity(0.3 + fill * 0.7)
           .scaleEffect(reduceMotion ? 1 : 1 + sin(fill * .pi) * 0.3)

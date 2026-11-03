@@ -1,7 +1,7 @@
 use super::{controls::PlayerControls, details::PlayerDetails, header::PlayerHeader};
 use crate::ui::{
     components::{ArtworkBackdrop, ExpandedPlaybackPanel, VisibilityViewport},
-    hooks::use_playback,
+    hooks::{PlaybackPanelView, use_playback},
     theme::use_audexis_colors,
 };
 use freya::{prelude::*, winit::window::WindowId};
@@ -21,6 +21,7 @@ impl Component for PlayerView {
         let mut expanded = playback.expanded;
         let mut panel = playback.panel;
         let panel_open = panel.read().is_some();
+        let lyrics_open = *panel.read() == Some(PlaybackPanelView::Lyrics);
         let restore_size = use_hook(|| std::rc::Rc::new(std::cell::RefCell::new(None)));
         use_side_effect_with_deps(&panel_open, move |open| {
             if !compact {
@@ -153,7 +154,7 @@ impl Component for PlayerView {
                         .width(Size::px(view_width + 128.))
                         .height(Size::px(view_height + 128.))
                         .interactive(Interactive::No)
-                        .opacity(0.4)
+                        .opacity(if lyrics_open { 0.65 } else { 0.4 })
                         .child(ArtworkBackdrop {
                             file_id: state.id,
                             path: state.path.clone().unwrap_or_default(),

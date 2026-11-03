@@ -11,6 +11,7 @@ struct CloudPlayerView: View {
   enum Panel { case artwork, lyrics, queue }
   @Environment(CloudLibrary.self) private var library
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.colorScheme) private var colorScheme
   @State var panel: Panel = .artwork
   @ScaledMetric(relativeTo: .title2) private var headingSpace: CGFloat = 96
 
@@ -59,9 +60,23 @@ struct CloudPlayerView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .background(AudexisStyle.background.ignoresSafeArea())
-    .foregroundStyle(AudexisStyle.foreground)
+    .background {
+      AudexisStyle.background.ignoresSafeArea()
+      if panel == .lyrics, let track = library.playback.track {
+        GeometryReader { geometry in
+          CloudArtwork(track: track, size: max(geometry.size.width, geometry.size.height) + 160)
+            .blur(radius: 70)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+            .overlay(Color.black.opacity(0.62))
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+      }
+    }
+    .foregroundStyle(panel == .lyrics ? .white : AudexisStyle.foreground)
     .tint(AudexisStyle.primary)
+    .environment(\.colorScheme, panel == .lyrics ? .dark : colorScheme)
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
   }

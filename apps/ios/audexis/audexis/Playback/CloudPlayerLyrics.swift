@@ -13,6 +13,9 @@ struct CloudPlayerLyrics: View {
   let track: CloudTrack
   @State private var lyrics = PlayerLyrics()
   @State private var following = true
+  @State private var lastInteraction: Date?
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @ScaledMetric(relativeTo: .title) private var lyricSize: CGFloat = 34
 
   private var active: Int? {
     lyrics.lines.lastIndex { $0.seconds <= library.playback.position }
@@ -21,75 +24,109 @@ struct CloudPlayerLyrics: View {
   var body: some View {
     Group {
       if !lyrics.lines.isEmpty {
-        ScrollViewReader { proxy in
-          ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12) {
-              ForEach(Array(lyrics.lines.enumerated()), id: \.offset) { index, line in
-                if line.text.isEmpty {
-                  if index == active,
-                    lyrics.breakEnd(at: index).map({ $0 - line.seconds >= 5 })
-                      ?? true
-                  {
-                    CloudLyricsWaiting(
-                      position: library.playback.position,
-                      start: line.seconds,
-                      end: lyrics.breakEnd(at: index),
-                    )
+        GeometryReader { geometry in
+          ScrollViewReader { proxy in
+            ScrollView {
+              LazyVStack(alignment: .leading, spacing: 24) {
+                ForEach(Array(lyrics.lines.enumerated()), id: \.offset) { index, line in
+                  if line.text.isEmpty {
+                    if index == active,
+                      lyrics.breakEnd(at: index).map({ $0 - line.seconds >= 5 }) ?? true
+                    {
+                      CloudLyricsWaiting(
+                        position: library.playback.position,
+                        start: line.seconds,
+                        end: lyrics.breakEnd(at: index),
+                      )
+                      .foregroundStyle(.white)
+                      .id(index)
+                    }
+                  } else {
+                    let distance = active.map { abs(index - $0) } ?? 1
+                    let highlighted = index == active
+                    Button {
+                      library.playback.seek(line.seconds)
+                      following = true
+                      follow(index, using: proxy)
+                    } label: {
+                      Text(line.text)
+                        .font(.system(size: lyricSize, weight: .bold, design: .rounded))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(3)
+                        .foregroundStyle(.white)
+                        .opacity(highlighted ? 1 : following ? (distance < 2 ? 0.55 : 0.28) : 0.8)
+                        .blur(
+                          radius: reduceMotion || !following
+                            ? 0 : CGFloat(max(0, min(distance - 1, 3))) * 0.65
+                        )
+                        .scaleEffect(reduceMotion || highlighted ? 1 : 0.96, anchor: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: distance)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: highlighted)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: following)
+                    .accessibilityLabel("\(line.text), seek to \(Int(line.seconds)) seconds")
+                    .accessibilityAddTraits(highlighted ? .isSelected : [])
                     .id(index)
                   }
-                } else {
-                  Button {
-                    library.playback.seek(line.seconds)
-                    following = true
-                    withAnimation { proxy.scrollTo(index, anchor: .center) }
-                  } label: {
-                    Text(line.text)
-                      .font(.title.bold())
-                      .foregroundStyle(
-                        index == active
-                          ? AudexisStyle.accent
-                          : AudexisStyle.content_faint
-                      )
-                      .frame(maxWidth: .infinity, alignment: .leading)
-                  }
-                  .buttonStyle(.plain)
-                  .accessibilityLabel(
-                    "\(line.text), seek to \(Int(line.seconds)) seconds"
-                  )
-                  .id(index)
                 }
               }
+              .padding(.horizontal, 28)
+              .padding(.top, geometry.size.height * 0.32)
+              .padding(.bottom, geometry.size.height * 0.65)
             }
-            .padding(.horizontal, 28).padding(.vertical, 48)
-          }
-          .simultaneousGesture(DragGesture().onChanged { _ in following = false })
-          .onChange(of: active) {
-            if following, let active {
-              withAnimation(.easeInOut(duration: 0.3)) {
-                proxy.scrollTo(active, anchor: .center)
-              }
+            .scrollIndicators(.hidden)
+            .mask {
+              LinearGradient(
+                stops: [
+                  .init(color: .clear, location: 0),
+                  .init(color: .black, location: 0.08),
+                  .init(color: .black, location: 0.88),
+                  .init(color: .clear, location: 1),
+                ], startPoint: .top, endPoint: .bottom,
+              )
             }
-          }
-          .onAppear { if let active { proxy.scrollTo(active, anchor: .center) } }
-          .overlay(alignment: .bottomTrailing) {
-            if !following {
-              Button {
-                following = true
-                if let active {
-                  withAnimation { proxy.scrollTo(active, anchor: .center) }
+            .simultaneousGesture(
+              DragGesture().onChanged { _ in
+                following = false
+                lastInteraction = Date()
+              }.onEnded { _ in lastInteraction = Date() }
+            )
+            .onChange(of: active) {
+              if following, let active { follow(active, using: proxy) }
+            }
+            .onAppear {
+              if let active { proxy.scrollTo(active, anchor: UnitPoint(x: 0.5, y: 0.35)) }
+            }
+            .task(id: lastInteraction) {
+              guard lastInteraction != nil else { return }
+              do { try await Task.sleep(for: .seconds(6)) } catch { return }
+              following = true
+              if let active { follow(active, using: proxy) }
+            }
+            .overlay(alignment: .bottomTrailing) {
+              if !following {
+                Button {
+                  following = true
+                  if let active { follow(active, using: proxy) }
+                } label: {
+                  Label("Follow lyrics", systemImage: "location.fill")
+                    .font(.caption.weight(.semibold)).padding(12)
+                    .foregroundStyle(.white)
+                    .background(.ultraThinMaterial, in: Capsule())
                 }
-              } label: {
-                Label("Follow lyrics", systemImage: "location.fill")
-                  .font(.caption.weight(.semibold)).padding(12)
-                  .background(.regularMaterial, in: Capsule())
+                .padding(12)
               }
-              .padding(12)
             }
           }
         }
       } else if !lyrics.plain.isEmpty {
         ScrollView {
-          Text(lyrics.plain).font(.title2.weight(.semibold)).lineSpacing(12)
+          Text(lyrics.plain)
+            .font(.system(size: lyricSize, weight: .bold, design: .rounded))
+            .foregroundStyle(.white.opacity(0.85)).lineSpacing(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled).padding(28)
         }
@@ -101,7 +138,14 @@ struct CloudPlayerLyrics: View {
           ), )
       }
     }
+    .foregroundStyle(.white)
     .onAppear { lyrics = PlayerLyrics(track: track) }
+  }
+
+  private func follow(_ index: Int, using proxy: ScrollViewProxy) {
+    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.65)) {
+      proxy.scrollTo(index, anchor: UnitPoint(x: 0.5, y: 0.35))
+    }
   }
 }
 

@@ -1,3 +1,5 @@
+use crate::ui::windows::player::ExpandedPlayerContext;
+
 use super::*;
 
 #[derive(PartialEq)]
@@ -9,6 +11,7 @@ pub(super) struct LyricLines {
 impl Component for LyricLines {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
+        let expanded = use_try_consume::<ExpandedPlayerContext>().is_some();
         let playback = use_playback();
         let mut follow = use_state(|| true);
         let runtime = use_consume::<tokio::runtime::Handle>();
@@ -69,8 +72,9 @@ impl Component for LyricLines {
                         } else {
                             self.lyrics.plain.clone()
                         }))
-                        .font_size(16.0)
-                        .color(colors.muted_foreground),
+                        .font_size(if expanded { 32.0 } else { 24.0 })
+                        .font_weight(FontWeight::BOLD)
+                        .color(colors.foreground),
                 )
                 .into_element();
         }
@@ -81,7 +85,7 @@ impl Component for LyricLines {
                 resume_follow.start();
             })
             .width(Size::fill())
-            .padding((16.0, 0.0, 80.0, 0.0));
+            .padding((*viewport.read() * 0.32, 8.0, *viewport.read() * 0.65, 8.0));
         for (index, line) in self.lyrics.lines.iter().enumerate() {
             let playback = playback.clone();
             let time = line.time_ms;
@@ -112,6 +116,8 @@ impl Component for LyricLines {
                 super::super::lyrics_line::LyricText {
                     text: line.text.clone(),
                     active: active == Some(index),
+                    distance: active.map_or(1, |current| current.abs_diff(index)),
+                    following: *follow.read(),
                     reduce_motion,
                 }
                 .into_element()
@@ -129,7 +135,7 @@ impl Component for LyricLines {
                         content
                     } else {
                         rect()
-                            .padding((0.0, 0.0, 4.0, 0.0))
+                            .padding((8.0, 0.0, 12.0, 0.0))
                             .child(
                                 Button::new()
                                     .flat()

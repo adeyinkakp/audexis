@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const FOLLOW_DURATION: Duration = Duration::from_millis(420);
+const FOLLOW_DURATION: Duration = Duration::from_millis(650);
 
 #[derive(Clone, Copy)]
 pub(super) struct LyricsScroll {
@@ -106,7 +106,7 @@ pub(super) fn follow_target(
     if !viewport.is_finite() || viewport <= 0.0 {
         return None;
     }
-    let mut top = 16.0;
+    let mut top = viewport * 0.32;
     let mut active_top = top;
     for index in 0..count {
         let height = *heights.get(&index)?;
@@ -118,6 +118,6 @@ pub(super) fn follow_target(
         }
         top += height;
     }
-    let max_scroll = (top + 80.0 - viewport).max(0.0);
+    let max_scroll = (top + viewport * 0.65 - viewport).max(0.0);
     Some(-((active_top - viewport / 3.0).clamp(0.0, max_scroll).round() as i32))
 }

@@ -86,7 +86,7 @@ impl Component for LyricsPanel {
         } else {
             label().text("Loading lyrics…").into_element()
         };
-        rect().expanded().padding(12.0).child(content)
+        rect().expanded().padding((0.0, 16.0)).child(content)
     }
 }
 struct AbortTask(tokio::task::AbortHandle);

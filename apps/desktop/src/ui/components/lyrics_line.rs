@@ -5,6 +5,8 @@ use freya::{animation::*, prelude::*};
 pub(super) struct LyricText {
     pub text: String,
     pub active: bool,
+    pub distance: usize,
+    pub following: bool,
     pub reduce_motion: bool,
 }
 
@@ -27,11 +29,12 @@ impl Component for LyricText {
         } else {
             emphasis.read().value()
         };
-        let blur_target = if self.active || *hovering.read() || self.reduce_motion {
-            0.0f32
-        } else {
-            0.65
-        };
+        let blur_target =
+            if self.active || !self.following || *hovering.read() || self.reduce_motion {
+                0.0f32
+            } else {
+                (self.distance.saturating_sub(1) as f32 * 0.65).min(2.0)
+            };
         let blur_state = use_reactive(&(blur_target, self.reduce_motion));
         let blur = use_animation_transition(blur_state, |(from, _), (to, reduced)| {
             AnimNum::new(from, to)
@@ -48,31 +51,40 @@ impl Component for LyricText {
                 rect()
                     .width(Size::fill())
                     .transform_origin(TransformOrigin::left())
-                    .scale(0.8 + 0.2 * amount)
+                    .scale(if self.reduce_motion {
+                        1.0
+                    } else {
+                        0.94 + 0.06 * amount
+                    })
                     .blur(if self.reduce_motion {
                         0.0
                     } else {
                         blur.read().value()
                     })
-                    .opacity(if *hovering.read() {
+                    .opacity(if self.active {
                         1.0
+                    } else if *hovering.read() {
+                        0.78
+                    } else if !self.following {
+                        0.6
                     } else {
-                        0.75 + 0.25 * amount
+                        let resting = match self.distance {
+                            0 | 1 => 0.52,
+                            2 => 0.34,
+                            _ => 0.22,
+                        };
+                        resting + (1.0 - resting) * amount
                     })
                     .child(
                         label()
                             .text(crate::ui::display_text(self.text.clone()))
                             .width(Size::fill())
-                            .font_size(if expanded { 40.0 } else { 24.0 })
+                            .font_size(if expanded { 42.0 } else { 27.0 })
                             .font_weight(FontWeight::BOLD)
                             .color(if self.active {
-                                if expanded {
-                                    colors.foreground
-                                } else {
-                                    colors.primary
-                                }
+                                colors.primary
                             } else {
-                                colors.muted_foreground
+                                colors.foreground
                             }),
                     ),
             )
