@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A9D8D05A8B004F5481AB4101 /* audexis.icon in Resources */ = {isa = PBXBuildFile; fileRef = A9D8D05A8B004F5481AB4102 /* audexis.icon */; };
+		EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */ = {isa = PBXBuildFile; productRef = EBA2BBAA3099BBF4009D7678 /* MarqueeText */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 		EB97F78F30876C7E009D4B3C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -104,6 +106,9 @@
 				EB97F79430876C7E009D4B3C /* audexis */,
 			);
 			name = audexis;
+			packageProductDependencies = (
+				EBA2BBAA3099BBF4009D7678 /* MarqueeText */,
+			);
 			productName = audexis;
 			productReference = EB97F79230876C7E009D4B3C /* audexis.app */;
 			productType = "com.apple.product-type.application";
@@ -132,6 +137,9 @@
 			);
 			mainGroup = EB97F78930876C7E009D4B3C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EB97F79330876C7E009D4B3C /* Products */;
 			projectDirPath = "";
@@ -470,6 +478,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/joekndy/MarqueeText";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EBA2BBAA3099BBF4009D7678 /* MarqueeText */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */;
+			productName = MarqueeText;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EB97F78A30876C7E009D4B3C /* Project object */;
 	validationLevel = 1;

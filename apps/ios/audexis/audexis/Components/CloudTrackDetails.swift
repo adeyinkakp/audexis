@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MarqueeText
 
 struct CloudTrackDetails: View {
   let track: CloudTrack
@@ -14,11 +15,20 @@ struct CloudTrackDetails: View {
   var highlighted = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(track.title)
-        .font(titleFont)
-        .foregroundStyle(highlighted ? AudexisStyle.primary : AudexisStyle.foreground)
-        .lineLimit(1)
+    VStack(alignment: .leading, spacing: 1) {
+        
+        MarqueeText(
+            text: track.title,
+            font: UIFont.preferredFont(forTextStyle: .body),
+            leftFade: 16,
+            rightFade: 16,
+            startDelay: 5
+        
+            ).font(titleFont)
+            .foregroundStyle(highlighted ? AudexisStyle.primary : AudexisStyle.foreground)
+            .lineLimit(1)
+   
+        
       Text(subtitle ?? track.artist)
         .font(.caption)
         .foregroundStyle(.secondary)

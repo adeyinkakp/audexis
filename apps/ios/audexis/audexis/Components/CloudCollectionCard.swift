@@ -69,3 +69,29 @@ struct CloudCollectionGrid: View {
     }
   }
 }
+
+private struct OpenMusicCollectionKey: EnvironmentKey {
+  static var defaultValue: ((CloudCollectionDestination) -> Void)? { nil }
+}
+
+extension EnvironmentValues {
+  var openMusicCollection: ((CloudCollectionDestination) -> Void)? {
+    get { self[OpenMusicCollectionKey.self] }
+    set { self[OpenMusicCollectionKey.self] = newValue }
+  }
+}
+
+extension CloudCollectionDestination {
+  static func artist(for track: CloudTrack, in tracks: [CloudTrack]) -> Self? {
+    MusicCollection.artists(in: tracks.filter { !$0.deleted })
+      .first { $0.tracks.contains { $0.id == track.id } }
+      .map(Self.init)
+  }
+
+  static func album(for track: CloudTrack, in tracks: [CloudTrack]) -> Self? {
+    guard !track.album.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+    return MusicCollection.albums(in: tracks.filter { !$0.deleted })
+      .first { $0.tracks.contains { $0.id == track.id } }
+      .map(Self.init)
+  }
+}

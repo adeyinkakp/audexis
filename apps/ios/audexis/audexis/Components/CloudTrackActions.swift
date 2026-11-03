@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CloudTrackActions: View {
   @Environment(CloudLibrary.self) private var library
+  @Environment(\.openMusicCollection) private var openMusicCollection
   let track: CloudTrack
   var context: [CloudTrack] = []
   var onPlay: (() -> Void)? = nil
@@ -35,6 +36,15 @@ struct CloudTrackActions: View {
       library.enqueue(track, next: false)
     }
     Divider()
+    if let openMusicCollection {
+      if let album = CloudCollectionDestination.album(for: track, in: library.snapshot.tracks) {
+        Button("Go to Album", systemImage: "square.stack") { openMusicCollection(album) }
+      }
+      if let artist = CloudCollectionDestination.artist(for: track, in: library.snapshot.tracks) {
+        Button("Go to Artist", systemImage: "person.crop.square") { openMusicCollection(artist) }
+      }
+      Divider()
+    }
     Button(
       library.isFavorite(track) ? "Remove from Favorites" : "Add to Favorites",
       systemImage: library.isFavorite(track) ? "heart.slash" : "heart",
