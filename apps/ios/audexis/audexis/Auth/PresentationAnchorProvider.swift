@@ -10,14 +10,14 @@ import UIKit
 
 @MainActor
 class PresentationAnchorProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
-  private let window: UIWindow
+    private let window: UIWindow
 
-  init(window: UIWindow) {
-    self.window = window
-    super.init()
-  }
+    init(window: UIWindow) {
+        self.window = window
+        super.init()
+    }
 
-  func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-    window
-  }
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        window
+    }
 }

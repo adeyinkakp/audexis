@@ -224,13 +224,20 @@ impl Component for ArtworkPlaceholder {
             .width(Size::px(self.0))
             .height(Size::px(self.0))
             .corner_radius(8.0)
-            .background(colors.muted)
+            .background(
+                LinearGradient::new()
+                    .angle(135.)
+                    .stop((colors.primary_soft, 0.))
+                    .stop((colors.surface_subtle, 100.)),
+            )
+            .border(Border::new().width(1.).fill(colors.border_subtle))
+            .a11y_alt("No album artwork")
             .center()
             .child(
-                SvgViewer::new(("music", lucide::music_2()))
-                    .color(colors.muted_foreground)
-                    .width(Size::px(self.0.min(28.0)))
-                    .height(Size::px(self.0.min(28.0))),
+                SvgViewer::new(("artwork-placeholder-disc", lucide::disc()))
+                    .stroke(colors.content_faint)
+                    .width(Size::px((self.0 * 0.5).min(64.)))
+                    .height(Size::px((self.0 * 0.5).min(64.))),
             )
             .into_element()
     }

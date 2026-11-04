@@ -8,53 +8,53 @@
 import SwiftUI
 
 struct CloudPlayerControls: View {
-  @Environment(CloudLibrary.self) private var library
+    @Environment(CloudLibrary.self) private var library
 
-  var body: some View {
-    VStack(spacing: 8) {
-      if let quality = library.playback.audioQuality {
-        Text(quality)
-          .font(.caption2.weight(.medium))
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .accessibilityLabel("Audio quality: \(quality)")
-      }
-      CloudPlayerSeekBar(
-        position: library.playback.position, duration: library.playback.duration,
-      ) {
-        library.playback.seek($0)
-      }
-      .id(library.playback.track?.id)
-      HStack(spacing: 0) {
-        Spacer(minLength: 0)
-        Button {
-          library.playback.onPrevious?()
-        } label: {
-          Image(systemName: "backward.end.fill").frame(width: 48, height: 48)
+    var body: some View {
+        VStack(spacing: 8) {
+            if let quality = library.playback.audioQuality {
+                Text(quality)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Audio quality: \(quality)")
+            }
+            CloudPlayerSeekBar(
+                position: library.playback.position, duration: library.playback.duration,
+            ) {
+                library.playback.seek($0)
+            }
+            .id(library.playback.track?.id)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Button {
+                    library.playback.onPrevious?()
+                } label: {
+                    Image(systemName: "backward.end.fill").frame(width: 48, height: 48)
+                }
+                .accessibilityLabel("Previous song")
+                Spacer(minLength: 12)
+                CloudPlaybackButton(prominent: true)
+                Spacer(minLength: 12)
+                Button {
+                    library.advance()
+                } label: {
+                    Image(systemName: "forward.end.fill").frame(width: 48, height: 48)
+                }
+                .accessibilityLabel("Next song")
+                Spacer(minLength: 0)
+            }
+            .font(.title).buttonStyle(.plain)
+            if let error = library.playback.error {
+                Text(error).font(.caption).foregroundStyle(AudexisStyle.destructive)
+                    .lineLimit(3).accessibilityLabel("Playback error: \(error)")
+            }
+            if let error = library.playback.mediaControlsError {
+                Text("System playback controls: \(error)")
+                    .font(.caption).foregroundStyle(AudexisStyle.destructive)
+                    .lineLimit(3).accessibilityLabel("System playback controls error: \(error)")
+            }
         }
-        .accessibilityLabel("Previous song")
-        Spacer(minLength: 12)
-        CloudPlaybackButton(prominent: true)
-        Spacer(minLength: 12)
-        Button {
-          library.advance()
-        } label: {
-          Image(systemName: "forward.end.fill").frame(width: 48, height: 48)
-        }
-        .accessibilityLabel("Next song")
-        Spacer(minLength: 0)
-      }
-      .font(.title).buttonStyle(.plain)
-      if let error = library.playback.error {
-        Text(error).font(.caption).foregroundStyle(AudexisStyle.destructive)
-          .lineLimit(3).accessibilityLabel("Playback error: \(error)")
-      }
-      if let error = library.playback.mediaControlsError {
-        Text("System playback controls: \(error)")
-          .font(.caption).foregroundStyle(AudexisStyle.destructive)
-          .lineLimit(3).accessibilityLabel("System playback controls error: \(error)")
-      }
     }
-  }
 
 }

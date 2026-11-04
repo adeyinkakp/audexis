@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AC3000000000000000000001 = {isa = PBXBuildFile; productRef = AC3000000000000000000002; };
 		A9D8D05A8B004F5481AB4101 /* audexis.icon in Resources */ = {isa = PBXBuildFile; fileRef = A9D8D05A8B004F5481AB4102 /* audexis.icon */; };
 		EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */ = {isa = PBXBuildFile; productRef = EBA2BBAA3099BBF4009D7678 /* MarqueeText */; };
 /* End PBXBuildFile section */
@@ -46,6 +47,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */,
+				AC3000000000000000000001,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -107,6 +109,7 @@
 			);
 			name = audexis;
 			packageProductDependencies = (
+				AC3000000000000000000002,
 				EBA2BBAA3099BBF4009D7678 /* MarqueeText */,
 			);
 			productName = audexis;
@@ -138,6 +141,7 @@
 			mainGroup = EB97F78930876C7E009D4B3C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				AC3000000000000000000003,
 				EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -480,6 +484,11 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		AC3000000000000000000003 = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = { branch = master; kind = branch; };
+		};
 		EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/joekndy/MarqueeText";
@@ -491,6 +500,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		AC3000000000000000000002 = {
+			isa = XCSwiftPackageProductDependency;
+			package = AC3000000000000000000003;
+			productName = Kingfisher;
+		};
 		EBA2BBAA3099BBF4009D7678 /* MarqueeText */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */;

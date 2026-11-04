@@ -5,8 +5,8 @@
 //  Created by Kp on 10/21/26.
 //
 
-import SwiftUI
 import MarqueeText
+import SwiftUI
 
 struct CloudPlayerView: View {
     enum Panel { case artwork, lyrics, queue }
@@ -16,12 +16,12 @@ struct CloudPlayerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State var panel: Panel = .artwork
     @ScaledMetric(relativeTo: .title2) private var headingSpace: CGFloat = 96
-    
+
     var body: some View {
         GeometryReader { geometry in
             let wide =
-            geometry.size.width >= 620
-            || (geometry.size.width >= 500 && geometry.size.width > geometry.size.height)
+                geometry.size.width >= 620
+                || (geometry.size.width >= 500 && geometry.size.width > geometry.size.height)
             VStack(spacing: 12) {
                 header
                     .environment(\.openMusicCollection, openCollection)
@@ -47,7 +47,8 @@ struct CloudPlayerView: View {
                         if panel == .artwork {
                             artwork(track)
                         } else {
-                            songHeading(track, compact: true).fixedSize(horizontal: false, vertical: true)
+                            songHeading(track, compact: true).fixedSize(
+                                horizontal: false, vertical: true,)
                             details(track, lyrics: panel == .lyrics)
                         }
                         controls
@@ -67,11 +68,13 @@ struct CloudPlayerView: View {
             AudexisStyle.background.ignoresSafeArea()
             if panel == .lyrics, let track = library.playback.track {
                 GeometryReader { geometry in
-                    CloudArtwork(track: track, size: max(geometry.size.width, geometry.size.height) + 160)
-                        .blur(radius: 70)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
-                        .overlay(Color.black.opacity(0.62))
+                    CloudArtwork(
+                        track: track, size: max(geometry.size.width, geometry.size.height) + 160,
+                    )
+                    .blur(radius: 70)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .overlay(Color.black.opacity(0.62))
                 }
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
@@ -81,19 +84,19 @@ struct CloudPlayerView: View {
         .tint(AudexisStyle.primary)
         .environment(\.colorScheme, panel == .lyrics ? .dark : colorScheme)
     }
-    
+
     private func openCollection(_ collection: CloudCollectionDestination) {
         guard let openMusicCollection else { return }
         openMusicCollection(collection)
         dismiss()
     }
-    
+
     private var controls: some View {
         CloudPlayerControls()
             .padding(.horizontal, 20)
             .fixedSize(horizontal: false, vertical: true)
     }
-    
+
     private func panelButtons(wide: Bool = false) -> some View {
         HStack(spacing: 48) {
             panelButton(.lyrics, symbol: "quote.bubble", label: "Lyrics", wide: wide)
@@ -101,7 +104,7 @@ struct CloudPlayerView: View {
         }
         .frame(maxWidth: .infinity).padding(.bottom, 8)
     }
-    
+
     @ViewBuilder private func details(_ track: CloudTrack, lyrics: Bool) -> some View {
         if lyrics {
             CloudPlayerLyrics(track: track).id("\(track.id):\(track.revision)")
@@ -111,16 +114,18 @@ struct CloudPlayerView: View {
                 .environment(\.openMusicCollection, openCollection)
         }
     }
-    
+
     private func artwork(_ track: CloudTrack) -> some View {
         GeometryReader { space in
-            let size = max(0, min(space.size.width - 40, space.size.height - headingSpace - 20, 420))
+            let size = max(
+                0, min(space.size.width - 40, space.size.height - headingSpace - 20, 420),)
             VStack(spacing: 14) {
                 Spacer(minLength: 0)
                 CloudArtwork(track: track, size: size)
                     .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
                     .contextMenu {
-                        CloudTrackActions(track: track).environment(\.openMusicCollection, openCollection)
+                        CloudTrackActions(track: track).environment(
+                            \.openMusicCollection, openCollection,)
                     }
                 songHeading(track, compact: false)
                     .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
@@ -130,7 +135,7 @@ struct CloudPlayerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var header: some View {
         HStack {
             Button {
@@ -157,24 +162,24 @@ struct CloudPlayerView: View {
         .padding(.horizontal, 12)
         .padding(.top, 12)
     }
-    
+
     private func songHeading(_ track: CloudTrack, compact: Bool) -> some View {
         HStack(spacing: 12) {
             if compact { CloudArtwork(track: track, size: 52) }
             VStack(alignment: .leading, spacing: 0) {
-                
+
                 MarqueeText(
                     text: track.title,
                     font: UIFont.preferredFont(forTextStyle: compact ? .headline : .title2),
                     leftFade: 16,
                     rightFade: 16,
-                    startDelay: 3
-                    
+                    startDelay: 3,
+
                 )
                 .bold()
                 Button {
                     if let artist = CloudCollectionDestination.artist(
-                        for: track, in: library.snapshot.tracks,)
+                        for: track, in: library.snapshot.tracks, )
                     {
                         openCollection(artist)
                     }
@@ -198,26 +203,30 @@ struct CloudPlayerView: View {
             }
             .buttonStyle(.plain)
             .disabled(library.favoriteUpdates.contains(track.id))
-            .accessibilityLabel(library.isFavorite(track) ? "Remove from Favorites" : "Add to Favorites")
+            .accessibilityLabel(
+                library.isFavorite(track) ? "Remove from Favorites" : "Add to Favorites")
             CloudDownloadIndicator(track: track)
         }
         .padding(.horizontal, compact ? 24 : 0)
     }
-    
-    private func panelButton(_ target: Panel, symbol: String, label: String, wide: Bool) -> some View
+
+    private func panelButton(_ target: Panel, symbol: String, label: String, wide: Bool)
+        -> some View
     {
         let selected = panel == target || (wide && panel == .artwork && target == .queue)
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 panel =
-                wide
-                ? (target == .lyrics && !selected ? .lyrics : .queue) : (selected ? .artwork : target)
+                    wide
+                    ? (target == .lyrics && !selected ? .lyrics : .queue)
+                    : (selected ? .artwork : target)
             }
         } label: {
             Image(systemName: symbol).font(.title3)
                 .frame(width: 54, height: 44)
                 .background(
-                    selected ? AudexisStyle.primary_soft : .clear, in: RoundedRectangle(cornerRadius: 12), )
+                    selected ? AudexisStyle.primary_soft : .clear,
+                    in: RoundedRectangle(cornerRadius: 12), )
         }
         .disabled(library.playback.track == nil)
         .accessibilityLabel(label)
