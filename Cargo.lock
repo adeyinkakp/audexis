@@ -578,6 +578,8 @@ dependencies = [
  "souvlaki",
  "sqlx",
  "symphonia",
+ "symphonia-adapter-libopus",
+ "symphonia-core",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -1141,6 +1143,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
 dependencies = [
  "error-code",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.58"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -4329,6 +4340,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
+name = "opusic-sys"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "986d749e9dc12035f11bf3ecc83a2a696ff7534d4143be9469a4a0faa25b9fd1"
+dependencies = [
+ "cmake",
+]
+
+[[package]]
 name = "orbclient"
 version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6074,6 +6094,17 @@ dependencies = [
  "symphonia-format-ogg",
  "symphonia-format-riff",
  "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-adapter-libopus"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6febe6f88f9a9483db7e5b72a2dad916d8f8eb588d18905a39c861319fc7fa1"
+dependencies = [
+ "log",
+ "opusic-sys",
+ "symphonia-core",
 ]
 
 [[package]]

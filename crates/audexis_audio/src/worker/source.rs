@@ -1,4 +1,5 @@
 use super::state::WorkerState;
+use crate::codec_registry::get_registry;
 use crate::duration::resolve_duration_ms;
 use symphonia::core::formats::{TrackType, probe::Hint};
 use symphonia::core::io::MediaSourceStream;
@@ -62,7 +63,7 @@ fn open_inner(
         .as_ref()
         .and_then(|p| p.audio())
         .ok_or("No audio parameters")?;
-    let decoder = symphonia::default::get_codecs()
+    let decoder = get_registry()
         .make_audio_decoder(params, &Default::default())
         .map_err(|e| e.to_string())?;
 

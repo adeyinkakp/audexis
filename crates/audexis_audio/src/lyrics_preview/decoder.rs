@@ -1,3 +1,5 @@
+use crate::codec_registry::get_registry;
+
 use super::*;
 
 pub(super) struct Decoder {
@@ -47,7 +49,7 @@ impl Decoder {
             .map(|c| c.count())
             .filter(|c| *c > 0)
             .ok_or("No channels")?;
-        let decoder = symphonia::default::get_codecs()
+        let decoder = get_registry()
             .make_audio_decoder(params, &Default::default())
             .map_err(|e| e.to_string())?;
         let track_id = track.id;

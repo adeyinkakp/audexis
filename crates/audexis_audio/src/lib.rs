@@ -13,6 +13,7 @@ pub use modes::{PlaybackModes, RepeatMode};
 pub use playback::AudioPlayer;
 pub use types::{AudioPlayerError, PartialMetadata, PlayerCmd};
 
+mod codec_registry;
 mod play_count;
 
 mod listening_time;

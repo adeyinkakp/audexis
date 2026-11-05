@@ -9,6 +9,8 @@ publish = false
 thiserror.workspace = true
 
 symphonia.workspace = true
+symphonia-adapter-libopus.workspace = true
+symphonia-core.workspace = true
 cpal.workspace = true
 crossbeam-channel.workspace = true
 ringbuf.workspace = true
@@ -22,7 +24,10 @@ sqlx.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "blocking",
+    "rustls-tls",
+] }
 sha2 = "0.10"
 
 audexis_protocol = { path = "../audexis_protocol" }

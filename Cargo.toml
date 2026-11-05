@@ -42,6 +42,8 @@ uuid = { version = "1", features = ["v4"] }
 
 
 symphonia = { version = "0.6.1", features = ["all-codecs", "all-formats"] }
+symphonia-adapter-libopus = "0.3.0"
+symphonia-core = "0.6.1"
 cpal = "0.18.1"
 crossbeam-channel = "0.5"
 ringbuf = "0.5"
