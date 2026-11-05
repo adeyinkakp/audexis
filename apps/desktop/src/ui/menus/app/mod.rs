@@ -3,33 +3,10 @@ use crate::ui::hooks::{PlaybackPanelView, use_library, use_playback};
 use audexis_audio::{PlayerCmd, RepeatMode};
 use freya_core::events::platform::{KeyboardEventName, PlatformEvent};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum AppAction {
-    Settings,
-    LibrarySettings,
-    Logs,
-    NewPlaylist,
-    Import,
-    Rescan,
-    Missing,
-    Cut,
-    Copy,
-    Paste,
-    SelectAll,
-    Queue,
-    Lyrics,
-    Play,
-    Pause,
-    Previous,
-    Next,
-    Shuffle,
-    Repeat(RepeatMode),
-    ExpandedPlayer,
-    MiniPlayer,
-    Equalizer,
-    Issue,
-}
 mod actions;
+mod trigger;
+pub use actions::AppAction;
+use trigger::MenuTrigger;
 mod dropdown;
 mod model;
 use crate::ui::windows::new_playlist::NewPlaylist;
@@ -48,13 +25,16 @@ impl Component for AppMenuBar {
         let services = use_consume::<Arc<AppServices>>();
         let runtime = use_consume::<tokio::runtime::Handle>();
         let playback = use_playback();
+        let shortcuts = crate::ui::keyboard::use_keyboard_settings();
+        let _ = shortcuts.read();
         let router = RouterContext::try_get();
+        let commands = use_consume::<crate::ui::keyboard::ShortcutCommands>();
         let library = use_library();
         let mut model = use_state(Vec::<Entry>::new);
         let busy = use_state(|| false);
         let mut open = use_state(|| None::<String>);
-        let mut hovered = use_state(|| None::<String>);
-        let mut edit_focus = use_state(|| None::<AccessibilityId>);
+        let hovered = use_state(|| None::<String>);
+        let edit_focus = use_state(|| None::<AccessibilityId>);
         let current = playback.state.read().clone();
         let target = MediaTarget::track(current.id, current.path.unwrap_or_default());
         let task_services = services.clone();
@@ -67,11 +47,13 @@ impl Component for AppMenuBar {
             let playback = task_playback.clone();
             let router = task_router.clone();
             let library = library.clone();
+            let commands = commands.clone();
             async move {
                 let mut cache = None;
                 let mut state = Err("Loading playlists…".into());
                 #[cfg(target_os = "macos")]
                 let mut native = None::<(muda::Menu, Vec<(muda::MenuId, Action)>)>;
+                let mut installed_shortcuts = None;
                 loop {
                     #[cfg(target_os = "macos")]
                     if let Some((_, actions)) = &native {
@@ -79,6 +61,17 @@ impl Component for AppMenuBar {
                             if let Some((_, action)) =
                                 actions.iter().find(|(id, _)| *id == event.id)
                             {
+                                if crate::ui::keyboard::is_recording() {
+                                    continue;
+                                }
+                                if let Action::App(action) = action {
+                                    if let Some(shortcut) =
+                                        crate::ui::keyboard::app_shortcut(*action)
+                                    {
+                                        commands.0.call(shortcut);
+                                        continue;
+                                    }
+                                }
                                 let p = playback.state.peek().clone();
                                 let target = MediaTarget::track(p.id, p.path.unwrap_or_default());
                                 if let Err(e) = super::dispatch(
@@ -122,10 +115,15 @@ impl Component for AppMenuBar {
                         *playback.panel.peek(),
                         services.watcher.is_some(),
                     );
-                    if *model.peek() != next {
+                    let keyboard = services
+                        .user_config
+                        .lock()
+                        .map(|c| c.keyboard.clone())
+                        .unwrap_or_default();
+                    if *model.peek() != next || installed_shortcuts.as_ref() != Some(&keyboard) {
                         #[cfg(target_os = "macos")]
                         if !crate::ui::windows::title_bar::windows_title_bar() {
-                            match install_native(next.clone()) {
+                            match install_native(next.clone(), &keyboard) {
                                 Ok(value) => native = Some(value),
                                 Err(e) => {
                                     let mut error = playback.error;
@@ -133,6 +131,7 @@ impl Component for AppMenuBar {
                                 }
                             }
                         }
+                        installed_shortcuts = Some(keyboard);
                         model.set(next);
                     }
                     let _ = runtime
@@ -180,55 +179,15 @@ impl Component for AppMenuBar {
         for group in model.read().clone() {
             let active = open.read().as_ref() == Some(&group.title);
             let title = group.title.clone();
-            let hover_title = title.clone();
             let enabled = group.enabled;
             let close = EventHandler::new(move |()| open.set(None));
-            let highlighted = active || hovered.read().as_ref() == Some(&title);
-            let trigger = rect()
-                .height(Size::px(30.))
-                .corner_radius(6.)
-                .padding((0., 10.))
-                .horizontal()
-                .cross_align(Alignment::Center)
-                .background(if highlighted {
-                    colors.hover
-                } else {
-                    Color::TRANSPARENT
-                })
-                .a11y_focusable(enabled)
-                .a11y_alt(title.clone())
-                .on_pointer_down(move |_| {
-                    if open.peek().is_none() {
-                        edit_focus.set(Some(*Platform::get().focused_accessibility_id.peek()));
-                    }
-                })
-                .on_pointer_enter(move |_| {
-                    hovered.set(Some(hover_title.clone()));
-                    if enabled && open.peek().is_some() {
-                        open.set(Some(hover_title.clone()));
-                    }
-                })
-                .on_pointer_leave(move |_| hovered.set(None))
-                .child(
-                    label()
-                        .text(title.clone())
-                        .font_size(12.)
-                        .color(if enabled {
-                            colors.foreground
-                        } else {
-                            colors.muted_foreground
-                        }),
-                )
-                .on_press(move |event: Event<PressEventData>| {
-                    event.stop_propagation();
-                    if enabled {
-                        if open.peek().as_ref() == Some(&title) {
-                            open.set(None);
-                        } else {
-                            open.set(Some(title.clone()));
-                        }
-                    }
-                });
+            let trigger = MenuTrigger {
+                title,
+                enabled,
+                open,
+                hovered,
+                edit_focus,
+            };
             let menu = active.then(|| {
                 rect()
                     .position(Position::new_absolute().top(44.).left(0.))
@@ -238,20 +197,24 @@ impl Component for AppMenuBar {
                         Menu::new()
                             .key(group.title.clone())
                             .on_close(move |_| open.set(None))
-                            .children(group.children.into_iter().map(|entry| {
-                                dropdown::item(
-                                    entry,
-                                    target.clone(),
-                                    playback.clone(),
-                                    services.clone(),
-                                    runtime.clone(),
-                                    router.clone(),
-                                    busy,
-                                    close.clone(),
-                                    *edit_focus.peek(),
-                                    &colors,
-                                )
-                            })),
+                            .child(crate::ui::keyboard::KeyboardMenu {
+                                child: rect()
+                                    .children(group.children.into_iter().map(|entry| {
+                                        dropdown::item(
+                                            entry,
+                                            target.clone(),
+                                            playback.clone(),
+                                            services.clone(),
+                                            runtime.clone(),
+                                            router.clone(),
+                                            busy,
+                                            close.clone(),
+                                            *edit_focus.peek(),
+                                            &colors,
+                                        )
+                                    }))
+                                    .into_element(),
+                            }),
                     )
             });
             bar = bar.child(

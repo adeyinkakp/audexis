@@ -162,7 +162,7 @@ final class CloudLibrary {
             defer { if self.lifecycle == lifecycle { favoriteUpdates.remove(track.id) } }
             do {
                 let result: CloudMutationResult = try await api.post(
-                    "/api/sync/mutations", body: request,)
+                    "/api/sync/mutations", body: request, )
                 guard !closed, self.lifecycle == lifecycle else { return }
                 guard let updated = result.value.track, updated.id == track.id, !updated.deleted
                 else {

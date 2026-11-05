@@ -1,5 +1,31 @@
 use super::*;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AppAction {
+    Shortcut(crate::ui::keyboard::ShortcutAction),
+    Settings,
+    LibrarySettings,
+    Logs,
+    NewPlaylist,
+    Import,
+    Rescan,
+    Missing,
+    Cut,
+    Copy,
+    Paste,
+    SelectAll,
+    Queue,
+    Lyrics,
+    Previous,
+    Next,
+    Shuffle,
+    Repeat(RepeatMode),
+    ExpandedPlayer,
+    MiniPlayer,
+    Equalizer,
+    Issue,
+}
+
 pub(crate) async fn dispatch(
     action: AppAction,
     playback: &Playback,
@@ -8,6 +34,12 @@ pub(crate) async fn dispatch(
     router: Option<RouterContext>,
 ) -> Result<(), String> {
     match action {
+        AppAction::Shortcut(action) => {
+            return Box::pin(crate::ui::keyboard::run(
+                action, playback, services, runtime, router, None,
+            ))
+            .await;
+        }
         AppAction::Equalizer => crate::ui::windows::equalizer::open(services, runtime),
         AppAction::ExpandedPlayer => crate::ui::hooks::request_expanded_player(),
         AppAction::MiniPlayer => crate::ui::windows::player::open(services, runtime, true, None),
@@ -61,8 +93,6 @@ pub(crate) async fn dispatch(
         }
         AppAction::Queue => playback.toggle_panel(PlaybackPanelView::Queue),
         AppAction::Lyrics => playback.toggle_panel(PlaybackPanelView::Lyrics),
-        AppAction::Play => playback.send(PlayerCmd::Play { resuming: true }),
-        AppAction::Pause => playback.send(PlayerCmd::Pause),
         AppAction::Previous => playback.send(PlayerCmd::Previous),
         AppAction::Next => playback.send(PlayerCmd::Next),
         AppAction::Shuffle => playback.send(PlayerCmd::ToggleShuffle),

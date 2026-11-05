@@ -40,7 +40,7 @@ class AuthManager {
         guard !key.isEmpty else { throw ServerSettingsError.missingKey }
         try save(
             .init(
-                connection: .init(kind: .custom, url: serverURL.absoluteString), credential: key,))
+                connection: .init(kind: .custom, url: serverURL.absoluteString), credential: key, ))
     }
 
     private func save(_ session: SavedSession) throws {

@@ -38,7 +38,7 @@ struct LoginView: View {
                             if !authService.isLoading { Image(systemName: "arrow.right") }
                         }
                         .font(.subheadline.bold()).frame(maxWidth: .infinity).padding(
-                            .vertical, 12,)
+                            .vertical, 12, )
                     }
                     .buttonStyle(.borderedProminent).buttonBorderShape(
                         .roundedRectangle(radius: 14)

@@ -90,6 +90,11 @@ impl Component for SongTableRow {
             target,
             EventHandler::new(move |()| command_target.play(&playback)),
         )
+        .accessible_label(format!(
+            "{} — {}",
+            crate::ui::display_text(self.song.title.clone()),
+            crate::ui::display_text(self.song.artist.clone())
+        ))
         .background(if self.index % 2 == 0 {
             colors.surface_subtle
         } else {

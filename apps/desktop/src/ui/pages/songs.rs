@@ -177,7 +177,7 @@ impl Component for Songs {
         let more = data.len() < *total.read() as usize;
         let length = data.len() + usize::from(more);
         let width = 50.0 + columns.iter().map(|col| col.width as f32).sum::<f32>();
-        let scroll = use_table_scroll(width, length as f32 * ROW_HEIGHT);
+        let mut scroll = use_table_scroll(width, length as f32 * ROW_HEIGHT);
         let mut position = scroll.position;
         use_side_effect_with_deps(&identity, move |_| {
             let x = position.peek().0;
@@ -296,6 +296,21 @@ impl Component for Songs {
                     .child(TrackSelectionScope {
                         items: selection_items,
                         fill: true,
+                        on_navigate: Some(EventHandler::new(move |index: usize| {
+                            let (x, y) = *scroll.position.peek();
+                            let height = scroll.viewport.peek().1;
+                            let top = index as f32 * ROW_HEIGHT;
+                            let bottom = top + ROW_HEIGHT;
+                            let visible_top = -y as f32;
+                            let target = if top < visible_top {
+                                top
+                            } else if bottom > visible_top + height {
+                                bottom - height
+                            } else {
+                                visible_top
+                            };
+                            scroll.position.set((x, -(target.max(0.).round() as i32)));
+                        })),
                         on_select_all: Some(EventHandler::new(move |all| selecting_all.set(all))),
                         child: track_list.into_element(),
                     }),

@@ -16,7 +16,7 @@ struct CloudCollectionActions: View {
                 if let first = tracks.first { library.play(first, among: tracks) }
             } label: {
                 Label("Play", systemImage: "play.fill").frame(maxWidth: .infinity).padding(
-                    .vertical, 8,)
+                    .vertical, 8, )
             }
             .buttonStyle(.borderedProminent)
             Button {
@@ -24,7 +24,7 @@ struct CloudCollectionActions: View {
                 if let first = shuffled.first { library.play(first, among: shuffled) }
             } label: {
                 Label("Shuffle", systemImage: "shuffle").frame(maxWidth: .infinity).padding(
-                    .vertical, 8,)
+                    .vertical, 8, )
             }
             .buttonStyle(.bordered)
         }

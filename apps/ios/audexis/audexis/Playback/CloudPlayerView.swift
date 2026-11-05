@@ -48,7 +48,7 @@ struct CloudPlayerView: View {
                             artwork(track)
                         } else {
                             songHeading(track, compact: true).fixedSize(
-                                horizontal: false, vertical: true,)
+                                horizontal: false, vertical: true, )
                             details(track, lyrics: panel == .lyrics)
                         }
                         controls
@@ -118,14 +118,14 @@ struct CloudPlayerView: View {
     private func artwork(_ track: CloudTrack) -> some View {
         GeometryReader { space in
             let size = max(
-                0, min(space.size.width - 40, space.size.height - headingSpace - 20, 420),)
+                0, min(space.size.width - 40, space.size.height - headingSpace - 20, 420), )
             VStack(spacing: 14) {
                 Spacer(minLength: 0)
                 CloudArtwork(track: track, size: size)
                     .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
                     .contextMenu {
                         CloudTrackActions(track: track).environment(
-                            \.openMusicCollection, openCollection,)
+                            \.openMusicCollection, openCollection, )
                     }
                 songHeading(track, compact: false)
                     .fixedSize(horizontal: false, vertical: true).layoutPriority(1)

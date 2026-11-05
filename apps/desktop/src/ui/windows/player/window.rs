@@ -69,9 +69,12 @@ impl App for MiniPlayerWindow {
         use_provide_context(move || runtime);
         crate::ui::theme::use_app_theme(self.services.clone());
         crate::ui::hooks::use_app_state(self.services.clone(), self.runtime.clone());
-        PlayerView {
-            compact: true,
-            library_window: Some(self.library_window),
+        crate::ui::keyboard::KeyboardShortcuts {
+            child: PlayerView {
+                compact: true,
+                library_window: Some(self.library_window),
+            }
+            .into_element(),
         }
     }
 }

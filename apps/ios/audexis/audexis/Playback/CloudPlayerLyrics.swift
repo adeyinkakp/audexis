@@ -56,7 +56,7 @@ struct CloudPlayerLyrics: View {
                                                 .font(
                                                     .system(
                                                         size: lyricSize, weight: .bold,
-                                                        design: .rounded,)
+                                                        design: .rounded, )
                                                 )
                                                 .fixedSize(horizontal: false, vertical: true)
                                                 .lineSpacing(3)
@@ -235,7 +235,8 @@ private struct PlayerLyrics {
                     Range(match.range(at: 3), in: raw).flatMap { Double("0." + raw[$0]) } ?? 0
                 lines.append(
                     Line(
-                        seconds: max(0, minutes * 60 + seconds + fraction + offset), text: content,)
+                        seconds: max(0, minutes * 60 + seconds + fraction + offset), text: content,
+                    )
                 )
             }
         }

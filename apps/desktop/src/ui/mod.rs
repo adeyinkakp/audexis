@@ -1,6 +1,7 @@
 mod app;
 pub mod components;
 pub mod hooks;
+mod keyboard;
 mod menus;
 pub mod pages;
 pub mod routes;

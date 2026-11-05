@@ -3,8 +3,10 @@ use super::*;
 #[cfg(target_os = "macos")]
 pub(super) fn install_native(
     groups: Vec<Entry>,
+    keyboard: &crate::ui::keyboard::KeyboardSettings,
 ) -> Result<(muda::Menu, Vec<(muda::MenuId, Action)>), String> {
     use muda::{Menu, PredefinedMenuItem as P, Submenu};
+    super::super::native::clear_shortcuts();
     let menu = Menu::new();
     let mut actions = vec![];
     let app = Submenu::new("Audexis", true);
@@ -14,6 +16,7 @@ pub(super) fn install_native(
         native_item(
             super::model::app("Settings…", AppAction::Settings),
             &mut actions,
+            Some(keyboard),
         )?
         .as_ref(),
     )
@@ -42,9 +45,12 @@ pub(super) fn install_native(
                 .map_err(|e| e.to_string())?;
             menu.append(&window).map_err(|e| e.to_string())?;
         }
-        menu.append(native_item(group, &mut actions)?.as_ref())
+        menu.append(native_item(group, &mut actions, Some(keyboard))?.as_ref())
             .map_err(|e| e.to_string())?;
     }
     menu.init_for_nsapp();
+    if crate::ui::keyboard::is_recording() {
+        super::super::native::suspend_cocoa_shortcuts();
+    }
     Ok((menu, actions))
 }

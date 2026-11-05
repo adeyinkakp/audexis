@@ -1,5 +1,6 @@
 pub use audexis_protocol::equalizer;
 use std::path::PathBuf;
+pub mod keyboard;
 pub mod table;
 pub use table::*;
 
@@ -19,6 +20,7 @@ pub struct UserConfig {
     pub auto_sync: bool,
     pub cloud_audio_quality: CloudAudioQuality,
     pub playback_cache_mb: u64,
+    pub keyboard: keyboard::KeyboardSettings,
     pub equalizer: equalizer::Settings,
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +81,7 @@ impl Default for UserConfig {
             cloud_audio_quality: CloudAudioQuality::Original,
             playback_cache_mb: 2048,
             equalizer: equalizer::Settings::default(),
+            keyboard: keyboard::KeyboardSettings::default(),
         }
     }
 }

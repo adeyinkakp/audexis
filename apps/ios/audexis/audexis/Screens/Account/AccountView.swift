@@ -69,7 +69,7 @@ struct AccountView: View {
                 Section("On this device") {
                     LabeledContent("Library", value: "\(library.snapshot.tracks.count) songs")
                     LabeledContent(
-                        "Downloaded", value: "\(library.snapshot.downloads.count) songs",)
+                        "Downloaded", value: "\(library.snapshot.downloads.count) songs", )
                     if !library.downloads.isEmpty {
                         LabeledContent("Downloading", value: "\(library.downloads.count) songs")
                     }

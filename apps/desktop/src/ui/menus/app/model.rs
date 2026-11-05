@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::keyboard::ShortcutAction as S;
 
 pub(super) fn app(title: &str, action: AppAction) -> Entry {
     Entry::item(title, Action::App(action), true)
@@ -64,6 +65,17 @@ pub(super) fn groups(
         group(
             "View",
             vec![
+                group(
+                    "Go to",
+                    vec![
+                        app("Search", AppAction::Shortcut(S::Search)),
+                        app("Songs", AppAction::Shortcut(S::Songs)),
+                        app("Albums", AppAction::Shortcut(S::Albums)),
+                        app("Artists", AppAction::Shortcut(S::Artists)),
+                        app("Playlists", AppAction::Shortcut(S::Playlists)),
+                        app("Favorites", AppAction::Shortcut(S::Favorites)),
+                    ],
+                ),
                 checked(
                     app("Show Queue", AppAction::Queue),
                     panel == Some(PlaybackPanelView::Queue),
@@ -81,10 +93,31 @@ pub(super) fn groups(
                 app("Open Mini Player", AppAction::MiniPlayer),
                 app("Equalizer…", AppAction::Equalizer),
                 Entry::separator(),
-                enabled(app("Play", AppAction::Play), playing && player.paused),
-                enabled(app("Pause", AppAction::Pause), playing && !player.paused),
+                enabled(
+                    app(
+                        if player.paused { "Play" } else { "Pause" },
+                        AppAction::Shortcut(S::PlayPause),
+                    ),
+                    playing,
+                ),
                 enabled(app("Previous Track", AppAction::Previous), playing),
                 enabled(app("Next Track", AppAction::Next), playing),
+                enabled(
+                    app("Seek Forward", AppAction::Shortcut(S::SeekForward)),
+                    playing,
+                ),
+                enabled(
+                    app("Seek Backward", AppAction::Shortcut(S::SeekBackward)),
+                    playing,
+                ),
+                enabled(
+                    app("Toggle Favorite", AppAction::Shortcut(S::Favorite)),
+                    playing,
+                ),
+                enabled(
+                    app("Cycle Repeat Mode", AppAction::Shortcut(S::Repeat)),
+                    available,
+                ),
                 Entry::separator(),
                 enabled(
                     checked(app("Shuffle", AppAction::Shuffle), player.shuffled),

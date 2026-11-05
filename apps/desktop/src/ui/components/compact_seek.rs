@@ -15,6 +15,7 @@ impl Component for CompactSeek {
         let mut bounds = use_state(|| (0.0f64, 1.0f64));
         let mut draft = use_state(|| None::<u64>);
         let a11y = use_a11y();
+        let focus = use_focus(a11y);
         let duration = self.duration;
         let enabled = self.enabled && duration > 0;
         let value = (*draft.read()).unwrap_or(self.position).min(duration);
@@ -30,6 +31,18 @@ impl Component for CompactSeek {
             .width(Size::fill())
             .height(Size::px(16.0))
             .main_align(Alignment::Center)
+            .padding((0., 2.))
+            .corner_radius(6.)
+            .border(
+                Border::new()
+                    .width(2.)
+                    .alignment(BorderAlignment::Inner)
+                    .fill(if focus() == Focus::Keyboard {
+                        colors.primary
+                    } else {
+                        Color::TRANSPARENT
+                    }),
+            )
             .a11y_id(a11y)
             .a11y_focusable(enabled)
             .a11y_role(AccessibilityRole::Slider)
@@ -74,6 +87,7 @@ impl Component for CompactSeek {
                             _ => return,
                         };
                         event.stop_propagation();
+                        event.prevent_default();
                         playback.send(PlayerCmd::SeekMilliseconds { milliseconds });
                     })
             })

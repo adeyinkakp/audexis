@@ -149,7 +149,7 @@ struct RewindPage: View {
                                     .secondary)
                             }
                             .padding(14).background(
-                                AudexisStyle.card, in: RoundedRectangle(cornerRadius: 16),)
+                                AudexisStyle.card, in: RoundedRectangle(cornerRadius: 16), )
                         }
                         .buttonStyle(.plain)
                     }

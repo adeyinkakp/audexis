@@ -12,6 +12,7 @@ pub(super) fn item(
     edit_focus: Option<AccessibilityId>,
     colors: &crate::ui::theme::AudexisColors,
 ) -> Element {
+    let commands = try_consume_context::<crate::ui::keyboard::ShortcutCommands>();
     if entry.title.is_empty() {
         return rect()
             .width(Size::fill())
@@ -58,7 +59,7 @@ pub(super) fn item(
                 .height(Size::px(14.))
                 .color(colors.muted_foreground),
         );
-    } else if let Some(shortcut) = shortcut(entry.action) {
+    } else if let Some(shortcut) = shortcut(entry.action, &services) {
         row = row.child(
             label()
                 .text(shortcut)
@@ -98,6 +99,15 @@ pub(super) fn item(
             let Some(action) = entry.action else {
                 return;
             };
+            if let Action::App(app_action) = action {
+                if let (Some(action), Some(commands)) = (
+                    crate::ui::keyboard::app_shortcut(app_action),
+                    commands.as_ref(),
+                ) {
+                    commands.0.call(action);
+                    return;
+                }
+            }
             if matches!(
                 action,
                 Action::App(
@@ -131,7 +141,20 @@ pub(super) fn item(
         .into_element()
 }
 
-fn shortcut(action: Option<Action>) -> Option<String> {
+fn shortcut(action: Option<Action>, services: &AppServices) -> Option<String> {
+    let configurable = action.and_then(|action| match action {
+        Action::App(action) => crate::ui::keyboard::app_shortcut(action),
+        _ => None,
+    });
+    if let Some(action) = configurable {
+        return services
+            .user_config
+            .lock()
+            .ok()?
+            .keyboard
+            .binding(action, cfg!(target_os = "macos"))
+            .map(|binding| binding.label());
+    }
     let key = match action {
         Some(Action::App(AppAction::Cut)) => "X",
         Some(Action::App(AppAction::Copy)) => "C",

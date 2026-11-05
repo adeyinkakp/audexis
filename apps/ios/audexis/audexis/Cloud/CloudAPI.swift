@@ -34,7 +34,7 @@ actor CloudAPI {
         let config = configuration
         config.timeoutIntervalForRequest = 30
         self.session = URLSession(
-            configuration: config, delegate: NoRedirect(), delegateQueue: nil,)
+            configuration: config, delegate: NoRedirect(), delegateQueue: nil, )
     }
     func get<T: Decodable & Sendable>(_ path: String, as type: T.Type = T.self) async throws -> T {
         try await send(path, method: "GET", body: nil)

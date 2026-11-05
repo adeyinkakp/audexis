@@ -16,7 +16,7 @@ pub(crate) mod app;
 pub(crate) mod context;
 use actions::dispatch;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-mod native;
+pub(crate) mod native;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use native::{native_item, native_popup};
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]

@@ -38,12 +38,12 @@ struct CloudTrackActions: View {
         Divider()
         if let openMusicCollection {
             if let album = CloudCollectionDestination.album(
-                for: track, in: library.snapshot.tracks,)
+                for: track, in: library.snapshot.tracks, )
             {
                 Button("Go to Album", systemImage: "square.stack") { openMusicCollection(album) }
             }
             if let artist = CloudCollectionDestination.artist(
-                for: track, in: library.snapshot.tracks,)
+                for: track, in: library.snapshot.tracks, )
             {
                 Button("Go to Artist", systemImage: "person.crop.square") {
                     openMusicCollection(artist)

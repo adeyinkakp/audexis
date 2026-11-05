@@ -5,6 +5,7 @@ pub(crate) struct TrackSelectionScope {
     pub items: Arc<Vec<SelectedTrack>>,
     pub child: Element,
     pub fill: bool,
+    pub on_navigate: Option<EventHandler<usize>>,
     pub on_select_all: Option<EventHandler<bool>>,
 }
 impl Component for TrackSelectionScope {
@@ -13,6 +14,8 @@ impl Component for TrackSelectionScope {
         let items = use_reactive(&self.items);
         let mut modifiers = use_state(ModifierTracker::default);
         let mut clicks = use_state(ClickTracker::default);
+        let keyboard_target = use_state(|| None::<String>);
+        let navigate = use_reactive(&self.on_navigate);
         let select_all = use_reactive(&self.on_select_all);
         use_provide_context(move || SelectionContext {
             selection,
@@ -20,6 +23,8 @@ impl Component for TrackSelectionScope {
             modifiers,
             select_all,
             clicks,
+            keyboard_target,
+            navigate,
         });
         use_side_effect_with_deps(&self.items, move |items| {
             let mut next = selection.peek().clone();

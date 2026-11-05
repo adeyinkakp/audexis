@@ -5,6 +5,7 @@ use crate::ui::theme::AudexisColors;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Appearance,
+    Keyboard,
 
     Library,
     Cloud,
@@ -33,6 +34,13 @@ impl Component for Navigation {
                 label: "Appearance",
                 icon: icons::lucide::palette(),
                 item: Section::Appearance,
+                section,
+                colors: colors.clone(),
+            })
+            .child(NavigationItem {
+                label: "Keyboard",
+                item: Section::Keyboard,
+                icon: icons::lucide::keyboard(),
                 section,
                 colors: colors.clone(),
             })
@@ -149,6 +157,6 @@ impl Component for Panel {
                 Size::px(0.0)
             })
             .overflow(Overflow::Clip)
-            .child(self.child.clone())
+            .maybe_child((self.section == self.selected).then(|| self.child.clone()))
     }
 }

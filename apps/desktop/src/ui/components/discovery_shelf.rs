@@ -57,6 +57,11 @@ impl Component for DiscoveryShelf {
                         })
                     }),
                 )
+                .accessible_label(format!(
+                    "{} — {}",
+                    crate::ui::display_text(track.title.clone()),
+                    crate::ui::display_text(track.artist.clone())
+                ))
                 .width(Size::px(166.))
                 .child(MediaContent {
                     id: track.id,
@@ -110,6 +115,7 @@ impl Component for DiscoveryShelf {
             items,
             child: body.into_element(),
             fill: false,
+            on_navigate: None,
             on_select_all: None,
         }
     }

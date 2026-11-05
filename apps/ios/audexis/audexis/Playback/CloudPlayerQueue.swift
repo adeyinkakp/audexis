@@ -20,7 +20,7 @@ struct CloudPlayerQueue: View {
             {
                 Section("Playing Now") {
                     CloudTrackRow(
-                        track: track, onPlay: { library.selectQueue(current) }, isCurrent: true,)
+                        track: track, onPlay: { library.selectQueue(current) }, isCurrent: true, )
                 }
             }
             Section {

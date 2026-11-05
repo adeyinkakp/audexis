@@ -22,7 +22,22 @@ impl Component for TrackList {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let selection_items = song_items(&self.tracks, self.playlist);
-        let (range, on_sized) = super::visibility::use_visible_rows(self.tracks.len(), 64.);
+        let (visible_range, on_sized) = super::visibility::use_visible_rows(self.tracks.len(), 64.);
+        let mut jump = use_state(|| None::<usize>);
+        let range = match *jump.read() {
+            Some(index) if index < self.tracks.len() && !visible_range.contains(&index) => {
+                index..index + 1
+            }
+            _ => visible_range.clone(),
+        };
+        use_side_effect_with_deps(
+            &(visible_range, *jump.read()),
+            move |(visible, requested)| {
+                if requested.is_some_and(|index| visible.contains(&index)) {
+                    jump.set(None);
+                }
+            },
+        );
         let playback = use_playback();
         let services = use_consume::<Arc<AppServices>>();
         let runtime = use_consume::<tokio::runtime::Handle>();
@@ -126,6 +141,11 @@ impl Component for TrackList {
                         } else {
                             colors.background
                         })
+                        .accessible_label(format!(
+                            "{} — {}",
+                            crate::ui::display_text(song.title.clone()),
+                            crate::ui::display_text(song.artist.clone())
+                        ))
                         .child(
                             rect()
                                 .horizontal()
@@ -269,6 +289,7 @@ impl Component for TrackList {
             items: selection_items,
             child: body.into_element(),
             fill: false,
+            on_navigate: Some(EventHandler::new(move |index| jump.set(Some(index)))),
             on_select_all: None,
         }
     }

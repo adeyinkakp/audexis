@@ -150,17 +150,27 @@ impl Component for LibraryPage {
                     width.set(next);
                 }
             });
-        let search_box =
-            Input::new(search)
-                .width(Size::px(300.))
-                .placeholder(if current.is_some() {
-                    format!(
-                        "Search this {}",
-                        kind.title().trim_end_matches('s').to_lowercase()
-                    )
-                } else {
-                    format!("Search {}", kind.title().to_lowercase())
-                });
+        let search_id = use_a11y();
+        let search_focus = use_try_consume::<crate::ui::keyboard::SearchFocus>();
+        use_side_effect_with_deps(&kind, move |kind| {
+            if *kind == Kind::Search {
+                if let Some(mut focus) = search_focus {
+                    focus.0.set(Some(search_id));
+                }
+            }
+        });
+        let search_box = Input::new(search)
+            .a11y_id(search_id)
+            .auto_focus(kind == Kind::Search)
+            .width(Size::px(300.))
+            .placeholder(if current.is_some() {
+                format!(
+                    "Search this {}",
+                    kind.title().trim_end_matches('s').to_lowercase()
+                )
+            } else {
+                format!("Search {}", kind.title().to_lowercase())
+            });
         if kind == Kind::Playlists && current.is_none() {
             body = body
                 .child(

@@ -21,6 +21,8 @@ struct SelectionContext {
     modifiers: State<ModifierTracker>,
     select_all: State<Option<EventHandler<bool>>>,
     clicks: State<ClickTracker>,
+    keyboard_target: State<Option<String>>,
+    navigate: State<Option<EventHandler<usize>>>,
 }
 
 pub(crate) fn song_items(

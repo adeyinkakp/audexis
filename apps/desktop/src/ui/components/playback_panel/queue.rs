@@ -12,6 +12,8 @@ impl Component for QueuePanel {
         let queue = playback.queue.read().clone();
         let length = queue.queue_ids.len();
         let colors = use_audexis_colors();
+        let mut controller = use_scroll_controller(ScrollConfig::default);
+        let mut viewport = use_state(|| 0.0f32);
         let items = Arc::new(
             queue
                 .queue_ids
@@ -57,6 +59,7 @@ impl Component for QueuePanel {
                 rect()
                     .width(Size::fill())
                     .height(Size::flex(1.0))
+                    .on_sized(move |event: Event<SizedEventData>| { viewport.set_if_modified(event.area.height()); })
                     .child(if length == 0 {
                         rect()
                             .padding(20.0)
@@ -69,7 +72,7 @@ impl Component for QueuePanel {
                     } else {
                         VisibilityViewport::new()
                             .child(
-                                VirtualScrollView::new_with_data(queue, |index, queue: &QueueInfo| {
+                                VirtualScrollView::new_with_data_controlled(queue, |index, queue: &QueueInfo| {
                                     rect()
                                         .key(queue.queue_ids[index].clone())
                                         .height(Size::px(68.0))
@@ -80,7 +83,7 @@ impl Component for QueuePanel {
                                             current: queue.current_index == index as i32,
                                         })
                                         .into_element()
-                                })
+                                }, controller)
                                 .length(length)
                                 .item_size(68.0),
                             )
@@ -91,6 +94,19 @@ impl Component for QueuePanel {
             items,
             child: body.into_element(),
             fill: true,
+            on_navigate: Some(EventHandler::new(move |index: usize| {
+                let (_, y): (i32, i32) = controller.into();
+                let top = index as f32 * 68.;
+                let visible = -y as f32;
+                let target = if top < visible {
+                    top
+                } else if top + 68. > visible + *viewport.peek() {
+                    top + 68. - *viewport.peek()
+                } else {
+                    visible
+                };
+                controller.scroll_to_y(-(target.max(0.).round() as i32));
+            })),
             on_select_all: None,
         }
     }
@@ -134,6 +150,7 @@ impl Component for QueueRow {
                 }
             }),
         )
+        .accessible_label(format!("{} — {}", title, artist))
         .background(if self.current {
             colors.surface_subtle
         } else {

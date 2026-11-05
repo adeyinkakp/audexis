@@ -43,12 +43,12 @@ enum AudexisStyle {
     static let surface_hover = adaptive(0xebe6e4, 0x212121, lightOpacity: 0.6, darkOpacity: 0.6)
     static let surface_glass = adaptive(0xffffff, 0x0f0f0f, lightOpacity: 0.3, darkOpacity: 0.3)
     static let surface_overlay = adaptive(
-        0xffffff, 0x0f0f0f, lightOpacity: 0.75, darkOpacity: 0.75,)
+        0xffffff, 0x0f0f0f, lightOpacity: 0.75, darkOpacity: 0.75, )
     static let surface_panel = adaptive(0xffffff, 0x0f0f0f, lightOpacity: 0.95, darkOpacity: 0.95)
     static let surface_popover = adaptive(0xededed, 0x212121, lightOpacity: 0.9, darkOpacity: 0.9)
     static let border_subtle = adaptive(0xddd6d4, 0x303030, lightOpacity: 0.5, darkOpacity: 0.5)
     static let content_secondary = adaptive(
-        0x2a2523, 0xf1f1f1, lightOpacity: 0.7, darkOpacity: 0.7,)
+        0x2a2523, 0xf1f1f1, lightOpacity: 0.7, darkOpacity: 0.7, )
     static let content_faint = adaptive(0x2a2523, 0xf1f1f1, lightOpacity: 0.4, darkOpacity: 0.4)
     static let control_fill = adaptive(0x2a2523, 0xf1f1f1, lightOpacity: 0.15, darkOpacity: 0.15)
     static let primary_soft = adaptive(0xc44d4d, 0xe06464, lightOpacity: 0.2, darkOpacity: 0.2)
