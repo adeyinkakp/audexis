@@ -1,5 +1,5 @@
 {
-  "rust-analyzer.linkedProjects": ["./apps/desktop/src-tauri/Cargo.toml"],
+  "rust-analyzer.linkedProjects": ["./Cargo.toml"],
   "rust-analyzer.check.targets": [
     "aarch64-apple-darwin",
     "x86_64-unknown-linux-gnu",
@@ -29,6 +29,6 @@
     "--workspace",
     "--message-format=json",
     "--all-targets",
-    "--manifest-path=./apps/desktop/src-tauri/Cargo.toml"
+    "--manifest-path=./Cargo.toml"
   ]
 }

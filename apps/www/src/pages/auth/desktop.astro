@@ -1,0 +1,133 @@
+---
+export const prerender = false;
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "../../db";
+import { user } from "../../db/schema";
+import Layout from "../../layouts/Layout.astro";
+import { issueDesktopCode } from "../../lib/desktop-auth";
+import {
+    hasCloudSubscription,
+    privateHeaders,
+    sameOriginPost,
+    validAuthorization,
+} from "../../lib/desktop-auth-protocol";
+
+for (const [key, value] of Object.entries(privateHeaders))
+    Astro.response.headers.set(key, value);
+const redirect = (location: string) =>
+    new Response(null, {
+        status: 303,
+        headers: { ...privateHeaders, Location: location },
+    });
+if (!["GET", "POST"].includes(Astro.request.method))
+    return new Response("Method not allowed", {
+        status: 405,
+        headers: privateHeaders,
+    });
+const params = Astro.url.searchParams;
+const grant = validAuthorization(params);
+if (!grant)
+    return new Response(
+        "Invalid desktop sign-in request. Restart sign-in in Audexis.",
+        { status: 400, headers: privateHeaders },
+    );
+if (!Astro.locals.user) {
+    const callback = Astro.url.pathname + Astro.url.search;
+    return redirect(`/login?callback=${encodeURIComponent(callback)}`);
+}
+const [subscriber] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, Astro.locals.user.id));
+const finish = (values: Record<string, string>) => {
+    const callback = new URL(grant.redirectUri);
+    callback.searchParams.set("state", grant.state);
+    for (const [key, value] of Object.entries(values))
+        callback.searchParams.set(key, value);
+    return redirect(callback.href);
+};
+if (!hasCloudSubscription(subscriber))
+    return finish({ error: "subscription_required" });
+const cookieName = `desktop_auth_${grant.state}`;
+let csrf = "";
+if (Astro.request.method === "POST") {
+    if (!sameOriginPost(Astro.request))
+        return new Response("Invalid request origin", {
+            status: 403,
+            headers: privateHeaders,
+        });
+    const form = await Astro.request.formData();
+    const submitted = form.get("csrf");
+    const expected = Astro.cookies.get(cookieName)?.value;
+    if (
+        !expected ||
+        typeof submitted !== "string" ||
+        !/^[a-f0-9]{64}$/.test(submitted) ||
+        submitted.length !== expected.length ||
+        !timingSafeEqual(Buffer.from(submitted), Buffer.from(expected))
+    ) {
+        return new Response("Sign-in expired. Restart sign-in in Audexis.", {
+            status: 403,
+            headers: privateHeaders,
+        });
+    }
+    Astro.cookies.delete(cookieName, { path: "/auth/desktop" });
+    if (form.get("decision") !== "allow")
+        return finish({ error: "access_denied" });
+    const code = await issueDesktopCode(
+        subscriber.id,
+        grant.redirectUri,
+        grant.challenge,
+    );
+    return finish({ code });
+}
+csrf = randomBytes(32).toString("hex");
+Astro.cookies.set(cookieName, csrf, {
+    path: "/auth/desktop",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: Astro.url.protocol === "https:",
+    maxAge: 600,
+});
+
+Astro.response.headers.set("Referrer-Policy", "same-origin");
+Astro.response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
+---
+
+<Layout>
+    <main class="mx-auto flex w-full flex-1 max-w-md flex-col justify-center gap-6 px-6 py-12">
+        <h1 class="text-3xl font-bold">Connect Audexis Desktop</h1>
+        <p>
+            Continue as {subscriber.email} to give Audexis Desktop access to
+            your cloud music library.
+        </p>
+        <p class="text-sm text-muted-foreground">
+            Your subscription is active. Only continue if you started this
+            sign-in from Audexis.
+        </p>
+        <form
+            method="POST"
+            action={Astro.url.pathname + Astro.url.search}
+            class="flex gap-3"
+        >
+            <input type="hidden" name="csrf" value={csrf} />
+            <button
+                type="submit"
+                name="decision"
+                value="allow"
+                class="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+            >
+                Connect desktop
+            </button>
+            <button
+                type="submit"
+                name="decision"
+                value="deny"
+                class="rounded-md border border-border px-4 py-2"
+            >
+                Cancel
+            </button>
+        </form>
+    </main>
+</Layout>

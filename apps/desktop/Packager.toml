@@ -1,0 +1,10 @@
+name = "audexis"
+product-name = "audexis"
+identifier = "com.kp.audexis"
+version = "0.2.0"
+out-dir = "../../target/release"
+formats = ["all"]
+binaries = [
+  { path = "../../target/release/audexis", main = true }
+]
+before-packaging-command = "cargo build --release "

@@ -1,0 +1,315 @@
+---
+export const prerender = false;
+
+import { db } from "../db";
+import { user as userTable, apiKey as apiKeyTable } from "../db/schema";
+import { eq } from "drizzle-orm";
+import Layout from "../layouts/Layout.astro";
+import { hasCloudSubscription } from "../lib/desktop-auth-protocol";
+
+const sessionUser = Astro.locals.user;
+if (!sessionUser) {
+    return Astro.redirect("/login");
+}
+
+const [dbUser] = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.id, sessionUser.id));
+
+const isSubscribed = hasCloudSubscription(dbUser);
+
+const periodEnd = dbUser?.currentPeriodEnd
+    ? new Date(dbUser.currentPeriodEnd).toLocaleDateString()
+    : null;
+
+const existingKeys = await db
+    .select({
+        id: apiKeyTable.id,
+        label: apiKeyTable.label,
+        lastUsedAt: apiKeyTable.lastUsedAt,
+        createdAt: apiKeyTable.createdAt,
+    })
+    .from(apiKeyTable)
+    .where(eq(apiKeyTable.userId, sessionUser.id));
+---
+
+<Layout>
+    <main class="mx-auto w-full flex-1 max-w-4xl px-6 py-12 antialiased">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-headings">
+                Welcome, {dbUser?.name || "User"}
+            </h1>
+            <p class="text-muted-foreground">
+                Manage your Audexis server connection and billing.
+            </p>
+        </div>
+
+        <div class="grid gap-6 md:grid-cols-2">
+            <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 class="mb-4 text-xl font-semibold text-headings">
+                    Subscription
+                </h2>
+
+                {isSubscribed ? (
+                    <div class="flex flex-col gap-4">
+                        <div class="rounded-md border border-ring/20 bg-primary/10 p-4">
+                            <p class="text-sm font-medium text-primary">
+                                Audexis Cloud Standard
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Renews on {periodEnd}
+                            </p>
+                        </div>
+                        <button
+                            id="btn-portal"
+                            class="mt-2 w-full rounded-md border border-border bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-border focus-visible:outline-ring"
+                        >
+                            Manage Billing & Cards
+                        </button>
+                    </div>
+                ) : (
+                    <div class="flex flex-col gap-4">
+                        <p class="text-sm text-muted-foreground">
+                            You are currently on the free local tier. Upgrade to
+                            access cloud streaming and 100GB of synced storage.
+                        </p>
+                        <div class="mt-2 flex items-center justify-between border-t border-border pt-4">
+                            <span class="text-lg font-bold text-headings">
+                                $4.99
+                                <span class="text-sm font-normal text-muted-foreground">
+                                    /mo
+                                </span>
+                            </span>
+                            <button
+                                id="btn-checkout"
+                                class="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-ring"
+                            >
+                                Upgrade Now
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 class="mb-4 text-xl font-semibold text-headings">
+                    Connected Devices
+                </h2>
+
+                {isSubscribed ? (
+                    <div class="flex flex-col gap-5">
+                        <div class="flex gap-2">
+                            <input
+                                id="device-label-input"
+                                type="text"
+                                placeholder="Device name (e.g. Studio Mac)"
+                                class="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+                            />
+                            <button
+                                id="btn-create-key"
+                                type="button"
+                                class="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                            >
+                                Add Device
+                            </button>
+                        </div>
+
+                        <div
+                            id="new-key-banner"
+                            class="hidden rounded-md border border-primary/30 bg-primary/10 p-4"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-wider text-primary">
+                                New API Key Generated
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Copy this key now. It will never be shown again.
+                            </p>
+                            <div class="mt-2 flex items-center gap-2">
+                                <input
+                                    id="new-key-value"
+                                    type="text"
+                                    readonly
+                                    class="w-full rounded border border-border bg-input px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none"
+                                />
+                                <button
+                                    id="btn-copy-new-key"
+                                    type="button"
+                                    class="rounded border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:bg-border"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col divide-y divide-border">
+                            {existingKeys.length === 0 ? (
+                                <p class="py-3 text-xs text-muted-foreground">
+                                    No devices registered yet.
+                                </p>
+                            ) : (
+                                existingKeys.map((k) => (
+                                    <div class="flex items-center justify-between py-3">
+                                        <div>
+                                            <p class="text-sm font-medium text-foreground">
+                                                {k.label}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                Added{" "}
+                                                {new Date(
+                                                    k.createdAt,
+                                                ).toLocaleDateString()}
+                                                {k.lastUsedAt &&
+                                                    ` • Active ${new Date(k.lastUsedAt).toLocaleDateString()}`}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="btn-revoke text-xs font-medium text-destructive transition-colors hover:underline"
+                                            data-key-id={k.id}
+                                        >
+                                            Revoke
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div class="flex h-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-6 text-center opacity-70">
+                        <p class="text-sm text-muted-foreground">
+                            Active subscription required to connect devices.
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const checkoutBtn = document.getElementById("btn-checkout");
+        checkoutBtn?.addEventListener("click", async () => {
+            checkoutBtn.textContent = "Loading...";
+            checkoutBtn.style.opacity = "0.7";
+
+            try {
+                const res = await fetch("/api/checkout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                });
+
+                const data = await res.json();
+                if (res.status === 409) {
+                    window.location.reload();
+                    return;
+                }
+
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.error || "Failed to start checkout");
+                    checkoutBtn.textContent = "Upgrade Now";
+                    checkoutBtn.style.opacity = "1";
+                }
+            } catch (e) {
+                console.error(e);
+                checkoutBtn.textContent = "Error. Try again.";
+                checkoutBtn.style.opacity = "1";
+            }
+        });
+
+        const portalBtn = document.getElementById("btn-portal");
+        portalBtn?.addEventListener("click", async () => {
+            portalBtn.textContent = "Redirecting...";
+            portalBtn.style.opacity = "0.7";
+
+            try {
+                const res = await fetch("/api/billing-portal", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                });
+                const { url } = await res.json();
+                if (url) window.location.href = url;
+            } catch (e) {
+                console.error(e);
+                portalBtn.textContent = "Manage Billing & Cards";
+                portalBtn.style.opacity = "1";
+            }
+        });
+
+        const createKeyBtn = document.getElementById("btn-create-key");
+        const labelInput = document.getElementById(
+            "device-label-input",
+        ) as HTMLInputElement | null;
+        const keyBanner = document.getElementById("new-key-banner");
+        const keyValueInput = document.getElementById(
+            "new-key-value",
+        ) as HTMLInputElement | null;
+        const copyBtn = document.getElementById("btn-copy-new-key");
+
+        createKeyBtn?.addEventListener("click", async () => {
+            const label = labelInput?.value.trim() || "Default Device";
+            createKeyBtn.textContent = "Generating...";
+
+            try {
+                const res = await fetch("/api/generate-key", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ label }),
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || "Failed to generate key");
+                    createKeyBtn.textContent = "Add Device";
+                    return;
+                }
+
+                if (keyValueInput && keyBanner) {
+                    keyValueInput.value = data.apiKey;
+                    keyBanner.classList.remove("hidden");
+                    createKeyBtn.textContent = "Add Device";
+                    if (labelInput) labelInput.value = "";
+                }
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred.");
+                createKeyBtn.textContent = "Add Device";
+            }
+        });
+
+        copyBtn?.addEventListener("click", () => {
+            if (keyValueInput?.value) {
+                navigator.clipboard.writeText(keyValueInput.value);
+                copyBtn.textContent = "Copied!";
+                setTimeout(() => {
+                    copyBtn.textContent = "Copy";
+                }, 2000);
+            }
+        });
+
+        document.querySelectorAll(".btn-revoke").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const keyId = btn.getAttribute("data-key-id");
+                if (
+                    !confirm(
+                        "Revoking this device will disconnect it immediately. Continue?",
+                    )
+                )
+                    return;
+
+                const res = await fetch("/api/revoke-key", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ keyId }),
+                });
+
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    alert("Failed to revoke key.");
+                }
+            });
+        });
+    </script>
+</Layout>
