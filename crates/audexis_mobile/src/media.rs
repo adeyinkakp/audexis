@@ -101,6 +101,8 @@ fn extension(format: &str) -> &'static str {
         "aifc" => "aifc",
         "flac" => "flac",
         "ogg" | "oga" => "ogg",
+        "ogx" => "ogx",
+        "ogm" => "ogm",
         "opus" => "opus",
         "mp1" => "mp1",
         "mp2" => "mp2",
