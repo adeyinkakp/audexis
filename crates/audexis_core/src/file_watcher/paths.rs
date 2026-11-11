@@ -112,7 +112,7 @@ pub(super) async fn rebase_indexed_directory(
 
 pub const AUDIO_EXTENSIONS: &[&str] = &[
     "m4a", "mp4", "qt", "m4b", "m4v", "mov", "ogg", "opus", "oga", "spx", "ogv", "mp3", "mp2",
-    "mp1", "flac", "wav", "wave", "aiff", "aif", "aifc", "aac",
+    "m4r", "mp1", "flac", "wav", "wave", "aiff", "aif", "aifc", "aac",
 ];
 
 pub(crate) fn is_audio_file(p: &Path) -> bool {
