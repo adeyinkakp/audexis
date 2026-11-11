@@ -6,14 +6,9 @@ impl V2_2 {
         file_path: &std::path::Path,
         updated: HashMap<FrameKey, Vec<TagValue>>,
     ) -> Result<(), BackendError> {
-        use std::io::{Read, Seek, SeekFrom, Write};
-        let mut file = crate::library_files::open_for_update(file_path).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to open file for writing".to_string(),
-                internal_message: "Failed to open file for writing".to_string(),
-            })
-        })?;
+        let (mut file, _) = super::super::storage::open(file_path, 2)
+            .map_err(|error| super::super::storage::tag_error(file_path, error, true))?;
+
         let mut header = [0u8; 10];
         file.read_exact(&mut header).map_err(|_| {
             BackendError::WriteFailed(TagError {
@@ -193,56 +188,9 @@ impl V2_2 {
             frames.extend_from_slice(&frame);
         }
         let header = create_header_with_version(2, frames.len());
-        let mut audio_data = Vec::new();
-        file.read_to_end(&mut audio_data).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to read audio data".to_string(),
-                internal_message: "Failed to read audio data".to_string(),
-            })
-        })?;
-        file.seek(SeekFrom::Start(0)).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to seek in file".to_string(),
-                internal_message: "Failed to seek in file".to_string(),
-            })
-        })?;
-        file.set_len(0).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to set file length".to_string(),
-                internal_message: "Failed to set file length".to_string(),
-            })
-        })?;
-        file.write_all(&header).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to write header".to_string(),
-                internal_message: "Failed to write header".to_string(),
-            })
-        })?;
-        file.write_all(&frames).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to write frames".to_string(),
-                internal_message: "Failed to write frames".to_string(),
-            })
-        })?;
-        file.write_all(&audio_data).map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to write audio data".to_string(),
-                internal_message: "Failed to write audio data".to_string(),
-            })
-        })?;
-        file.flush().map_err(|_| {
-            BackendError::WriteFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Failed to flush file".to_string(),
-                internal_message: "Failed to flush file".to_string(),
-            })
-        })?;
-        Ok(())
+        let mut id3_tag = Vec::from(header);
+        id3_tag.extend_from_slice(&frames);
+        super::super::storage::write(file_path, file, &id3_tag)
+            .map_err(|error| super::super::storage::tag_error(file_path, error, true))
     }
 }

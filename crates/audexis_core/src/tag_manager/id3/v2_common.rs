@@ -114,8 +114,7 @@ pub(crate) fn create_header(version: u8, tag_size: usize) -> [u8; 10] {
 }
 
 pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
-    use std::io::Read;
-    let mut file = crate::library_files::open(path).map_err(|error| error.to_string())?;
+    let (mut file, len) = super::storage::open(path, 3).map_err(|error| error.to_string())?;
     let mut header = [0; 10];
     file.read_exact(&mut header)
         .map_err(|error| error.to_string())?;
@@ -125,7 +124,7 @@ pub(crate) fn validate_for_write(path: &std::path::Path) -> Result<(), String> {
     let size = header[6..]
         .iter()
         .fold(0usize, |size, byte| (size << 7) | usize::from(*byte));
-    if size as u64 + 10 > file.metadata().map_err(|error| error.to_string())?.len() {
+    if size as u64 + 10 > len {
         return Err("Truncated ID3 tag".into());
     }
     let mut data = vec![0; size];

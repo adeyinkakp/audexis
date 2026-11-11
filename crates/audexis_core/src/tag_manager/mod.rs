@@ -68,6 +68,10 @@ pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<
     };
     header.truncate(length);
 
+    if let Some(format) = id3::storage::container_format(&mut file, &header) {
+        return vec![format.unwrap_or(Formats::Unknown)];
+    }
+
     let mut formats = primary.into_iter().collect::<Vec<_>>();
     let add = |formats: &mut Vec<Formats>, format| {
         if !formats.contains(&format) {
@@ -131,11 +135,17 @@ pub(crate) fn detect_formats(file_path: &Path, primary: Option<Formats>) -> Vec<
             );
         }
     }
+    let extension = file_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase);
+    let untagged_adts = extension.as_deref() == Some("aac")
+        && header.len() >= 7
+        && header[0] == 0xff
+        && header[1] & 0xf6 == 0xf0
+        && (header[2] >> 2) & 0x0f < 13;
     if formats.is_empty()
-        && matches!(
-            file_path.extension().and_then(|e| e.to_str()),
-            Some("mp3" | "mp2" | "mp1")
-        )
+        && (matches!(extension.as_deref(), Some("mp3" | "mp2" | "mp1")) || untagged_adts)
     {
         formats.push(Formats::Id3v23);
     }

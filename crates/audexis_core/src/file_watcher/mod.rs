@@ -11,6 +11,7 @@ use crate::{database::Database, library_files::LibraryFiles};
 pub use events::WatcherStatus;
 use notify::{RecommendedWatcher, Watcher};
 use notify_debouncer_full::{DebouncedEvent, Debouncer, FileIdMap, new_debouncer};
+pub use paths::AUDIO_EXTENSIONS;
 pub(crate) use paths::is_audio_file;
 use std::{
     path::Path,

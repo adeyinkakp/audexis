@@ -43,11 +43,12 @@ impl DefaultBackend {
         if *format != Formats::Id3v23 {
             return false;
         }
-        let mut signature = [0; 3];
+        let mut signature = [0; 12];
         crate::library_files::open(path)
-            .and_then(|mut file| file.read_exact(&mut signature))
+            .and_then(|mut file| file.read(&mut signature))
             .is_ok()
-            && &signature != b"ID3"
+            && !signature.starts_with(b"ID3")
+            && !super::id3::storage::is_container(&signature)
     }
 
     pub fn detect_all_formats(&self, path: &Path, primary: &Formats) -> Vec<Formats> {

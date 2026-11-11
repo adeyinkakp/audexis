@@ -4,6 +4,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 pub(crate) mod lyrics;
+pub(super) mod storage;
 pub mod utils;
 mod v1;
 mod v2_2;

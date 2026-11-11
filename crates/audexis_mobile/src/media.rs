@@ -89,15 +89,16 @@ pub(super) fn audio_format(track: &Track) -> String {
 fn native_format(format: &str) -> bool {
     matches!(
         format.to_ascii_lowercase().as_str(),
-        "mp3" | "m4a" | "mp4" | "aac" | "wav" | "aiff" | "aif" | "alac"
+        "mp3" | "m4a" | "mp4" | "aac" | "wav" | "wave" | "aiff" | "aif" | "aifc" | "alac"
     )
 }
 fn extension(format: &str) -> &'static str {
     match format {
         "mp3" => "mp3",
         "aac" => "aac",
-        "wav" => "wav",
+        "wav" | "wave" => "wav",
         "aiff" | "aif" => "aiff",
+        "aifc" => "aifc",
         "flac" => "flac",
         "ogg" | "oga" => "ogg",
         "opus" => "opus",

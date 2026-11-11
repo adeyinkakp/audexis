@@ -5,13 +5,8 @@ impl V2_4 {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let mut file = crate::library_files::open(file_path).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Unable to open and read file".to_string(),
-                internal_message: "Unable to open and read file".to_string(),
-            })
-        })?;
+        let (mut file, len) = super::super::storage::open(file_path, 4)
+            .map_err(|error| super::super::storage::tag_error(file_path, error, false))?;
         let mut header = [0u8; 10];
         if file.read_exact(&mut header).is_err() {
             return Ok(HashMap::new());
@@ -20,6 +15,11 @@ impl V2_4 {
             return Ok(HashMap::new());
         }
         let tag_size = from_synchsafe([header[6], header[7], header[8], header[9]]);
+        if tag_size as u64 + 10 > len || header[6..].iter().any(|byte| byte & 0x80 != 0) {
+            let error =
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid ID3 tag size");
+            return Err(super::super::storage::tag_error(file_path, error, false));
+        }
         let mut tag_data = vec![0u8; tag_size];
         file.read_exact(&mut tag_data).map_err(|_| {
             BackendError::ReadFailed(TagError {

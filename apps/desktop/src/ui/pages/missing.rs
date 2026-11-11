@@ -183,7 +183,7 @@ impl Component for Missing {
                                             }
                                         } else if let Some(file) = rfd::AsyncFileDialog::new()
                                             .set_title("Locate the audio file")
-                                            .add_filter("Audio", &["mp3", "flac", "ogg", "opus", "m4a", "mp4", "wav"])
+                                            .add_filter("Audio", audexis_core::file_watcher::AUDIO_EXTENSIONS)
                                             .pick_file()
                                             .await
                                         {

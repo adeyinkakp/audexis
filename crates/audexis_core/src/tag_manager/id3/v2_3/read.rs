@@ -5,26 +5,8 @@ impl V2_3 {
         &self,
         file_path: &std::path::Path,
     ) -> Result<HashMap<FrameKey, Vec<TagValue>>, BackendError> {
-        let has_header = utils::ensure_header(file_path);
-
-        match has_header {
-            Ok(true) => {}
-            Ok(false) | Err(_) => {
-                return Err(BackendError::ReadFailed(TagError {
-                    path: file_path.to_str().unwrap_or("").to_string(),
-                    public_message: "File does not contain ID3 tag".to_string(),
-                    internal_message: "File does not contain ID3 tag".to_string(),
-                }));
-            }
-        }
-        let mut file = crate::library_files::open(file_path).map_err(|_| {
-            BackendError::ReadFailed(TagError {
-                path: file_path.to_str().unwrap_or("").to_string(),
-                public_message: "Unable to open and read file".to_string(),
-                internal_message: "Unable to open and read file".to_string(),
-            })
-        })?;
-
+        let (mut file, len) = super::super::storage::open(file_path, 3)
+            .map_err(|error| super::super::storage::tag_error(file_path, error, false))?;
         let mut header = [0u8; 10];
         file.read_exact(&mut header).map_err(|_| {
             BackendError::ReadFailed(TagError {
@@ -34,7 +16,7 @@ impl V2_3 {
             })
         })?;
 
-        if &header[0..3] != b"ID3" {
+        if &header[0..3] != b"ID3" || header[3] != 3 {
             return Err(BackendError::ReadFailed(TagError {
                 path: file_path.to_str().unwrap_or("").to_string(),
                 public_message: "File does not contain ID3 tag".to_string(),
@@ -43,6 +25,15 @@ impl V2_3 {
         }
 
         let tag_size = from_synchsafe([header[6], header[7], header[8], header[9]]);
+        if tag_size == 0 {
+            return super::super::storage::native::read(file_path)
+                .map_err(|error| super::super::storage::tag_error(file_path, error, false));
+        }
+        if tag_size as u64 + 10 > len || header[6..].iter().any(|byte| byte & 0x80 != 0) {
+            let error =
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid ID3 tag size");
+            return Err(super::super::storage::tag_error(file_path, error, false));
+        }
         let mut tag_data = vec![0u8; tag_size];
         file.read_exact(&mut tag_data).map_err(|_| {
             BackendError::ReadFailed(TagError {

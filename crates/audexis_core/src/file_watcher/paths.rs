@@ -110,14 +110,15 @@ pub(super) async fn rebase_indexed_directory(
     Ok(changed_ids)
 }
 
+pub const AUDIO_EXTENSIONS: &[&str] = &[
+    "m4a", "mp4", "qt", "m4b", "m4v", "mov", "ogg", "opus", "oga", "spx", "ogv", "mp3", "mp2",
+    "mp1", "flac", "wav", "wave", "aiff", "aif", "aifc", "aac",
+];
+
 pub(crate) fn is_audio_file(p: &Path) -> bool {
-    const SUPPORTED_EXTENSIONS: [&str; 15] = [
-        "m4a", "mp4", "qt", "m4b", "m4v", "mov", "ogg", "opus", "oga", "spx", "ogv", "mp3", "mp2",
-        "mp1", "flac",
-    ];
     p.extension().is_some_and(|v| {
         v.to_str()
-            .is_some_and(|s| SUPPORTED_EXTENSIONS.contains(&s.to_ascii_lowercase().as_str()))
+            .is_some_and(|s| AUDIO_EXTENSIONS.contains(&s.to_ascii_lowercase().as_str()))
     })
 }
 
