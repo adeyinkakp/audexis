@@ -237,7 +237,9 @@ final class CloudLibrary {
                 }
                 try Task.checkCancellation()
                 guard !closed, playbackGeneration == generation else { return }
-                try await playback.play(track, localURL: localURL, media: media)
+                try await playback.play(
+                    track, localURL: localURL, media: media,
+                    downloadedQuality: snapshot.download_qualities[track.id], )
                 // Request the next song's selected quality while this one plays. This
                 // starts server-side conversion ahead of time without downloading audio.
                 if let index = snapshot.current, index + 1 < snapshot.queue.count,
@@ -265,7 +267,7 @@ final class CloudLibrary {
     }
     func download(_ track: CloudTrack) {
         guard downloads[track.id] == nil, downloadTasks[track.id] == nil,
-            snapshot.downloads[track.id] == nil, let directory, let api
+            let directory, let api
         else { return }
         downloads[track.id] = 0
         loadArtwork(track)
@@ -274,10 +276,18 @@ final class CloudLibrary {
             defer { downloadTasks[track.id] = nil }
             do {
                 let plan: MediaPlan = try await core.call(
-                    .init(op: "media_plan", id: track.id, quality: downloadQuality.rawValue))
+                    .init(
+                        op: "media_plan", id: track.id, quality: downloadQuality.rawValue,
+                        purpose: "download", ))
                 let media = try await api.playableMedia(plan)
                 try Task.checkCancellation()
                 guard !closed else { return }
+                if snapshot.downloads[track.id] != nil,
+                    snapshot.download_qualities[track.id] == media.quality
+                {
+                    downloads[track.id] = nil
+                    return
+                }
                 try CloudDownloads.shared.start(
                     .init(
                         id: track.id, sourceHash: track.sha256, directory: directory.path,

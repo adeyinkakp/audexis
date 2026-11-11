@@ -41,7 +41,7 @@ pub async fn media(
     let mut quality = "original".to_string();
     let mut preparing = false;
     if kind == "audio" && requested != "original" && state.ffmpeg.is_some() {
-        sqlx::query("INSERT INTO cloud_media_variants(object_hash,quality) VALUES ($1,$2) ON CONFLICT(object_hash,quality) DO UPDATE SET state='queued',attempts=0 WHERE cloud_media_variants.state='failed' AND cloud_media_variants.retry_at<=extract(epoch FROM now())::bigint")
+        sqlx::query("INSERT INTO cloud_media_variants(object_hash,quality) VALUES ($1,$2) ON CONFLICT(object_hash,quality) DO UPDATE SET state='queued',attempts=0 WHERE cloud_media_variants.state='unnecessary' OR (cloud_media_variants.state='failed' AND cloud_media_variants.retry_at<=extract(epoch FROM now())::bigint)")
             .bind(&hash).bind(requested).execute(&state.db).await?;
         crate::variants::wake();
         if let Some(variant) = sqlx::query("SELECT state,object_key,size,sha256 FROM cloud_media_variants WHERE object_hash=$1 AND quality=$2")

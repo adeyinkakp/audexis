@@ -63,7 +63,7 @@ struct AccountView: View {
                     Text("Audio quality")
                 } footer: {
                     Text(
-                        "Original keeps the source audio. AAC usually uses less data and storage. Automatic chooses by file format. Changes apply to the next stream or new download. Downloaded songs are used first when available."
+                        "Automatic streams AAC at 256 kbps and downloads originals when supported. Original keeps the source audio."
                     )
                 }
                 Section("On this device") {

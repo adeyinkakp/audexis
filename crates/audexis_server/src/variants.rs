@@ -180,11 +180,6 @@ async fn encode(state: &AppState, hash: &str, quality: &str, attempt: i32) -> Re
     if bytes <= 0 || bytes >= state.max_file {
         return Err(Error::bad("Invalid compressed audio output"));
     }
-    if bytes >= size {
-        sqlx::query("UPDATE cloud_media_variants SET state='unnecessary' WHERE object_hash=$1 AND quality=$2 AND attempts=$3 AND state='processing'")
-            .bind(hash).bind(quality).bind(attempt).execute(&state.db).await?;
-        return Ok(());
-    }
     let object_key = format!("variants/{}", uuid::Uuid::new_v4());
     sqlx::query("INSERT INTO cloud_object_writes(object_key) VALUES ($1)")
         .bind(&object_key)

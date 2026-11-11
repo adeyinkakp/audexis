@@ -59,13 +59,16 @@ struct CloudTrackActions: View {
         }
         .disabled(library.favoriteUpdates.contains(track.id))
         Divider()
-        if library.snapshot.downloads[track.id] != nil {
-            Button("Remove download", systemImage: "trash", role: .destructive) {
-                library.removeDownload(track)
-            }
-        } else if library.downloads[track.id] != nil {
+        if library.downloads[track.id] != nil {
             Button("Cancel download", systemImage: "xmark") {
                 library.cancelDownload(track)
+            }
+        } else if library.snapshot.downloads[track.id] != nil {
+            Button("Update download", systemImage: "arrow.triangle.2.circlepath") {
+                library.download(track)
+            }
+            Button("Remove download", systemImage: "trash", role: .destructive) {
+                library.removeDownload(track)
             }
         } else {
             Button("Download", systemImage: "arrow.down.circle") {

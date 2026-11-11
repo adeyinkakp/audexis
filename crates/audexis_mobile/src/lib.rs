@@ -42,6 +42,7 @@ struct Download {
     source_hash: String,
     sha256: String,
     size: i64,
+    quality: Option<String>,
 }
 
 #[derive(Default)]

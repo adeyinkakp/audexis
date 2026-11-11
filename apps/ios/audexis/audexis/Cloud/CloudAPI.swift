@@ -89,7 +89,11 @@ actor CloudAPI {
             else {
                 throw CloudError.message("The server returned invalid audio information.")
             }
-            if media.quality == plan.quality { return media }
+            if media.quality == plan.quality
+                || (!media.preparing && media.quality == "original")
+            {
+                return media
+            }
             guard media.preparing else {
                 throw CloudError.message(
                     "The server could not provide the selected audio quality. Choose Original or try a different quality."

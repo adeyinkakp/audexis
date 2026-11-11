@@ -167,6 +167,7 @@ nonisolated struct CloudSnapshot: Decodable, Sendable {
     var queue: [String] = []
     var current: Int? = nil
     var downloads: [String: String] = [:]
+    var download_qualities: [String: String] = [:]
     var favorites: [CloudTrack] { tracks.filter { $0.metadata.loved } }
     var currentTrack: CloudTrack? {
         guard let current, queue.indices.contains(current) else { return nil }
@@ -200,6 +201,7 @@ nonisolated struct MobileCommand: Encodable, Sendable {
     var playback_revision: UInt64? = nil
     var position_ms: UInt64? = nil
     var quality: String? = nil
+    var purpose: String? = nil
     var year: Int? = nil
     var month: Int? = nil
     var track: CloudTrack? = nil

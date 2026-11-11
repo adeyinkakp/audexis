@@ -164,22 +164,25 @@ final class CloudPlayback {
         updateNowPlaying()
     }
 
-    func play(_ track: CloudTrack, localURL: URL?, media: CloudMedia?) async throws {
+    func play(
+        _ track: CloudTrack, localURL: URL?, media: CloudMedia?,
+        downloadedQuality: String? = nil,
+    ) async throws {
         guard self.track?.id == track.id else { return }
         let sourceFormat = (track.file_name as NSString).pathExtension.uppercased()
         let originalQuality = sourceFormat.isEmpty ? "Original" : "\(sourceFormat) · Original"
-        if let media {
-            switch media.quality {
-            case "aac_128": audioQuality = "AAC · 128 kbps"
-            case "aac_256": audioQuality = "AAC · 256 kbps"
-            default: audioQuality = originalQuality
+        switch media?.quality ?? downloadedQuality {
+        case "aac_128": audioQuality = "AAC · 128 kbps"
+        case "aac_256": audioQuality = "AAC · 256 kbps"
+        case "original": audioQuality = originalQuality
+        default:
+            if let localURL {
+                audioQuality =
+                    localURL.deletingPathExtension().lastPathComponent == track.sha256
+                    ? originalQuality : "AAC"
+            } else {
+                audioQuality = originalQuality
             }
-        } else if let localURL {
-            // Download filenames contain the actual audio hash. Converted copies
-            // have a different hash; older downloads do not retain their bitrate.
-            audioQuality =
-                localURL.deletingPathExtension().lastPathComponent == track.sha256
-                ? originalQuality : "AAC"
         }
         var request = command("player_load")
         request.id = track.id

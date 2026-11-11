@@ -11,7 +11,10 @@ impl MobileCore {
         let media: MediaUrl = serde_json::from_value(request["media"].clone())
             .map_err(|_| "Invalid download information")?;
         let path = PathBuf::from(string(&request, "temporary")?);
-        if media.size <= 0
+        if !matches!(media.quality.as_str(), "original" | "aac_128" | "aac_256")
+            || (media.quality == "original"
+                && (media.sha256 != track.sha256 || media.size != track.size))
+            || media.size <= 0
             || media.sha256.len() != 64
             || !media.sha256.bytes().all(|b| b.is_ascii_hexdigit())
         {
@@ -33,15 +36,21 @@ impl MobileCore {
         if format!("{:x}", hash.finalize()) != media.sha256 {
             return Err("Downloaded audio failed verification".into());
         }
+        let source_format = audio_format(&track);
         let extension = if media.quality == "original" {
-            extension(&audio_format(&track))
+            extension(&source_format)
         } else {
             "m4a"
         };
         let name = format!("{}.{extension}", media.sha256);
         let destination = self.root()?.join("audio").join(&name);
         if destination != path {
-            fs::copy(&path, &destination).map_err(|e| e.to_string())?;
+            let staged = destination.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
+            let result = fs::copy(&path, &staged).and_then(|_| fs::rename(&staged, &destination));
+            if result.is_err() {
+                let _ = fs::remove_file(&staged);
+            }
+            result.map_err(|error| error.to_string())?;
         }
         self.state.downloads.insert(
             id.into(),
@@ -50,6 +59,7 @@ impl MobileCore {
                 source_hash: track.sha256,
                 sha256: media.sha256,
                 size: media.size,
+                quality: Some(media.quality),
             },
         );
 
@@ -58,10 +68,16 @@ impl MobileCore {
 
     pub(super) fn media_plan(&mut self, request: &Value) -> Result<Value, String> {
         let track = self.track(string(&request, "id")?)?;
-        let automatic = if native_format(&audio_format(track)) {
-            "original"
-        } else {
-            "aac_256"
+        let automatic = match request.get("purpose").and_then(Value::as_str) {
+            None | Some("streaming") => "aac_256",
+            Some("download") => {
+                if audio_format(track) == "spx" {
+                    "aac_256"
+                } else {
+                    "original"
+                }
+            }
+            _ => return Err("Unknown audio purpose".into()),
         };
         let quality = match request.get("quality") {
             None | Some(Value::Null) => automatic,
@@ -86,31 +102,17 @@ pub(super) fn audio_format(track: &Track) -> String {
         .unwrap_or(&track.format)
         .to_ascii_lowercase()
 }
-fn native_format(format: &str) -> bool {
-    matches!(
-        format.to_ascii_lowercase().as_str(),
-        "mp3" | "m4a" | "mp4" | "aac" | "wav" | "wave" | "aiff" | "aif" | "aifc" | "alac"
-    )
-}
-fn extension(format: &str) -> &'static str {
+fn extension(format: &str) -> &str {
     match format {
-        "mp3" => "mp3",
-        "aac" => "aac",
-        "wav" | "wave" => "wav",
-        "aiff" | "aif" => "aiff",
-        "aifc" => "aifc",
-        "flac" => "flac",
-        "ogg" | "oga" => "ogg",
-        "ogx" => "ogx",
-        "ogm" => "ogm",
-        "opus" => "opus",
-        "mp1" => "mp1",
-        "mp2" => "mp2",
-        "spx" => "spx",
-        "m4b" => "m4b",
-        "mov" => "mov",
-        "m4v" => "m4v",
-        "ogv" => "ogv",
-        _ => "m4a",
+        "wave" => "wav",
+        "aif" => "aiff",
+        format
+            if !format.is_empty()
+                && format.len() <= 10
+                && format.bytes().all(|byte| byte.is_ascii_alphanumeric()) =>
+        {
+            format
+        }
+        _ => "audio",
     }
 }

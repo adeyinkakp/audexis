@@ -66,11 +66,11 @@ impl CoreLibrary {
             }
             state.queue = sqlx::query_scalar("SELECT track_id FROM mobile_queue ORDER BY position")
                 .fetch_all(&mut *tx).await?;
-            for row in sqlx::query("SELECT track_id,file,source_hash,sha256,size FROM mobile_downloads")
+            for row in sqlx::query("SELECT d.track_id,d.file,d.source_hash,d.sha256,d.size,q.quality FROM mobile_downloads d LEFT JOIN mobile_download_qualities q ON q.track_id=d.track_id")
                 .fetch_all(&mut *tx).await? {
                 state.downloads.insert(row.get("track_id"), Download {
                     file: row.get("file"), source_hash: row.get("source_hash"),
-                    sha256: row.get("sha256"), size: row.get("size"),
+                    sha256: row.get("sha256"), size: row.get("size"), quality: row.get("quality"),
                 });
             }
             tx.commit().await?;
@@ -114,10 +114,15 @@ impl CoreLibrary {
                 sqlx::query("INSERT INTO mobile_queue(position,track_id) VALUES (?,?)")
                     .bind(index as i64).bind(id).execute(&mut *tx).await?;
             }
+            sqlx::query("DELETE FROM mobile_download_qualities").execute(&mut *tx).await?;
             sqlx::query("DELETE FROM mobile_downloads").execute(&mut *tx).await?;
             for (id, d) in &state.downloads {
                 sqlx::query("INSERT INTO mobile_downloads(track_id,file,source_hash,sha256,size) VALUES (?,?,?,?,?)")
                     .bind(id).bind(&d.file).bind(&d.source_hash).bind(&d.sha256).bind(d.size).execute(&mut *tx).await?;
+                if let Some(quality) = &d.quality {
+                    sqlx::query("INSERT INTO mobile_download_qualities(track_id,quality) VALUES (?,?)")
+                        .bind(id).bind(quality).execute(&mut *tx).await?;
+                }
             }
             tx.commit().await?;
             Ok::<_, Box<dyn std::error::Error>>(())

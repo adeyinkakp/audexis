@@ -18,11 +18,9 @@ serde_json.workspace = true
 sha2 = "0.10"
 sqlx.workspace = true
 souvlaki.workspace = true
+uuid.workspace = true
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc = "0.2.7"
 cocoa = "0.24"
 block = "0.1.6"
-
-[dev-dependencies]
-uuid.workspace = true

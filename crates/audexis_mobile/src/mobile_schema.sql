@@ -16,3 +16,8 @@ CREATE TABLE IF NOT EXISTS mobile_downloads (
     sha256 TEXT NOT NULL,
     size INTEGER NOT NULL CHECK(size > 0)
 );
+
+CREATE TABLE IF NOT EXISTS mobile_download_qualities (
+    track_id TEXT PRIMARY KEY REFERENCES mobile_downloads(track_id) ON DELETE CASCADE,
+    quality TEXT NOT NULL CHECK(quality IN ('original', 'aac_128', 'aac_256'))
+);

@@ -40,8 +40,19 @@ impl MobileCore {
                 )
             })
             .collect();
+        let download_qualities: BTreeMap<_, _> = downloads
+            .keys()
+            .filter_map(|id| {
+                let download = self.state.downloads.get(*id)?;
+                let quality = download
+                    .quality
+                    .as_deref()
+                    .or_else(|| (download.sha256 == download.source_hash).then_some("original"))?;
+                Some((*id, quality))
+            })
+            .collect();
         json!({"cursor":self.state.cursor,"tracks":tracks,"playlists":self.state.playlists.values().collect::<Vec<_>>(),
-               "queue":self.state.queue,"current":self.state.current,"downloads":downloads})
+               "queue":self.state.queue,"current":self.state.current,"downloads":downloads,"download_qualities":download_qualities})
     }
     pub(super) fn track(&self, id: &str) -> Result<&Track, String> {
         self.state
