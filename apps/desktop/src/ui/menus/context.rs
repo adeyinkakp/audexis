@@ -6,7 +6,7 @@ pub(crate) struct MenuOptions {
 }
 
 pub(crate) fn open(
-    event: &Event<PressEventData>,
+    event: Event<PressEventData>,
     target: MediaTarget,
     playback: Playback,
     services: Arc<AppServices>,
@@ -19,11 +19,10 @@ pub(crate) fn open(
         return;
     }
     busy.set(true);
-    let platform = Platform::get();
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let event = event.clone();
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    let _ = event;
+    let platform = Platform::get();
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    drop(event);
     spawn(async move {
         let ids = tracks(&target).into_iter().map(|t| t.0).collect::<Vec<_>>();
         let db = services.db.clone();
@@ -76,7 +75,6 @@ pub(crate) fn open(
         }
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
-            let _ = platform;
             let menu = Menu::new().children(items.into_iter().map(|entry| {
                 fallback_item(
                     entry,

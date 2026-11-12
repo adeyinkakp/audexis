@@ -39,7 +39,7 @@ impl Component for NowPlaying {
             event.prevent_default();
             if let Some(target) = &target {
                 crate::ui::menus::context::open(
-                    &event,
+                    event,
                     target.clone(),
                     menu_playback.clone(),
                     services.clone(),

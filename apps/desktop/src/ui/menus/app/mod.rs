@@ -28,6 +28,7 @@ impl Component for AppMenuBar {
         let shortcuts = crate::ui::keyboard::use_keyboard_settings();
         let _ = shortcuts.read();
         let router = RouterContext::try_get();
+        #[cfg(target_os = "macos")]
         let commands = use_consume::<crate::ui::keyboard::ShortcutCommands>();
         let library = use_library();
         let mut model = use_state(Vec::<Entry>::new);
@@ -40,13 +41,16 @@ impl Component for AppMenuBar {
         let task_services = services.clone();
         let task_runtime = runtime.clone();
         let task_playback = playback.clone();
+        #[cfg(target_os = "macos")]
         let task_router = router;
         use_future(move || {
             let services = task_services.clone();
             let runtime = task_runtime.clone();
             let playback = task_playback.clone();
+            #[cfg(target_os = "macos")]
             let router = task_router;
             let library = library.clone();
+            #[cfg(target_os = "macos")]
             let commands = commands.clone();
             async move {
                 let mut cache = None;

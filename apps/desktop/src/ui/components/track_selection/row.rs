@@ -122,7 +122,7 @@ impl Component for SelectableTrack {
                 }
                 let selected = items.peek().iter().filter(|item| selection.peek().keys.contains(&item.key())).cloned().collect::<Vec<_>>();
                 let target = if selected.len() > 1 { MediaTarget::Selection { tracks: Arc::new(selected) } } else { target.clone() };
-                crate::ui::menus::context::open(&event, target, playback.clone(), services.clone(), runtime.clone(), router, crate::ui::menus::context::MenuOptions { playlist, busy });
+                crate::ui::menus::context::open(event, target, playback.clone(), services.clone(), runtime.clone(), router, crate::ui::menus::context::MenuOptions { playlist, busy });
             })
             .on_global_pointer_move(move |event: Event<PointerEventData>| {
                 let Some(start) = *pointer.peek() else { return; };
@@ -162,7 +162,7 @@ impl Component for SelectableTrack {
                     let chosen = items.peek().iter().filter(|item| selection.peek().keys.contains(&item.key())).cloned().collect::<Vec<_>>();
                     let target = if chosen.len() > 1 { MediaTarget::Selection { tracks: Arc::new(chosen) } } else { keyboard_menu_target.clone() };
                     let event = event.map(PressEventData::Keyboard);
-                    crate::ui::menus::context::open(&event,target,keyboard_playback.clone(),keyboard_services.clone(),keyboard_runtime.clone(),keyboard_router,crate::ui::menus::context::MenuOptions { playlist, busy });
+                    crate::ui::menus::context::open(event,target,keyboard_playback.clone(),keyboard_services.clone(),keyboard_runtime.clone(),keyboard_router,crate::ui::menus::context::MenuOptions { playlist, busy });
                     return;
                 }
                 if shortcut_services.user_config.lock().ok().is_some_and(|c| crate::ui::keyboard::matching_action(&c.keyboard,&event).is_some()) { return; }
