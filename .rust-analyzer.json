@@ -1,5 +1,11 @@
 {
-  "linkedProjects": ["./apps/desktop/src-tauri/Cargo.toml"],
+  "linkedProjects": [
+    "./crates/Cargo.toml",
+    "./apps/desktop/Cargo.toml",
+    "./crates/audexis_audio/Cargo.toml",
+    "./crates/audexis_core/Cargo.toml",
+    "./crates/audexis_server/Cargo.toml"
+  ],
   "exclude": [
     "target",
     "node_modules",

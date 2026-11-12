@@ -1,0 +1,10 @@
+{
+  "languages": {
+    "Swift": {
+      "format_on_save": "off",
+      "use_on_type_format": false,
+      "formatter": "none",
+    },
+  },
+  "file_scan_exclusions": ["**/apps/ios"],
+}

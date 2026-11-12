@@ -1,0 +1,24 @@
+{
+  "originHash" : "986d13db56995ffac960e3d1a65f3271aef9fa7e41e59e72253d521e55dba063",
+  "pins" : [
+    {
+      "identity" : "kingfisher",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onevcat/Kingfisher",
+      "state" : {
+        "branch" : "master",
+        "revision" : "8822a433872ed3ac7563556c417da66e73544514"
+      }
+    },
+    {
+      "identity" : "marqueetext",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/joekndy/MarqueeText",
+      "state" : {
+        "branch" : "master",
+        "revision" : "22309f6863a182e81a2b4ebbca8cdc044f854b33"
+      }
+    }
+  ],
+  "version" : 3
+}
