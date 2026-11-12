@@ -1,6 +1,9 @@
 use audexis_core::database::{Database, songs::SongSort};
 use serde_json::{Value, json};
-use std::path::Path;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 use tokio::runtime::{Builder, Runtime};
 
 pub(super) struct CoreLibrary {
@@ -24,6 +27,37 @@ impl CoreLibrary {
                 .map(|(file_id, track_id)| (file_id.to_string(), track_id))
                 .collect();
             Ok(json!({"summary": rewind, "track_ids": track_ids}))
+        })
+    }
+
+    pub(super) fn rewind_playlist_tracks(
+        &self,
+        year: i32,
+        month: Option<u32>,
+    ) -> Result<Value, String> {
+        let name = audexis_protocol::ListeningPeriod { year, month }.playlist_name()?;
+        self.runtime.block_on(async {
+            let files =
+                audexis_core::database::rewind::playlist_tracks(&self.database.pool, year, month)
+                    .await?;
+            let links: Vec<(i64, String)> = sqlx::query_as(
+                "SELECT file_id,cloud_track_id FROM file_cloud_links WHERE connection_id='mobile'",
+            )
+            .fetch_all(&self.database.pool)
+            .await
+            .map_err(|error| error.to_string())?;
+
+            let links: BTreeMap<_, _> = links.into_iter().collect();
+            let mut seen = BTreeSet::new();
+            let tracks: Vec<_> = files
+                .into_iter()
+                .filter_map(|file| links.get(&file).cloned())
+                .filter(|id| seen.insert(id.clone()))
+                .collect();
+            if tracks.is_empty() {
+                return Err("No available songs in this Rewind period.".into());
+            }
+            Ok(json!({"name":name,"track_ids":tracks}))
         })
     }
 

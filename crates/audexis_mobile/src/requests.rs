@@ -23,7 +23,22 @@ impl MobileCore {
                     self.state.tracks.insert(id.to_owned(), track);
                 }
             }
-            "rewind" => {
+            "updated_playlist" => {
+                let playlist: Playlist = serde_json::from_value(request["playlist"].clone())
+                    .map_err(|_| "Invalid updated playlist")?;
+                if playlist.deleted || !safe_id(&playlist.id) {
+                    return Err("Invalid updated playlist".into());
+                }
+                if self
+                    .state
+                    .playlists
+                    .get(&playlist.id)
+                    .is_none_or(|current| current.revision < playlist.revision)
+                {
+                    self.state.playlists.insert(playlist.id.clone(), playlist);
+                }
+            }
+            "rewind" | "rewind_playlist_tracks" => {
                 let year = request["year"]
                     .as_i64()
                     .and_then(|year| i32::try_from(year).ok())
@@ -37,11 +52,12 @@ impl MobileCore {
                             .ok_or("Choose a valid month")?,
                     ),
                 };
-                return self
-                    .library
-                    .as_ref()
-                    .ok_or("Library is not open")?
-                    .rewind(year, month);
+                let library = self.library.as_ref().ok_or("Library is not open")?;
+                return if op == "rewind_playlist_tracks" {
+                    library.rewind_playlist_tracks(year, month)
+                } else {
+                    library.rewind(year, month)
+                };
             }
             "songs" => {
                 let search = request["search"].as_str().unwrap_or("");

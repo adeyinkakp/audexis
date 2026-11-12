@@ -38,6 +38,35 @@ impl Database {
         rules: Option<SmartPlaylist>,
         cloud: bool,
     ) -> Result<i64, String> {
+        self.insert_playlist(name, rules, cloud, &[]).await
+    }
+
+    pub async fn create_playlist_with_tracks(
+        &self,
+        name: &str,
+        tracks: &[i64],
+        cloud: bool,
+    ) -> Result<i64, String> {
+        if tracks.is_empty() || tracks.len() > 10000 {
+            return Err("Choose between 1 and 10,000 songs.".into());
+        }
+        self.insert_playlist(name, None, cloud, tracks).await
+    }
+
+    async fn insert_playlist(
+        &self,
+        name: &str,
+        rules: Option<SmartPlaylist>,
+        cloud: bool,
+        tracks: &[i64],
+    ) -> Result<i64, String> {
+        if cloud
+            && rules
+                .as_ref()
+                .is_some_and(SmartPlaylist::uses_listening_history)
+        {
+            return Err("Listening-history smart playlists use this device’s history. Save this playlist on this computer.".into());
+        }
         let name = name.trim();
         if name.is_empty() || name.chars().count() > 200 {
             return Err("Enter a playlist name between 1 and 200 characters.".into());
@@ -45,19 +74,19 @@ impl Database {
         if let Some(rules) = &rules {
             rules.validate()?;
         }
-        let active: Option<String> =
-            sqlx::query_scalar("SELECT connection_id FROM cloud_library_session WHERE slot=1")
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(|e| e.to_string())?;
-        if cloud && active.is_none() {
-            return Err("Connect to a cloud account before enabling cloud sync.".into());
-        }
         let mut tx = self
             .pool
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(|e| e.to_string())?;
+        let active: Option<String> =
+            sqlx::query_scalar("SELECT connection_id FROM cloud_library_session WHERE slot=1")
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+        if cloud && active.is_none() {
+            return Err("Connect to a cloud account before enabling cloud sync.".into());
+        }
         let id =
             sqlx::query("INSERT INTO playlists(name,smart_rules,cloud_enabled) VALUES (?,?,?)")
                 .bind(name)
@@ -77,10 +106,19 @@ impl Database {
             sqlx::query("INSERT INTO cloud_playlist_links(connection_id,playlist_id,cloud_id,snapshot,revision) VALUES (?,?,?,'',0)")
                 .bind(active).bind(id).bind(uuid::Uuid::new_v4().to_string()).execute(&mut *tx).await.map_err(|e| e.to_string())?;
         }
+        for (order, file) in tracks.iter().enumerate() {
+            let inserted = sqlx::query("INSERT INTO playlist_tracks(playlist_id,file_id,ord) SELECT ?,id,? FROM files WHERE id=? AND missing_since IS NULL")
+                .bind(id).bind(order as i64).bind(file).execute(&mut *tx).await.map_err(|e| e.to_string())?;
+            if inserted.rows_affected() != 1 {
+                return Err("A song is no longer available. Refresh Rewind and try again.".into());
+            }
+        }
         tx.commit().await.map_err(|e| e.to_string())?;
-        refresh_saved(&self.pool, Some(id))
-            .await
-            .map_err(|e| e.to_string())?;
+        if rules.is_some() {
+            refresh_saved(&self.pool, Some(id))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
         Ok(id)
     }
     pub async fn save_playlist_settings(
@@ -114,6 +152,9 @@ impl Database {
     ) -> Result<(), String> {
         if let Some(rules) = &rules {
             rules.validate()?;
+            if cloud && rules.uses_listening_history() {
+                return Err("Listening-history smart playlists use this device’s history. Save this playlist on this computer.".into());
+            }
         }
         let encoded = rules
             .as_ref()
@@ -302,8 +343,18 @@ async fn refresh_saved(pool: &SqlitePool, saved: Option<i64>) -> Result<bool, sq
             }
             ids
         } else {
+            let stats = if rules.uses_listening_history() {
+                super::listening_stats::read(&mut tx, rules.listening_period).await?
+            } else {
+                BTreeMap::new()
+            };
             rules
-                .select(&local, now())
+                .select_with_listening(&local, now(), |id| {
+                    id.parse::<i64>()
+                        .ok()
+                        .and_then(|id| stats.get(&id).copied())
+                        .unwrap_or_default()
+                })
                 .into_iter()
                 .filter_map(|id| id.parse().ok())
                 .collect()

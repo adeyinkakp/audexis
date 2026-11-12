@@ -130,12 +130,31 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
     services.start_cloud_sync();
     let weak = Arc::downgrade(&services);
     let mut changes = services.library_files.subscribe();
+    let mut listening_events = services
+        .player
+        .as_ref()
+        .map(|player| player.subscribe_events());
     tokio::spawn(async move {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(60));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
                 _ = timer.tick() => {},
+                event = async {
+                    match listening_events.as_mut() {
+                        Some(events) => events.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => match event {
+                    Ok(audexis_audio::AudioEvent::PlayCountChanged(_)
+                        | audexis_audio::AudioEvent::ListeningTimeChanged(_))
+                    | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {},
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        listening_events = None;
+                        continue;
+                    }
+                    _ => continue,
+                },
                 event = changes.recv() => match event {
                     Ok(event) if event.artwork_only => continue,
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,

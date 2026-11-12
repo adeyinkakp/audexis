@@ -26,7 +26,8 @@ nonisolated struct CloudTrack: Codable, Identifiable, Sendable {
     let deleted: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, revision, sha256, size, file_name, added_at, format, duration_ms, metadata,
+        case id, revision, sha256, size, file_name, added_at, format,
+            duration_ms, metadata,
             artwork,
             deleted
     }
@@ -42,22 +43,30 @@ nonisolated struct CloudTrack: Codable, Identifiable, Sendable {
             try values.decodeIfPresent(Int64.self, forKey: .added_at)
             ?? Int64(Date().timeIntervalSince1970)
         format = try values.decode(String.self, forKey: .format)
-        duration_ms = try values.decodeIfPresent(Int64.self, forKey: .duration_ms)
+        duration_ms = try values.decodeIfPresent(
+            Int64.self,
+            forKey: .duration_ms,
+        )
         metadata = try values.decode(CloudMetadata.self, forKey: .metadata)
         artwork = try values.decode(Bool.self, forKey: .artwork)
         deleted = try values.decode(Bool.self, forKey: .deleted)
     }
 
     var title: String { tag("title").isEmpty ? file_name : tag("title") }
-    var artist: String { tag("artist").isEmpty ? "Unknown artist" : tag("artist") }
+    var artist: String {
+        tag("artist").isEmpty ? "Unknown artist" : tag("artist")
+    }
     var album: String { tag("album") }
     func tag(_ key: String) -> String { metadata.tags[key]?.first ?? "" }
 
-    func playbackMIMEType(quality: String = "original", localURL: URL? = nil) -> String? {
+    func playbackMIMEType(quality: String = "original", localURL: URL? = nil)
+        -> String?
+    {
         if quality == "aac_128" || quality == "aac_256" { return "audio/mp4" }
         let ext =
             (localURL?.pathExtension.isEmpty == false
-            ? localURL!.pathExtension : (file_name as NSString).pathExtension).lowercased()
+            ? localURL!.pathExtension : (file_name as NSString).pathExtension)
+            .lowercased()
         switch ext {
         case "mp3": return "audio/mpeg"
         case "m4a", "mp4", "alac": return "audio/mp4"
@@ -205,12 +214,14 @@ nonisolated struct MobileCommand: Encodable, Sendable {
     var year: Int? = nil
     var month: Int? = nil
     var track: CloudTrack? = nil
+    var playlist: CloudPlaylist? = nil
 }
 
 nonisolated struct CloudRewind: Decodable, Sendable {
     struct Entry: Decodable, Sendable {
         let file_id: Int64
         let listened_us: Int64
+        let plays: Int64?
         let name: String?
         let artist: String?
     }
@@ -266,11 +277,32 @@ enum AudioQualityPreferences {
     static let downloadKey = "audio.downloadQuality"
 
     static var streaming: AudioQuality {
-        AudioQuality(rawValue: UserDefaults.standard.string(forKey: streamingKey) ?? "")
+        AudioQuality(
+            rawValue: UserDefaults.standard.string(forKey: streamingKey) ?? ""
+        )
             ?? .automatic
     }
     static var download: AudioQuality {
-        AudioQuality(rawValue: UserDefaults.standard.string(forKey: downloadKey) ?? "")
+        AudioQuality(
+            rawValue: UserDefaults.standard.string(forKey: downloadKey) ?? ""
+        )
             ?? .automatic
     }
+}
+
+nonisolated struct RewindPlaylistPlan: Decodable, Sendable {
+    let name: String
+    let track_ids: [String]
+}
+
+nonisolated struct CloudPlaylistMutation: Encodable, Sendable {
+    struct Edit: Encodable, Sendable {
+        let kind = "playlist"
+        let playlist_id: String
+        let name: String
+        let track_ids: [String]
+    }
+    let operation_id = UUID().uuidString
+    let base_revision = 0
+    let edit: Edit
 }

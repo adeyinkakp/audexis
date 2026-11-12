@@ -199,6 +199,7 @@ impl Component for AppMenuBar {
                             .on_close(move |_| open.set(None))
                             .child(crate::ui::keyboard::KeyboardMenu {
                                 child: rect()
+                                    .content(Content::fit())
                                     .children(group.children.into_iter().map(|entry| {
                                         dropdown::item(
                                             entry,

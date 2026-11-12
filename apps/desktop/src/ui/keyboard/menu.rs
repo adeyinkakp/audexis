@@ -25,7 +25,7 @@ impl Component for KeyboardMenu {
             }
         });
         rect()
-            .width(Size::fill())
+            .content(Content::fit())
             .on_key_down(move |event: Event<KeyboardEventData>| {
                 let strategy = match event.key {
                     Key::Named(NamedKey::ArrowDown) => {

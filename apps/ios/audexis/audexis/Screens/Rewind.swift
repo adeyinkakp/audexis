@@ -16,6 +16,9 @@ struct RewindPage: View {
     @State private var error: String?
     @State private var requestID = UUID()
     @State private var availableYears: [Int] = []
+    @State private var isCreatingPlaylist = false
+    @State private var createdPlaylist: CloudPlaylist?
+    @State private var createdPeriod: String?
 
     private var years: [Int] {
         Array(
@@ -58,7 +61,36 @@ struct RewindPage: View {
                 }
                 if let rewind {
                     summary(rewind.summary)
-                    if rewind.summary.total_us > 0 {
+                    if rewind.summary.total_us > 0 || !rewind.summary.songs.isEmpty {
+                        HStack {
+                            Button {
+                                let selectedYear = year
+                                let selectedMonth = month == 0 ? nil : month
+                                let selectedPeriod = period
+                                isCreatingPlaylist = true
+                                Task {
+                                    defer { isCreatingPlaylist = false }
+                                    do {
+                                        createdPlaylist = try await library.createRewindPlaylist(
+                                            year: selectedYear, month: selectedMonth, )
+                                        createdPeriod = selectedPeriod
+                                    } catch {
+                                        self.error = error.localizedDescription
+                                    }
+                                }
+                            } label: {
+                                Label(
+                                    isCreatingPlaylist ? "Creating…" : "Create playlist",
+                                    systemImage: "text.badge.plus", )
+                            }
+                            .disabled(
+                                isCreatingPlaylist || isLoading || rewind.summary.songs.isEmpty)
+                            if let createdPlaylist, createdPeriod == period {
+                                NavigationLink("Open playlist") {
+                                    CloudPlaylistPage(playlist: createdPlaylist)
+                                }
+                            }
+                        }
                         songs(rewind.summary.songs)
                         ranking("Top artists", entries: rewind.summary.artists, albums: false)
                         ranking("Top albums", entries: rewind.summary.albums, albums: true)
@@ -106,7 +138,9 @@ struct RewindPage: View {
                                 rank(index)
                                 VStack(alignment: .leading, spacing: 2) {
                                     CloudTrackRow(track: track, context: topTracks)
-                                    Text(listeningTime(entry.listened_us)).font(.caption)
+                                    Text(
+                                        "\(entry.plays ?? 0) \((entry.plays ?? 0) == 1 ? "play" : "plays")"
+                                    ).font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }

@@ -10,6 +10,15 @@ import node from "@astrojs/node";
 export default defineConfig({
   site: "https://www.audexis.app",
   output: "server",
+  security: {
+    allowedDomains: [
+      { hostname: "www.audexis.app", protocol: "https" },
+      { hostname: "audexis.app", protocol: "https" },
+      { hostname: "my-macbook-air.tail5c4e82.ts.net", protocol: "https" },
+      { hostname: "localhost", protocol: "http" },
+      { hostname: "127.0.0.1", protocol: "http" },
+    ],
+  },
 
   vite: {
     plugins: [tailwindcss()],

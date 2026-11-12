@@ -1,4 +1,6 @@
+mod listening;
 use crate::Track;
+pub use listening::{ListeningPeriod, ListeningStats};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -9,6 +11,8 @@ pub struct SmartPlaylist {
     pub rules: Vec<SmartRule>,
     pub sort: SmartSort,
     pub limit: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listening_period: Option<ListeningPeriod>,
 }
 impl Default for SmartPlaylist {
     fn default() -> Self {
@@ -18,6 +22,7 @@ impl Default for SmartPlaylist {
             rules: vec![SmartRule::default()],
             sort: SmartSort::Title,
             limit: None,
+            listening_period: None,
         }
     }
 }
@@ -52,6 +57,8 @@ pub enum SmartField {
     Favorite,
     AddedDays,
     DurationSeconds,
+    PlayCount,
+    ListeningMinutes,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,10 +79,12 @@ pub enum SmartSort {
     Album,
     Newest,
     Oldest,
+    MostPlayed,
+    MostListened,
 }
 
 impl SmartField {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 12] = [
         Self::Title,
         Self::Artist,
         Self::AlbumArtist,
@@ -86,6 +95,8 @@ impl SmartField {
         Self::Favorite,
         Self::AddedDays,
         Self::DurationSeconds,
+        Self::PlayCount,
+        Self::ListeningMinutes,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -99,15 +110,19 @@ impl SmartField {
             Self::Favorite => "Favorite",
             Self::AddedDays => "Days since added",
             Self::DurationSeconds => "Duration (seconds)",
+            Self::PlayCount => "Play count",
+            Self::ListeningMinutes => "Listening time (minutes)",
         }
     }
     pub fn operators(self) -> &'static [SmartOperator] {
         use SmartOperator::*;
         match self {
             Self::Favorite => &[Equals, NotEquals],
-            Self::Year | Self::AddedDays | Self::DurationSeconds => {
-                &[Equals, NotEquals, LessThan, GreaterThan]
-            }
+            Self::Year
+            | Self::AddedDays
+            | Self::DurationSeconds
+            | Self::PlayCount
+            | Self::ListeningMinutes => &[Equals, NotEquals, LessThan, GreaterThan],
             _ => &[Contains, NotContains, Equals, NotEquals, StartsWith],
         }
     }
@@ -137,12 +152,14 @@ impl SmartOperator {
     }
 }
 impl SmartSort {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::Title,
         Self::Artist,
         Self::Album,
         Self::Newest,
         Self::Oldest,
+        Self::MostPlayed,
+        Self::MostListened,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -151,11 +168,25 @@ impl SmartSort {
             Self::Album => "Album",
             Self::Newest => "Newest first",
             Self::Oldest => "Oldest first",
+            Self::MostPlayed => "Most played",
+            Self::MostListened => "Most listening time",
         }
     }
 }
 impl SmartPlaylist {
+    pub fn uses_listening_history(&self) -> bool {
+        self.rules.iter().any(|rule| {
+            matches!(
+                rule.field,
+                SmartField::PlayCount | SmartField::ListeningMinutes
+            )
+        }) || matches!(self.sort, SmartSort::MostPlayed | SmartSort::MostListened)
+    }
+
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(period) = self.listening_period {
+            period.bounds()?;
+        }
         if self.rules.is_empty() || self.rules.len() > 20 {
             return Err("Use between 1 and 20 rules.".into());
         }
@@ -173,7 +204,11 @@ impl SmartPlaylist {
                 SmartField::Favorite if !matches!(rule.value.trim(), "true" | "false") => {
                     return Err("Favorite must be true or false.".into());
                 }
-                SmartField::Year | SmartField::AddedDays | SmartField::DurationSeconds => {
+                SmartField::Year
+                | SmartField::AddedDays
+                | SmartField::DurationSeconds
+                | SmartField::PlayCount
+                | SmartField::ListeningMinutes => {
                     if !rule
                         .value
                         .trim()
@@ -189,14 +224,27 @@ impl SmartPlaylist {
         Ok(())
     }
     pub fn select(&self, tracks: &[Track], now: i64) -> Vec<String> {
+        self.select_with_listening(tracks, now, |_| ListeningStats::default())
+    }
+
+    pub fn select_with_listening(
+        &self,
+        tracks: &[Track],
+        now: i64,
+        listening: impl Fn(&str) -> ListeningStats,
+    ) -> Vec<String> {
         let mut matches: Vec<_> = tracks
             .iter()
             .filter(|track| {
                 !track.deleted
                     && if self.match_all {
-                        self.rules.iter().all(|rule| rule.matches(track, now))
+                        self.rules
+                            .iter()
+                            .all(|rule| rule.matches(track, now, listening(&track.id)))
                     } else {
-                        self.rules.iter().any(|rule| rule.matches(track, now))
+                        self.rules
+                            .iter()
+                            .any(|rule| rule.matches(track, now, listening(&track.id)))
                     }
             })
             .collect();
@@ -214,6 +262,10 @@ impl SmartPlaylist {
                     .then_with(|| a.title().to_lowercase().cmp(&b.title().to_lowercase())),
                 SmartSort::Newest => b.added_at.cmp(&a.added_at),
                 SmartSort::Oldest => a.added_at.cmp(&b.added_at),
+                SmartSort::MostPlayed => listening(&b.id).plays.cmp(&listening(&a.id).plays),
+                SmartSort::MostListened => listening(&b.id)
+                    .listened_us
+                    .cmp(&listening(&a.id).listened_us),
             };
             order.then_with(|| a.id.cmp(&b.id))
         });
@@ -231,7 +283,7 @@ fn tag<'a>(track: &'a Track, key: &str) -> &'a str {
         .unwrap_or("")
 }
 impl SmartRule {
-    fn matches(&self, track: &Track, now: i64) -> bool {
+    fn matches(&self, track: &Track, now: i64, listening: ListeningStats) -> bool {
         use SmartField::*;
         use SmartOperator::*;
         let compare_number = |value: f64| {
@@ -247,6 +299,8 @@ impl SmartRule {
             }
         };
         match self.field {
+            PlayCount => return compare_number(listening.plays as f64),
+            ListeningMinutes => return compare_number(listening.listened_us as f64 / 60_000_000.0),
             Favorite => {
                 let equal = track.metadata.loved == (self.value.trim() == "true");
                 return if self.operator == NotEquals {

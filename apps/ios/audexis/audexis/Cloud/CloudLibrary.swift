@@ -16,11 +16,16 @@ final class CloudLibrary {
     private(set) var snapshot = CloudSnapshot() {
         didSet {
             if let current = playback.track,
-                let latest = snapshot.tracks.first(where: { $0.id == current.id && !$0.deleted })
+                let latest = snapshot.tracks.first(where: {
+                    $0.id == current.id && !$0.deleted
+                })
             {
                 playback.refreshTrack(latest)
             }
-            playback.updateQueue(index: snapshot.current, count: snapshot.queue.count)
+            playback.updateQueue(
+                index: snapshot.current,
+                count: snapshot.queue.count,
+            )
         }
     }
     private(set) var isLoading = true
@@ -35,13 +40,17 @@ final class CloudLibrary {
     @ObservationIgnored private var api: CloudAPI?
     @ObservationIgnored private var directory: URL?
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
-    @ObservationIgnored private var downloadTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var downloadTasks: [String: Task<Void, Never>] =
+        [:]
     @ObservationIgnored private var artworkTasks: [String: Task<UIImage?, Never>] = [:]
     @ObservationIgnored private var importing = false
     @ObservationIgnored private var closed = false
     @ObservationIgnored private var lifecycle = UUID()
     @ObservationIgnored private var playbackGeneration = UUID()
-    private static let logger = Logger(subsystem: "com.kp.audexis", category: "Artwork")
+    private static let logger = Logger(
+        subsystem: "com.kp.audexis",
+        category: "Artwork",
+    )
 
     init() {
         let core = MobileCore()
@@ -69,14 +78,25 @@ final class CloudLibrary {
                 session.connection.kind == .cloud
                 ? CloudAPIConfiguration.origin : session.connection.url
             _ = try ServerConnection.customURL(origin)
-            let scope = SHA256.hash(data: Data((origin + "\n" + session.credential).utf8)).map {
+            let scope = SHA256.hash(
+                data: Data((origin + "\n" + session.credential).utf8)
+            ).map {
                 String(format: "%02x", $0)
             }.joined()
             let base = try FileManager.default.url(
-                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil,
-                create: true, )
-            var folder = base.appendingPathComponent("CloudLibrary/\(scope)", isDirectory: true)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true,
+            )
+            var folder = base.appendingPathComponent(
+                "CloudLibrary/\(scope)",
+                isDirectory: true,
+            )
+            try FileManager.default.createDirectory(
+                at: folder,
+                withIntermediateDirectories: true,
+            )
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
             try folder.setResourceValues(values)
@@ -88,7 +108,9 @@ final class CloudLibrary {
             snapshot = restored
             isLoading = false
             playback.onStop = { [weak self] in self?.stopPlayback() }
-            playback.onToggleFavorite = { [weak self] track in self?.toggleFavorite(track) }
+            playback.onToggleFavorite = { [weak self] track in
+                self?.toggleFavorite(track)
+            }
             playback.onNext = { [weak self] in self?.advance() }
             playback.onResumeQueue = { [weak self] in self?.prepareCurrent() }
             playback.onPrevious = { [weak self] in
@@ -124,15 +146,23 @@ final class CloudLibrary {
         do {
             let identity: CloudIdentity = try await api.get("/api/session")
             guard identity.authenticated else {
-                throw CloudError.message("Sign in again to load your cloud library.")
+                throw CloudError.message(
+                    "Sign in again to load your cloud library."
+                )
             }
-            snapshot = try await core.call(.init(op: "identity", user_id: identity.user_id))
+            snapshot = try await core.call(
+                .init(op: "identity", user_id: identity.user_id)
+            )
             while !closed {
                 try Task.checkCancellation()
                 let after = snapshot.cursor
-                let page: CloudChanges = try await api.get("/api/sync/changes?after=\(after)")
+                let page: CloudChanges = try await api.get(
+                    "/api/sync/changes?after=\(after)"
+                )
                 let playing = snapshot.currentTrack?.id
-                snapshot = try await core.call(.init(op: "changes", after: after, page: page))
+                snapshot = try await core.call(
+                    .init(op: "changes", after: after, page: page)
+                )
                 if playing != nil && snapshot.currentTrack?.id != playing {
                     playbackTask?.cancel()
                     playback.stop()
@@ -147,8 +177,47 @@ final class CloudLibrary {
     func rewind(year: Int, month: Int?) async throws -> CloudRewind {
         try await core.call(.init(op: "rewind", year: year, month: month))
     }
+    func createRewindPlaylist(year: Int, month: Int?) async throws
+        -> CloudPlaylist
+    {
+        guard !closed, let api else {
+            throw CloudError.message(
+                "Connect to your account to create a playlist."
+            )
+        }
+        let lifecycle = self.lifecycle
+        let plan: RewindPlaylistPlan = try await core.call(
+            .init(op: "rewind_playlist_tracks", year: year, month: month)
+        )
+        let id = UUID().uuidString
+        let request = CloudPlaylistMutation(
+            edit: .init(
+                playlist_id: id,
+                name: plan.name,
+                track_ids: plan.track_ids,
+            )
+        )
+        let response: CloudMutationResult = try await api.post(
+            "/api/sync/mutations",
+            body: request,
+        )
+        guard !closed, self.lifecycle == lifecycle,
+            let playlist = response.value.playlist, playlist.id == id,
+            !playlist.deleted
+        else {
+            throw CloudError.message(
+                "The playlist could not be loaded. Refresh your library."
+            )
+        }
+        snapshot = try await core.call(
+            .init(op: "updated_playlist", playlist: playlist)
+        )
+        return playlist
+    }
+
     func isFavorite(_ track: CloudTrack) -> Bool {
-        snapshot.tracks.first { $0.id == track.id }?.metadata.loved ?? track.metadata.loved
+        snapshot.tracks.first { $0.id == track.id }?.metadata.loved
+            ?? track.metadata.loved
     }
     func toggleFavorite(_ track: CloudTrack) {
         guard !closed, !favoriteUpdates.contains(track.id), let api,
@@ -157,19 +226,32 @@ final class CloudLibrary {
         favoriteUpdates.insert(track.id)
         favoriteError = nil
         let lifecycle = self.lifecycle
-        let request = CloudTrackMutation(track: current, loved: !current.metadata.loved)
+        let request = CloudTrackMutation(
+            track: current,
+            loved: !current.metadata.loved,
+        )
         Task {
-            defer { if self.lifecycle == lifecycle { favoriteUpdates.remove(track.id) } }
+            defer {
+                if self.lifecycle == lifecycle {
+                    favoriteUpdates.remove(track.id)
+                }
+            }
             do {
                 let result: CloudMutationResult = try await api.post(
-                    "/api/sync/mutations", body: request, )
+                    "/api/sync/mutations",
+                    body: request,
+                )
                 guard !closed, self.lifecycle == lifecycle else { return }
-                guard let updated = result.value.track, updated.id == track.id, !updated.deleted
+                guard let updated = result.value.track, updated.id == track.id,
+                    !updated.deleted
                 else {
-                    throw CloudError.message("The server returned an invalid favorite update.")
+                    throw CloudError.message(
+                        "The server returned an invalid favorite update."
+                    )
                 }
                 snapshot = try await core.call(
-                    .init(op: "updated_track", id: track.id, track: updated))
+                    .init(op: "updated_track", id: track.id, track: updated)
+                )
             } catch {
                 guard !closed, self.lifecycle == lifecycle else { return }
                 favoriteError = error.localizedDescription
@@ -177,8 +259,13 @@ final class CloudLibrary {
         }
     }
     func play(_ track: CloudTrack, among tracks: [CloudTrack]) {
-        guard let index = tracks.firstIndex(where: { $0.id == track.id }) else { return }
-        changeQueue(.init(op: "play", ids: tracks.map(\.id), index: index), startPlayback: true)
+        guard let index = tracks.firstIndex(where: { $0.id == track.id }) else {
+            return
+        }
+        changeQueue(
+            .init(op: "play", ids: tracks.map(\.id), index: index),
+            startPlayback: true,
+        )
     }
     func enqueue(_ track: CloudTrack, next: Bool) {
         changeQueue(.init(op: "enqueue", id: track.id, next: next))
@@ -188,13 +275,24 @@ final class CloudLibrary {
     }
     func removeQueue(_ index: Int) {
         let current = snapshot.current
-        changeQueue(.init(op: "remove_queue", index: index), startPlayback: current == index)
+        changeQueue(
+            .init(op: "remove_queue", index: index),
+            startPlayback: current == index,
+        )
     }
-    func clearQueue() { changeQueue(.init(op: "clear_queue"), startPlayback: true) }
+    func clearQueue() {
+        changeQueue(.init(op: "clear_queue"), startPlayback: true)
+    }
     func advance(previous: Bool = false) {
-        changeQueue(.init(op: "advance", previous: previous), startPlayback: true)
+        changeQueue(
+            .init(op: "advance", previous: previous),
+            startPlayback: true,
+        )
     }
-    private func changeQueue(_ command: MobileCommand, startPlayback: Bool = false) {
+    private func changeQueue(
+        _ command: MobileCommand,
+        startPlayback: Bool = false,
+    ) {
         Task {
             guard !closed else { return }
             do {
@@ -231,28 +329,41 @@ final class CloudLibrary {
                     media = nil
                 } else {
                     let plan: MediaPlan = try await core.call(
-                        .init(op: "media_plan", id: track.id, quality: streamingQuality.rawValue))
+                        .init(
+                            op: "media_plan",
+                            id: track.id,
+                            quality: streamingQuality.rawValue,
+                        )
+                    )
                     media = try await api.playableMedia(plan)
                     localURL = nil
                 }
                 try Task.checkCancellation()
                 guard !closed, playbackGeneration == generation else { return }
                 try await playback.play(
-                    track, localURL: localURL, media: media,
-                    downloadedQuality: snapshot.download_qualities[track.id], )
+                    track,
+                    localURL: localURL,
+                    media: media,
+                    downloadedQuality: snapshot.download_qualities[track.id],
+                )
                 // Request the next song's selected quality while this one plays. This
                 // starts server-side conversion ahead of time without downloading audio.
-                if let index = snapshot.current, index + 1 < snapshot.queue.count,
+                if let index = snapshot.current,
+                    index + 1 < snapshot.queue.count,
                     snapshot.downloads[snapshot.queue[index + 1]] == nil
                 {
                     do {
                         let nextPlan: MediaPlan = try await core.call(
                             .init(
-                                op: "media_plan", id: snapshot.queue[index + 1],
+                                op: "media_plan",
+                                id: snapshot.queue[index + 1],
                                 quality: streamingQuality.rawValue,
-                            ))
+                            )
+                        )
                         try Task.checkCancellation()
-                        guard !closed, playbackGeneration == generation else { return }
+                        guard !closed, playbackGeneration == generation else {
+                            return
+                        }
                         let _: CloudMedia = try await api.get(nextPlan.path)
                     } catch {
                         // Preparation is optional; a failure must not interrupt this song.
@@ -277,8 +388,12 @@ final class CloudLibrary {
             do {
                 let plan: MediaPlan = try await core.call(
                     .init(
-                        op: "media_plan", id: track.id, quality: downloadQuality.rawValue,
-                        purpose: "download", ))
+                        op: "media_plan",
+                        id: track.id,
+                        quality: downloadQuality.rawValue,
+                        purpose: "download",
+                    )
+                )
                 let media = try await api.playableMedia(plan)
                 try Task.checkCancellation()
                 guard !closed else { return }
@@ -290,8 +405,12 @@ final class CloudLibrary {
                 }
                 try CloudDownloads.shared.start(
                     .init(
-                        id: track.id, sourceHash: track.sha256, directory: directory.path,
-                        media: media, ))
+                        id: track.id,
+                        sourceHash: track.sha256,
+                        directory: directory.path,
+                        media: media,
+                    )
+                )
             } catch is CancellationError { downloads[track.id] = nil } catch {
                 downloads[track.id] = nil
                 if !closed { self.error = error.localizedDescription }
@@ -302,15 +421,21 @@ final class CloudLibrary {
         downloadTasks[track.id]?.cancel()
         Task {
             if let directory {
-                await CloudDownloads.shared.cancel(id: track.id, directory: directory.path)
+                await CloudDownloads.shared.cancel(
+                    id: track.id,
+                    directory: directory.path,
+                )
             }
             downloads[track.id] = nil
         }
     }
     func removeDownload(_ track: CloudTrack) {
         Task {
-            do { snapshot = try await core.call(.init(op: "remove_download", id: track.id)) } catch
-            {
+            do {
+                snapshot = try await core.call(
+                    .init(op: "remove_download", id: track.id)
+                )
+            } catch {
                 self.error = error.localizedDescription
             }
         }
@@ -325,16 +450,26 @@ final class CloudLibrary {
             return
         }
         let active = await CloudDownloads.shared.active(in: directory.path)
-        downloads = active.merging(downloadTasks.mapValues { _ in 0 }) { value, _ in value }
-        let pending = directory.appendingPathComponent("pending", isDirectory: true)
+        downloads = active.merging(downloadTasks.mapValues { _ in 0 }) {
+            value,
+            _ in value
+        }
+        let pending = directory.appendingPathComponent(
+            "pending",
+            isDirectory: true,
+        )
         guard
             let files = try? FileManager.default.contentsOfDirectory(
-                at: pending, includingPropertiesForKeys: nil, )
+                at: pending,
+                includingPropertiesForKeys: nil,
+            )
         else { return }
         for file in files where file.pathExtension == "json" {
             do {
                 let receipt = try JSONDecoder().decode(
-                    CloudDownloadReceipt.self, from: Data(contentsOf: file), )
+                    CloudDownloadReceipt.self,
+                    from: Data(contentsOf: file),
+                )
                 guard receipt.job.directory == directory.path else { continue }
                 defer {
                     if let temporary = receipt.temporary {
@@ -342,14 +477,22 @@ final class CloudLibrary {
                     }
                     try? FileManager.default.removeItem(at: file)
                 }
-                if let detail = receipt.error { throw CloudError.message(detail) }
+                if let detail = receipt.error {
+                    throw CloudError.message(detail)
+                }
                 if let temporary = receipt.temporary {
                     snapshot = try await core.call(
                         .init(
-                            op: "commit_download", id: receipt.job.id,
-                            source_hash: receipt.job.sourceHash, temporary: temporary,
-                            media: receipt.job.media, ))
-                    if let track = snapshot.tracks.first(where: { $0.id == receipt.job.id }) {
+                            op: "commit_download",
+                            id: receipt.job.id,
+                            source_hash: receipt.job.sourceHash,
+                            temporary: temporary,
+                            media: receipt.job.media,
+                        )
+                    )
+                    if let track = snapshot.tracks.first(where: {
+                        $0.id == receipt.job.id
+                    }) {
                         loadArtwork(track)
                     }
                 }
@@ -378,37 +521,54 @@ final class CloudLibrary {
                 if self.lifecycle == lifecycle { artworkTasks[key] = nil }
             }
             if let image = await artworkCache.restore(for: track) {
-                guard !Task.isCancelled, !closed, self.lifecycle == lifecycle else { return nil }
+                guard !Task.isCancelled, !closed, self.lifecycle == lifecycle
+                else { return nil }
                 playback.updateArtwork(trackID: track.id, image: image)
                 return image
             }
-            guard let api, !Task.isCancelled, !closed, self.lifecycle == lifecycle else {
+            guard let api, !Task.isCancelled, !closed,
+                self.lifecycle == lifecycle
+            else {
                 return nil
             }
             do {
-                let media: CloudMedia = try await api.get("/api/tracks/\(track.id)/artwork")
-                guard let url = URL(string: media.url), ["https", "http"].contains(url.scheme),
+                let media: CloudMedia = try await api.get(
+                    "/api/tracks/\(track.id)/artwork"
+                )
+                guard let url = URL(string: media.url),
+                    ["https", "http"].contains(url.scheme),
                     url.user == nil, url.password == nil
                 else {
-                    throw CloudError.message("The server returned an invalid artwork URL.")
+                    throw CloudError.message(
+                        "The server returned an invalid artwork URL."
+                    )
                 }
-                let (data, response) = try await URLSession.shared.data(from: url)
+                let (data, response) = try await URLSession.shared.data(
+                    from: url
+                )
                 try Task.checkCancellation()
                 guard !closed, self.lifecycle == lifecycle else { return nil }
                 guard let response = response as? HTTPURLResponse,
                     (200..<300).contains(response.statusCode)
                 else {
                     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-                    throw CloudError.message("Artwork download failed (HTTP \(status)).")
+                    throw CloudError.message(
+                        "Artwork download failed (HTTP \(status))."
+                    )
                 }
-                guard data.count <= 8 * 1024 * 1024, Int64(data.count) == media.size,
-                    SHA256.hash(data: data).map({ String(format: "%02x", $0) }).joined()
+                guard data.count <= 8 * 1024 * 1024,
+                    Int64(data.count) == media.size,
+                    SHA256.hash(data: data).map({ String(format: "%02x", $0) })
+                        .joined()
                         == media.sha256
                 else {
-                    throw CloudError.message("The downloaded artwork is invalid or unsupported.")
+                    throw CloudError.message(
+                        "The downloaded artwork is invalid or unsupported."
+                    )
                 }
                 let image = try await artworkCache.store(data: data, for: track)
-                guard !Task.isCancelled, !closed, self.lifecycle == lifecycle else { return nil }
+                guard !Task.isCancelled, !closed, self.lifecycle == lifecycle
+                else { return nil }
                 playback.updateArtwork(trackID: track.id, image: image)
                 return image
             } catch is CancellationError {} catch {

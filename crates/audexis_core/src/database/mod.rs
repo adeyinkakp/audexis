@@ -54,6 +54,7 @@ impl Database {
 mod library;
 
 pub mod collections;
+mod listening_stats;
 pub mod media_actions;
 pub mod missing;
 pub mod rewind;

@@ -5,6 +5,7 @@ use sqlx::FromRow;
 pub struct SongTime {
     pub file_id: i64,
     pub listened_us: i64,
+    pub plays: i64,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, FromRow)]
 pub struct ArtistTime {
@@ -36,20 +37,21 @@ pub struct Rewind {
     pub playlists: Vec<PlaylistTime>,
 }
 const TOTALS: &str = "WITH totals AS (SELECT d.file_id,SUM(d.heard_us) AS listened_us FROM listening_time_daily d JOIN files f ON f.id=d.file_id WHERE f.missing_since IS NULL AND d.day>=? AND d.day<? GROUP BY d.file_id)";
+const PLAYS: &str = "WITH plays AS (
+    SELECT p.file_id,COUNT(*) AS plays FROM counted_plays p
+    JOIN files f ON f.id=p.file_id
+    WHERE f.missing_since IS NULL
+      AND date(p.played_at,'unixepoch','localtime')>=?
+      AND date(p.played_at,'unixepoch','localtime')<?
+    GROUP BY p.file_id
+)";
 
 pub async fn read(
     pool: &sqlx::SqlitePool,
     year: i32,
     month: Option<u32>,
 ) -> Result<Rewind, String> {
-    if !(1970..=9998).contains(&year) || month.is_some_and(|v| !(1..=12).contains(&v)) {
-        return Err("Choose a valid year and month".into());
-    }
-    let start = format!("{year:04}-{:02}-01", month.unwrap_or(1));
-    let end = match month {
-        Some(m) if m < 12 => format!("{year:04}-{:02}-01", m + 1),
-        _ => format!("{:04}-01-01", year + 1),
-    };
+    let (start, end) = audexis_protocol::ListeningPeriod { year, month }.bounds()?;
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     let years = sqlx::query_scalar("SELECT DISTINCT CAST(substr(d.day,1,4) AS INTEGER) FROM listening_time_daily d JOIN files f ON f.id=d.file_id WHERE f.missing_since IS NULL ORDER BY 1 DESC")
         .fetch_all(&mut *tx).await.map_err(|e|e.to_string())?;
@@ -70,8 +72,15 @@ pub async fn read(
         ORDER BY listened_us DESC,name LIMIT 20"))
         .bind(&start).bind(&end).fetch_all(&mut *tx).await.map_err(|e|e.to_string())?;
     let songs = sqlx::query_as::<_, SongTime>(&format!(
-        "{TOTALS} SELECT file_id,listened_us FROM totals ORDER BY listened_us DESC,file_id LIMIT 20"
+        "{PLAYS}, times AS (
+            SELECT file_id,SUM(heard_us) AS listened_us FROM listening_time_daily
+            WHERE day>=? AND day<? GROUP BY file_id
+         ) SELECT p.file_id,p.plays,COALESCE(t.listened_us,0) AS listened_us
+         FROM plays p LEFT JOIN times t ON t.file_id=p.file_id
+         ORDER BY p.plays DESC,p.file_id LIMIT 20"
     ))
+    .bind(&start)
+    .bind(&end)
     .bind(&start)
     .bind(&end)
     .fetch_all(&mut *tx)
@@ -94,4 +103,42 @@ pub async fn read(
         albums,
         playlists,
     })
+}
+
+pub async fn playlist_tracks(
+    pool: &sqlx::SqlitePool,
+    year: i32,
+    month: Option<u32>,
+) -> Result<Vec<i64>, String> {
+    let (start, end) = audexis_protocol::ListeningPeriod { year, month }.bounds()?;
+    sqlx::query_scalar(&format!(
+        "{PLAYS} SELECT p.file_id FROM plays p JOIN files f ON f.id=p.file_id
+         WHERE f.cloud_connection_id IS NULL OR
+               f.cloud_connection_id=(SELECT connection_id FROM cloud_library_session WHERE slot=1)
+         ORDER BY p.plays DESC,p.file_id LIMIT 10000"
+    ))
+    .bind(&start)
+    .bind(&end)
+    .fetch_all(pool)
+    .await
+    .map_err(|error| error.to_string())
+}
+
+impl super::Database {
+    pub async fn create_rewind_playlist(
+        &self,
+        year: i32,
+        month: Option<u32>,
+        cloud: bool,
+    ) -> Result<(i64, String), String> {
+        let name = audexis_protocol::ListeningPeriod { year, month }.playlist_name()?;
+        let tracks = playlist_tracks(&self.pool, year, month).await?;
+        if tracks.is_empty() {
+            return Err("No counted plays for this period yet.".into());
+        }
+        let id = self
+            .create_playlist_with_tracks(&name, &tracks, cloud)
+            .await?;
+        Ok((id, name))
+    }
 }

@@ -26,7 +26,7 @@ pub(super) fn item(
             .into_element();
     }
     let mut row = rect()
-        .width(Size::px(244.))
+        .width(Size::px(280.))
         .height(Size::px(22.))
         .horizontal()
         .content(Content::Flex)

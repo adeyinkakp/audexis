@@ -11,6 +11,9 @@ pub async fn members(
     rules: &SmartPlaylist,
 ) -> Result<Vec<String>> {
     rules.validate().map_err(Error::bad)?;
+    if rules.uses_listening_history() {
+        return Err(Error::bad("local only"));
+    }
     let docs: Vec<serde_json::Value> = sqlx::query_scalar(
         "SELECT document FROM cloud_tracks WHERE user_id=$1 AND NOT deleted ORDER BY id",
     )

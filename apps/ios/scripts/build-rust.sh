@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-export PATH="$HOME/.cargo/bin:$PATH"
+inexport PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 ROOT=$(CDPATH= cd -- "$SRCROOT/../../.." && pwd)
 
 case "$PLATFORM_NAME" in

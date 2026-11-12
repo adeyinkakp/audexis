@@ -26,7 +26,7 @@ pub(super) fn parse_callback(request: &str, host: &str, state: &str) -> Result<C
     if hosts.len() != 1 || hosts[0].1.trim() != host {
         return Err(());
     }
-    let url = reqwest::Url::parse(&format!("http://{host}{target}")).map_err(|_| ())?;
+    let url = reqwest::Url::parse(&format!("https://{host}{target}")).map_err(|_| ())?;
     if url.path() != "/callback" || url.fragment().is_some() {
         return Err(());
     }

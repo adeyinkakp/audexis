@@ -1,3 +1,5 @@
+#[path = "rewind_playlist.rs"]
+mod playlist;
 use crate::{
     services::AppServices,
     ui::{components::SmoothScroll, hooks::use_library, theme::use_audexis_colors},
@@ -177,7 +179,12 @@ impl Component for Rewind {
                             .color(colors.muted_foreground),
                     ),
             );
-            if data.total_us == 0 {
+            body = body.child(playlist::RewindPlaylist {
+                year: *year.read().as_ref().unwrap_or(current),
+                month: *month.read(),
+                available: !data.songs.is_empty(),
+            });
+            if data.total_us == 0 && data.songs.is_empty() {
                 body = body
                     .child(
                         label()
@@ -210,7 +217,7 @@ impl Component for Rewind {
                                     .find(|t| t.id == s.file_id)
                                     .map(|s| s.title.clone())
                                     .unwrap_or_default(),
-                                minutes(s.listened_us),
+                                plays(s.plays),
                             )
                         })
                         .collect(),
@@ -251,7 +258,7 @@ impl Component for Rewind {
                                 .map(|song| {
                                     let mut track = song.clone();
                                     track.title = format!("{}. {}", index + 1, song.title);
-                                    track.artist = minutes(entry.listened_us);
+                                    track.artist = plays(entry.plays);
                                     track
                                 })
                         })
@@ -307,4 +314,8 @@ impl Component for Rewind {
 }
 fn minutes(us: i64) -> String {
     format!("{} minutes", us / 60_000_000)
+}
+
+fn plays(count: i64) -> String {
+    format!("{count} {}", if count == 1 { "play" } else { "plays" })
 }

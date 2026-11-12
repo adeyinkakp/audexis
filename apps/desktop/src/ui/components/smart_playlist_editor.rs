@@ -17,6 +17,12 @@ impl Component for PlaylistOptions {
         let busy = self.busy;
         let colors = use_audexis_colors();
         let current = rules.read().clone();
+        let history = *smart.read() && current.uses_listening_history();
+        use_side_effect_with_deps(&history, move |history| {
+            if *history {
+                cloud.set_if_modified(false);
+            }
+        });
         let limit = use_state(|| current.limit.map(|n| n.to_string()).unwrap_or_default());
         let limit_value = limit.read().clone();
         use_side_effect_with_deps(&limit_value, move |value| {
@@ -46,7 +52,7 @@ impl Component for PlaylistOptions {
         let mut locations = rect().horizontal().spacing(8.);
         for (value, title) in [(false, "This computer"), (true, "Cloud")] {
             let button = Button::new()
-                .enabled(!busy)
+                .enabled(!busy && (!value || !history))
                 .child(title)
                 .on_press(move |_| {
                     cloud.set_if_modified(value);
@@ -72,7 +78,9 @@ impl Component for PlaylistOptions {
                     .child(label().text("Sync").font_size(13.))
                     .child(locations)
                     .child(label().font_size(12.).color(colors.muted_foreground).text(
-                        if *cloud.read() {
+                        if history && *smart.read() {
+                            "Listening-history smart playlists stay on this computer because listening history is stored per device."
+                        } else if *cloud.read() {
                             if *smart.read() {
                                 "Matches your cloud library and syncs across devices."
                             } else {
@@ -139,6 +147,7 @@ impl Component for PlaylistOptions {
                             rule.value = match value {
                                 SmartField::Favorite => "true",
                                 SmartField::AddedDays => "30",
+                                SmartField::PlayCount | SmartField::ListeningMinutes => "0",
                                 _ => "",
                             }
                             .into();
@@ -250,6 +259,9 @@ impl Component for PlaylistOptions {
                             ),
                     ),
             );
+        if history {
+            body = body.child(super::smart_playlist_period::SmartPlaylistPeriod { rules, busy });
+        }
         body.child(
             Button::new()
                 .flat()
@@ -270,7 +282,7 @@ impl Component for PlaylistOptions {
             label()
                 .font_size(12.)
                 .color(colors.muted_foreground)
-                .text("WHen turned off results refresh only when you save this playlist."),
+                .text("When turned off results refresh only when you save this playlist."),
         )
         .into_element()
     }
