@@ -64,6 +64,8 @@ if (process.argv[2] === "configure") {
       "AZURE_CERTIFICATE_PROFILE_NAME",
     );
     config.formats = ["nsis"];
+  } else if (target === "x86_64-unknown-linux-gnu") {
+    config.formats = ["deb", "appimage"];
   } else {
     throw new Error(`Unsupported release target: ${target}`);
   }
@@ -90,6 +92,7 @@ if (process.argv[2] === "configure") {
   for (const [suffix, names] of [
     [".app.tar.gz", ["darwin-aarch64", "darwin-x86_64"]],
     [".exe", ["windows-x86_64"]],
+    [".AppImage", ["linux-x86_64"]],
   ]) {
     const matches = files.filter((name) => name.endsWith(suffix));
     if (matches.length !== 1)

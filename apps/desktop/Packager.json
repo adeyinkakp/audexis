@@ -26,5 +26,27 @@
   "nsis": {
     "installerIcon": "../../icons/audexis.ico"
   },
+  "deb": {
+    "depends": [
+      "libc6 (>= 2.39)",
+      "libgcc-s1",
+      "libstdc++6",
+      "libasound2t64 | libasound2",
+      "libdbus-1-3",
+      "libfontconfig1",
+      "libfreetype6",
+      "libxkbcommon0",
+      "libx11-6",
+      "libxcb1",
+      "libxi6",
+      "libxcursor1",
+      "libxrandr2",
+      "libgl1",
+      "libegl1",
+      "libwayland-client0",
+      "libwayland-cursor0",
+      "libwayland-egl1"
+    ]
+  },
   "beforePackagingCommand": "cargo build --release --locked --package audexis"
 }

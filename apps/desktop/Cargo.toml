@@ -36,6 +36,7 @@ open = "5.4.4"
 base64 = "0.22.1"
 sha2 = "0.10.9"
 getrandom = "0.3.4"
+cargo-packager-updater = "0.2.3"
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 muda = { version = "0.19.3", default-features = false }

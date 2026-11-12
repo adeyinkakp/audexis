@@ -25,6 +25,9 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             targets: x86_64-pc-windows-msvc
+          - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            targets: x86_64-unknown-linux-gnu
     runs-on: "${{ matrix.platform }}"
     defaults:
       run:
@@ -50,6 +53,11 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: command -v cmake >/dev/null 2>&1 || brew install cmake
+      - name: Install Linux build and packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake pkg-config libasound2-dev libdbus-1-dev libfontconfig1-dev libxkbcommon-dev libx11-dev libxi-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev libwayland-dev patchelf squashfs-tools file
       - name: Install packager
         run: cargo install cargo-packager --version 0.11.8 --locked
       - name: Prepare release signing configuration
@@ -127,6 +135,9 @@ jobs:
         run: >-
           cargo build --package audexis --release --locked --target
           x86_64-pc-windows-msvc
+      - name: Build Linux executable
+        if: runner.os == 'Linux'
+        run: cargo build --package audexis --release --locked --target x86_64-unknown-linux-gnu
       - name: Sign Windows executable
         if: runner.os == 'Windows'
         uses: azure/artifact-signing-action@v2
@@ -157,6 +168,24 @@ jobs:
       - name: Package Windows installer
         if: runner.os == 'Windows'
         run: cargo packager --config "$RUNNER_TEMP/Packager.json"
+      - name: Package and sign Linux downloads
+        if: runner.os == 'Linux'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}"
+        run: |
+          cargo packager --config "$RUNNER_TEMP/Packager.json"
+          shopt -s nullglob
+          debs=(target/packages/*.deb)
+          images=(target/packages/*.AppImage)
+          test "${#debs[@]}" -eq 1
+          test "${#images[@]}" -eq 1
+          dpkg-deb --info "${debs[0]}"
+          image="$(realpath "${images[0]}")"
+          mkdir -p "$RUNNER_TEMP/appimage-inspect"
+          (cd "$RUNNER_TEMP/appimage-inspect" && "$image" --appimage-extract >/dev/null)
+          test -f "$RUNNER_TEMP/appimage-inspect/squashfs-root/audexis.desktop"
       - name: Sign Windows installer
         if: runner.os == 'Windows'
         uses: azure/artifact-signing-action@v2
@@ -219,6 +248,8 @@ jobs:
             target/packages/*.dmg
             target/packages/*.tar.gz
             target/packages/*.exe
+            target/packages/*.deb
+            target/packages/*.AppImage
             target/packages/*.sig
           if-no-files-found: error
           retention-days: 7
