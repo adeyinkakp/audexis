@@ -260,7 +260,7 @@ jobs:
           "$RUNNER_TEMP/release-draft"; then
             test "$(cat "$RUNNER_TEMP/release-draft")" = true
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Audexis v$RELEASE_VERSION" --notes "See https://www.audexis.app/releases/$RELEASE_TAG for details."
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --draft --title "Audexis v$RELEASE_VERSION" --notes "See https://www.audexis.app/releases/$RELEASE_TAG for details."
           fi
 
           gh release upload "$RELEASE_TAG" target/release-assets/* --clobber

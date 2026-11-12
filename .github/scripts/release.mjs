@@ -25,13 +25,18 @@ const metadata = JSON.parse(
 );
 const version = metadata.packages.find((pkg) => pkg.name === "audexis").version;
 const tag = `v${version}`;
-if (
-  config.version !== version ||
-  process.env.GITHUB_REF !== `refs/tags/${tag}`
-) {
+if (config.version !== version) {
   throw new Error(
-    "Run releases from the version tag matching Cargo.toml and Packager.json",
+    `Release versions differ: Cargo.toml is ${version}, Packager.json is ${config.version}`,
   );
+}
+const ref = process.env.GITHUB_REF ?? "";
+if (ref.startsWith("refs/tags/")) {
+  if (ref !== `refs/tags/${tag}`) {
+    throw new Error(`Release tag ${ref.slice(10)} does not match version ${version}; expected ${tag}`);
+  }
+} else if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
+  throw new Error(`Release requires tag ${tag} or a manual workflow run; received ${ref || "no ref"}`);
 }
 
 if (process.argv[2] === "configure") {
