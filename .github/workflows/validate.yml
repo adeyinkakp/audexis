@@ -106,7 +106,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake pkg-config libasound2-dev libdbus-1-dev libfontconfig1-dev libxkbcommon-dev libx11-dev libxi-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev
+          sudo apt-get install -y clang cmake pkg-config libasound2-dev libdbus-1-dev libfontconfig1-dev libxkbcommon-dev libx11-dev libxi-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev libwayland-dev
 
       - name: Install macOS CMake
         if: runner.os == 'macOS'

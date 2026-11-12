@@ -17,7 +17,6 @@ uuid.workspace = true
 audexis_core.workspace = true
 audexis_audio.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
 freya.workspace = true
 freya-winit = "=0.4.3"
 freya-core = "=0.4.3"

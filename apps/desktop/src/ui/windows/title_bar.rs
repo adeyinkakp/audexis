@@ -94,9 +94,10 @@ fn install_native_toolbar(window: &mut freya::winit::window::Window) {
 }
 
 fn use_title_geometry() -> (f32, f32) {
-    let mut geometry = use_state(|| (TITLE_BAR_HEIGHT, 100.0));
+    let geometry = use_state(|| (TITLE_BAR_HEIGHT, 100.0));
     #[cfg(target_os = "macos")]
     use_hook(move || {
+        let mut geometry = geometry;
         let (tx, rx) = tokio::sync::oneshot::channel();
         Platform::get().with_window(None, move |window| {
             let _ = tx.send(native_title_geometry(window));
