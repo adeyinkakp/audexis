@@ -2,15 +2,15 @@ use super::*;
 
 impl MobileCore {
     pub(super) fn commit_download(&mut self, request: &Value) -> Result<(), String> {
-        let id = string(&request, "id")?;
+        let id = string(request, "id")?;
         let track = self.track(id)?.clone();
-        let source_hash = string(&request, "source_hash")?;
+        let source_hash = string(request, "source_hash")?;
         if track.sha256 != source_hash {
             return Err("This track changed while downloading; try again".into());
         }
         let media: MediaUrl = serde_json::from_value(request["media"].clone())
             .map_err(|_| "Invalid download information")?;
-        let path = PathBuf::from(string(&request, "temporary")?);
+        let path = PathBuf::from(string(request, "temporary")?);
         if !matches!(media.quality.as_str(), "original" | "aac_128" | "aac_256")
             || (media.quality == "original"
                 && (media.sha256 != track.sha256 || media.size != track.size))
@@ -67,7 +67,7 @@ impl MobileCore {
     }
 
     pub(super) fn media_plan(&mut self, request: &Value) -> Result<Value, String> {
-        let track = self.track(string(&request, "id")?)?;
+        let track = self.track(string(request, "id")?)?;
         let automatic = match request.get("purpose").and_then(Value::as_str) {
             None | Some("streaming") => "aac_256",
             Some("download") => {
@@ -89,9 +89,9 @@ impl MobileCore {
             }
             _ => return Err("Unknown audio quality".into()),
         };
-        return Ok(
+        Ok(
             json!({"path":format!("/api/tracks/{}/audio?quality={quality}", track.id),"quality":quality}),
-        );
+        )
     }
 }
 

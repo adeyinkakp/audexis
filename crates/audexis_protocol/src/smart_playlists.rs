@@ -208,15 +208,14 @@ impl SmartPlaylist {
                 | SmartField::AddedDays
                 | SmartField::DurationSeconds
                 | SmartField::PlayCount
-                | SmartField::ListeningMinutes => {
+                | SmartField::ListeningMinutes
                     if !rule
                         .value
                         .trim()
                         .parse::<f64>()
-                        .is_ok_and(|v| v.is_finite() && v >= 0.0 && v <= 1e9)
-                    {
-                        return Err("Numeric rules need a nonnegative number.".into());
-                    }
+                        .is_ok_and(|value| (0.0..=1e9).contains(&value)) =>
+                {
+                    return Err("Numeric rules need a nonnegative number.".into());
                 }
                 _ => {}
             }

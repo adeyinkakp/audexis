@@ -19,12 +19,16 @@ pub(super) fn mac(key: &[u8], data: &str) -> Vec<u8> {
 pub(super) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
+pub(super) struct SigningCredentials<'a> {
+    pub endpoint: &'a str,
+    pub region: &'a str,
+    pub bucket: &'a str,
+    pub key_id: &'a str,
+    pub secret: &'a str,
+}
+
 pub(super) fn sign(
-    endpoint: &str,
-    region: &str,
-    bucket: &str,
-    key_id: &str,
-    secret: &str,
+    credentials: SigningCredentials<'_>,
     method: &str,
     key: &str,
     length: Option<i64>,
@@ -32,6 +36,13 @@ pub(super) fn sign(
     expiry: u32,
     extra: &[(&str, String)],
 ) -> Result<String> {
+    let SigningCredentials {
+        endpoint,
+        region,
+        bucket,
+        key_id,
+        secret,
+    } = credentials;
     let origin =
         reqwest::Url::parse(endpoint).map_err(|_| Error::bad("Invalid storage endpoint"))?;
     let host = origin

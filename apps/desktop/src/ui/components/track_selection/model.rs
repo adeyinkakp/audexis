@@ -17,24 +17,22 @@ impl Selection {
         }
         self.all = false;
         let additive = modifiers.intersects(Modifiers::META | Modifiers::CONTROL);
-        if modifiers.contains(Modifiers::SHIFT) {
-            if let Some(anchor) = self
+        if modifiers.contains(Modifiers::SHIFT)
+            && let Some(anchor) = self
                 .anchor
                 .as_ref()
                 .and_then(|key| items.iter().position(|item| item.key() == *key))
-            {
-                if let Some(end) = items.iter().position(|item| item.key() == key) {
-                    if !additive {
-                        self.keys.clear();
-                    }
-                    self.keys.extend(
-                        items[anchor.min(end)..=anchor.max(end)]
-                            .iter()
-                            .map(SelectedTrack::key),
-                    );
-                    return;
-                }
+            && let Some(end) = items.iter().position(|item| item.key() == key)
+        {
+            if !additive {
+                self.keys.clear();
             }
+            self.keys.extend(
+                items[anchor.min(end)..=anchor.max(end)]
+                    .iter()
+                    .map(SelectedTrack::key),
+            );
+            return;
         }
         if !additive {
             self.keys.clear();

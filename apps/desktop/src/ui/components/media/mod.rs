@@ -1,4 +1,4 @@
-use crate::ui::{hooks::use_playback, theme::use_audexis_colors};
+use crate::ui::theme::use_audexis_colors;
 use audexis_audio::{PlayerCmd, queue_track::UnresolvedTrack};
 use freya::prelude::*;
 use std::sync::Arc;
@@ -54,10 +54,6 @@ pub enum MediaTarget {
         track: MediaTrack,
         queue_id: Option<String>,
         query: Option<audexis_core::database::songs::SongQuery>,
-    },
-
-    Album {
-        tracks: Arc<Vec<MediaTrack>>,
     },
 }
 impl MediaTarget {
@@ -116,13 +112,6 @@ impl MediaTarget {
             Self::Track { track, .. } if !track.path.is_empty() => Some(PlayerCmd::Load {
                 tracks: vec![track.unresolved()],
             }),
-            Self::Album { tracks }
-                if !tracks.is_empty() && tracks.iter().all(|t| !t.path.is_empty()) =>
-            {
-                Some(PlayerCmd::Load {
-                    tracks: tracks.iter().map(MediaTrack::unresolved).collect(),
-                })
-            }
             _ => None,
         }
     }
@@ -130,7 +119,6 @@ impl MediaTarget {
         let tracks = match self {
             Self::Selection { tracks } => tracks.iter().map(SelectedTrack::unresolved).collect(),
             Self::Track { track, .. } => vec![track.unresolved()],
-            Self::Album { tracks } => tracks.iter().map(MediaTrack::unresolved).collect(),
         };
         if tracks.is_empty() || tracks.iter().any(|track| track.path.is_empty()) {
             return None;
@@ -145,11 +133,6 @@ impl MediaTarget {
                 .collect::<Vec<_>>()
                 .join("\n"),
             Self::Track { track, .. } => track.path.clone(),
-            Self::Album { tracks } => tracks
-                .iter()
-                .map(|t| t.path.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
         }
     }
 }
@@ -162,119 +145,37 @@ pub struct PlaylistOccurrence {
 }
 
 #[derive(PartialEq)]
-pub struct MediaItem {
-    target: MediaTarget,
-    children: Vec<Element>,
-    width: Size,
-    playlist: Option<PlaylistOccurrence>,
-}
-impl MediaItem {
-    pub fn new(target: MediaTarget) -> Self {
-        Self {
-            target,
-            children: Vec::new(),
-            width: Size::fill(),
-            playlist: None,
-        }
-    }
-    pub fn playlist(mut self, playlist: Option<PlaylistOccurrence>) -> Self {
-        self.playlist = playlist;
-        self
-    }
-    pub fn width(mut self, width: Size) -> Self {
-        self.width = width;
-        self
-    }
-}
-impl ChildrenExt for MediaItem {
-    fn get_children(&mut self) -> &mut Vec<Element> {
-        &mut self.children
-    }
-}
-impl Component for MediaItem {
-    fn render(&self) -> impl IntoElement {
-        let target = self.target.clone();
-        let services = use_consume::<Arc<crate::services::AppServices>>();
-        let runtime = use_consume::<tokio::runtime::Handle>();
-        let playback = use_playback();
-        let router = freya::router::RouterContext::try_get();
-        let playlist = self.playlist;
-        let busy = use_state(|| false);
-        rect()
-            .width(self.width.clone())
-            .children(self.children.clone())
-            .on_secondary_down(move |event: Event<PressEventData>| {
-                event.stop_propagation();
-                event.prevent_default();
-                crate::ui::menus::context::open(
-                    &event,
-                    target.clone(),
-                    playback.clone(),
-                    services.clone(),
-                    runtime.clone(),
-                    router.clone(),
-                    playlist,
-                    busy,
-                );
-            })
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum MediaLayout {
-    Card,
-    Row { artwork_size: f32, title_size: f32 },
-}
-
-#[derive(PartialEq)]
 pub struct MediaContent {
     pub id: i64,
     pub path: String,
     pub title: String,
     pub subtitle: String,
-    pub layout: MediaLayout,
     pub current: bool,
 }
 impl Component for MediaContent {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
-        let (size, title_size) = match self.layout {
-            MediaLayout::Card => (150.0, 14.0),
-            MediaLayout::Row {
-                artwork_size,
-                title_size,
-            } => (artwork_size, title_size),
-        };
-        let card = self.layout == MediaLayout::Card;
+        let title_size = 14.;
         rect()
-            .width(if card { Size::px(166.0) } else { Size::fill() })
-            .direction(if card {
-                Direction::Vertical
-            } else {
-                Direction::Horizontal
-            })
+            .width(Size::px(166.0))
             .content(Content::Flex)
-            .cross_align(if card {
-                Alignment::Start
-            } else {
-                Alignment::Center
-            })
+            .cross_align(Alignment::Start)
             .spacing(8.0)
-            .padding(if card { 8.0 } else { 0.0 })
+            .padding(8.0)
             .child(super::Artwork {
                 file_id: self.id,
                 path: self.path.clone(),
-                size,
+                size: 150.,
             })
             .child(
                 rect()
-                    .width(if card { Size::fill() } else { Size::flex(1.0) })
+                    .width(Size::fill())
                     .spacing(2.0)
                     .child(
                         label()
                             .text(crate::ui::display_text(self.title.clone()))
                             .width(Size::fill())
-                            .max_lines(if card { 2 } else { 1 })
+                            .max_lines(2)
                             .text_overflow(TextOverflow::Ellipsis)
                             .font_size(title_size)
                             .font_weight(FontWeight::BOLD)
@@ -293,48 +194,6 @@ impl Component for MediaContent {
                             .font_size(title_size - 2.0)
                             .color(colors.muted_foreground),
                     ),
-            )
-    }
-}
-
-#[derive(PartialEq)]
-pub struct AlbumItem {
-    pub title: String,
-    pub artist: String,
-    pub tracks: Arc<Vec<MediaTrack>>,
-    pub layout: MediaLayout,
-}
-impl Component for AlbumItem {
-    fn render(&self) -> impl IntoElement {
-        let target = MediaTarget::Album {
-            tracks: self.tracks.clone(),
-        };
-        let playback = use_playback();
-        let first = self.tracks.first();
-        MediaItem::new(target.clone())
-            .width(if self.layout == MediaLayout::Card {
-                Size::px(166.0)
-            } else {
-                Size::fill()
-            })
-            .child(
-                Button::new()
-                    .flat()
-                    .expanded()
-                    .enabled(playback.available() && target.play_command().is_some())
-                    .child(MediaContent {
-                        id: first.map_or(0, |t| t.id),
-                        path: first.map(|t| t.path.clone()).unwrap_or_default(),
-                        title: self.title.clone(),
-                        subtitle: self.artist.clone(),
-                        layout: self.layout,
-                        current: false,
-                    })
-                    .on_press(move |_| {
-                        if let Some(command) = target.play_command() {
-                            playback.send(command);
-                        }
-                    }),
             )
     }
 }

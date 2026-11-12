@@ -21,9 +21,14 @@ pub(super) enum RemoteAction {
     Stop,
     Next,
     Previous,
+    #[cfg(target_os = "ios")]
     ToggleFavorite,
-    Seek { position_ms: u64 },
-    Skip { offset_ms: i64 },
+    Seek {
+        position_ms: u64,
+    },
+    Skip {
+        offset_ms: i64,
+    },
 }
 
 #[derive(PartialEq)]

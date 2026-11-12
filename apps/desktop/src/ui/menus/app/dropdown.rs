@@ -1,17 +1,32 @@
 use super::*;
 
+#[derive(Clone)]
+pub(super) struct DropdownContext {
+    pub target: MediaTarget,
+    pub playback: Playback,
+    pub services: Arc<AppServices>,
+    pub runtime: tokio::runtime::Handle,
+    pub router: Option<RouterContext>,
+    pub busy: State<bool>,
+    pub close: EventHandler<()>,
+    pub edit_focus: Option<AccessibilityId>,
+}
+
 pub(super) fn item(
     entry: Entry,
-    target: MediaTarget,
-    playback: Playback,
-    services: Arc<AppServices>,
-    runtime: tokio::runtime::Handle,
-    router: Option<RouterContext>,
-    mut busy: State<bool>,
-    close: EventHandler<()>,
-    edit_focus: Option<AccessibilityId>,
+    context: DropdownContext,
     colors: &crate::ui::theme::AudexisColors,
 ) -> Element {
+    let DropdownContext {
+        target,
+        playback,
+        services,
+        runtime,
+        router,
+        mut busy,
+        close,
+        edit_focus,
+    } = context;
     let commands = try_consume_context::<crate::ui::keyboard::ShortcutCommands>();
     if entry.title.is_empty() {
         return rect()
@@ -76,14 +91,16 @@ pub(super) fn item(
             .children(entry.children.into_iter().map(|child| {
                 item(
                     child,
-                    target.clone(),
-                    playback.clone(),
-                    services.clone(),
-                    runtime.clone(),
-                    router.clone(),
-                    busy,
-                    close.clone(),
-                    edit_focus,
+                    DropdownContext {
+                        target: target.clone(),
+                        playback: playback.clone(),
+                        services: services.clone(),
+                        runtime: runtime.clone(),
+                        router,
+                        busy,
+                        close: close.clone(),
+                        edit_focus,
+                    },
                     colors,
                 )
             }))
@@ -99,33 +116,32 @@ pub(super) fn item(
             let Some(action) = entry.action else {
                 return;
             };
-            if let Action::App(app_action) = action {
-                if let (Some(action), Some(commands)) = (
+            if let Action::App(app_action) = action
+                && let (Some(action), Some(commands)) = (
                     crate::ui::keyboard::app_shortcut(app_action),
                     commands.as_ref(),
-                ) {
-                    commands.0.call(action);
-                    return;
-                }
+                )
+            {
+                commands.0.call(action);
+                return;
             }
             if matches!(
                 action,
                 Action::App(
                     AppAction::Cut | AppAction::Copy | AppAction::Paste | AppAction::SelectAll
                 )
-            ) {
-                if let Some(id) = edit_focus {
-                    Platform::get().send(UserEvent::FocusAccessibilityNode(
-                        AccessibilityFocusStrategy::Node(id),
-                    ));
-                }
+            ) && let Some(id) = edit_focus
+            {
+                Platform::get().send(UserEvent::FocusAccessibilityNode(
+                    AccessibilityFocusStrategy::Node(id),
+                ));
             }
             busy.set(true);
             let target = target.clone();
             let playback = playback.clone();
             let services = services.clone();
             let runtime = runtime.clone();
-            let router = router.clone();
+            let router = router;
             spawn(async move {
                 if let Err(message) = super::super::dispatch(
                     action, &target, &playback, services, runtime, router, None,

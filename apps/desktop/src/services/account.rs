@@ -13,17 +13,16 @@ impl AppServices {
         if let Ok(mut worker) = self.sync_worker.lock() {
             worker.take();
         }
-        if let Some(player) = &self.player {
-            if player.subscribe().borrow().id < 0
+        if let Some(player) = &self.player
+            && (player.subscribe().borrow().id < 0
                 || player
                     .subscribe()
                     .borrow()
                     .path
                     .as_deref()
-                    .is_some_and(|p| p.starts_with("cloud-library://"))
-            {
-                let _ = player.send(audexis_audio::PlayerCmd::Stop);
-            }
+                    .is_some_and(|p| p.starts_with("cloud-library://")))
+        {
+            let _ = player.send(audexis_audio::PlayerCmd::Stop);
         }
         let _ = self.config_updates.send(());
         let Some(previous) = previous.filter(|connection| connection.credential_id.is_some())
@@ -104,12 +103,11 @@ impl AppServices {
             connection: connection.clone(),
         });
         let _ = self.config_updates.send(());
-        if let Some(previous) = previous.filter(|connection| connection.credential_id.is_some()) {
-            if let Err(error) = credential_entry(&previous)
+        if let Some(previous) = previous.filter(|connection| connection.credential_id.is_some())
+            && let Err(error) = credential_entry(&previous)
                 .and_then(|entry| entry.delete_credential().map_err(|e| e.to_string()))
-            {
-                tracing::warn!(%error, "Could not remove previous server credential");
-            }
+        {
+            tracing::warn!(%error, "Could not remove previous server credential");
         }
         Ok(connection)
     }

@@ -125,10 +125,10 @@ pub(super) fn native_item(
         }
         Box::new(item)
     };
-    if entry.enabled {
-        if let Some(action) = entry.action {
-            actions.push((item.id().clone(), action));
-        }
+    if entry.enabled
+        && let Some(action) = entry.action
+    {
+        actions.push((item.id().clone(), action));
     }
     Ok(item)
 }

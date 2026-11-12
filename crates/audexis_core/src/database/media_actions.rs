@@ -24,12 +24,12 @@ impl Database {
         for id in unique(ids) {
             let row: Option<(Option<String>,Option<i64>)> = sqlx::query_as("SELECT CASE WHEN f.cloud_connection_id IS NULL THEN f.path ELSE d.path END,CASE WHEN f.cloud_connection_id IS NOT NULL THEN d.size END FROM files f LEFT JOIN file_cloud_links l ON l.file_id=f.id AND l.connection_id=f.cloud_connection_id LEFT JOIN cloud_downloads d ON d.connection_id=l.connection_id AND d.track_id=l.cloud_track_id AND d.sha256=f.hash WHERE f.id=? AND f.missing_since IS NULL AND (f.cloud_connection_id IS NULL OR f.cloud_connection_id=(SELECT connection_id FROM cloud_library_session WHERE slot=1))")
                 .bind(id).fetch_optional(&self.pool).await?;
-            if let Some((Some(path), size)) = row {
-                if tokio::fs::metadata(&path).await.is_ok_and(|stat| {
+            if let Some((Some(path), size)) = row
+                && tokio::fs::metadata(&path).await.is_ok_and(|stat| {
                     stat.is_file() && size.is_none_or(|size| stat.len() == size as u64)
-                }) {
-                    paths.insert(id, path);
-                }
+                })
+            {
+                paths.insert(id, path);
             }
         }
         Ok(paths)

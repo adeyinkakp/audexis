@@ -107,11 +107,13 @@ impl Storage {
             return Err(Error::bad("Local storage uses server transfer tickets"));
         };
         sign(
-            endpoint,
-            region,
-            bucket,
-            key_id,
-            secret,
+            SigningCredentials {
+                endpoint,
+                region,
+                bucket,
+                key_id,
+                secret,
+            },
             method,
             key,
             length,
@@ -143,10 +145,10 @@ impl Storage {
         destination: &Path,
         limit: i64,
     ) -> Result<i64> {
-        if matches!(self, Self::B2 { .. }) {
-            if let Some(error) = cooldown_error() {
-                return Err(error);
-            }
+        if matches!(self, Self::B2 { .. })
+            && let Some(error) = cooldown_error()
+        {
+            return Err(error);
         }
         for attempt in 0..3 {
             match self.download_once(client, key, destination, limit).await {

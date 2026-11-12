@@ -113,11 +113,11 @@ impl Component for PlaylistForm {
                                     return;
                                 }
                                 let spec = (*smart.peek()).then(|| rules.peek().clone());
-                                if let Some(spec) = &spec {
-                                    if let Err(e) = spec.validate() {
-                                        error.set(Some(e));
-                                        return;
-                                    }
+                                if let Some(spec) = &spec
+                                    && let Err(e) = spec.validate()
+                                {
+                                    error.set(Some(e));
+                                    return;
                                 }
                                 busy.set(true);
                                 error.set(None);

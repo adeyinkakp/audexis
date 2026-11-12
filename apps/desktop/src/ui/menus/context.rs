@@ -1,5 +1,10 @@
 use super::*;
 
+pub(crate) struct MenuOptions {
+    pub playlist: Option<PlaylistOccurrence>,
+    pub busy: State<bool>,
+}
+
 pub(crate) fn open(
     event: &Event<PressEventData>,
     target: MediaTarget,
@@ -7,9 +12,9 @@ pub(crate) fn open(
     services: Arc<AppServices>,
     runtime: tokio::runtime::Handle,
     router: Option<RouterContext>,
-    playlist: Option<PlaylistOccurrence>,
-    mut busy: State<bool>,
+    options: MenuOptions,
 ) {
+    let MenuOptions { playlist, mut busy } = options;
     if *busy.peek() {
         return;
     }

@@ -199,10 +199,10 @@ fn popup(
         } else {
             Box::new(muda::MenuItem::new(entry.title, entry.enabled, None))
         };
-        if entry.enabled {
-            if let Some(action) = entry.action {
-                actions.push((item.id().clone(), action));
-            }
+        if entry.enabled
+            && let Some(action) = entry.action
+        {
+            actions.push((item.id().clone(), action));
         }
         Ok(item)
     }

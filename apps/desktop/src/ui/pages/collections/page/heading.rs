@@ -60,7 +60,7 @@ pub(super) fn collection_heading(
                                 .font_size(12.)
                                 .color(colors.muted_foreground),
                         )
-                        .child(heading(&title, 36.))
+                        .child(heading(title, 36.))
                         .child(
                             label()
                                 .text(format!("{} songs", collection.track_count))

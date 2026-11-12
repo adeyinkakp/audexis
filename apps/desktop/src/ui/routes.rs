@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_field_names,
+    reason = "Routable generates the field initializers"
+)]
+
 use super::pages::cloud::CloudLibrary;
 use super::pages::collections::{
     AlbumForTrack, Albums, Artists, Favorites, Playlist, Playlists, Search,

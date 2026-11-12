@@ -114,7 +114,7 @@ pub(crate) async fn dispatch(
                 AppAction::Paste => ("v", Code::KeyV),
                 _ => ("a", Code::KeyA),
             };
-            let _ = Platform::get().post_callback(move |_, context| {
+            drop(Platform::get().post_callback(move |_, context| {
                 use freya_winit::renderer::{NativeWindowEvent, NativeWindowEventAction};
                 if let Some((&window_id, _)) =
                     context.windows.iter().find(|(_, w)| w.window().has_focus())
@@ -141,7 +141,7 @@ pub(crate) async fn dispatch(
                             }));
                     }
                 }
-            });
+            }));
         }
         AppAction::Issue => {
             #[cfg(target_os = "macos")]

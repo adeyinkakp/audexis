@@ -93,11 +93,10 @@ pub async fn cycle(
                     .await?;
                     return Err(error);
                 }
-                if matches!(error.status, Some(400 | 404 | 405 | 413 | 415 | 422 | 424)) {
-                    if let Some(id)=sqlx::query_scalar::<_,Option<String>>("SELECT json_extract(payload,'$.upload_id') FROM cloud_outbox WHERE connection_id=? AND operation_id=?").bind(&context.connection_id).bind(&job.operation_id).fetch_optional(&context.db.pool).await?.flatten() {
+                if matches!(error.status, Some(400 | 404 | 405 | 413 | 415 | 422 | 424))
+                    && let Some(id)=sqlx::query_scalar::<_,Option<String>>("SELECT json_extract(payload,'$.upload_id') FROM cloud_outbox WHERE connection_id=? AND operation_id=?").bind(&context.connection_id).bind(&job.operation_id).fetch_optional(&context.db.pool).await?.flatten() {
                         let _=client.cancel_upload(&id).await;
                     }
-                }
                 store::fail(&context.db.pool, &context.connection_id, &job, &error).await?;
                 let failed: i64 = sqlx::query_scalar(
                     "SELECT count(*) FROM cloud_outbox WHERE connection_id=? AND error IS NOT NULL",

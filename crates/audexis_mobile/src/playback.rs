@@ -87,7 +87,6 @@ impl MobilePlayback {
                     cache_key,
                     cache_bytes: 256 * 1024 * 1024,
                     prefetch: true,
-                    ..Default::default()
                 },
                 move || Ok(url.clone()),
             );

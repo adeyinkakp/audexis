@@ -167,15 +167,14 @@ impl HttpSource {
                     if source.options.prefetch
                         && !stopped.load(Ordering::Relaxed)
                         && demands.is_empty()
+                        && let Some(next) = next.filter(|next| *next < size)
                     {
-                        if let Some(next) = next.filter(|next| *next < size) {
-                            fetcher.position = next;
-                            if fetcher.fill_interruptibly(|| !demands.is_empty()).is_ok() {
-                                ahead = Some(Window {
-                                    start: fetcher.start,
-                                    bytes: std::mem::take(&mut fetcher.buffer),
-                                });
-                            }
+                        fetcher.position = next;
+                        if fetcher.fill_interruptibly(|| !demands.is_empty()).is_ok() {
+                            ahead = Some(Window {
+                                start: fetcher.start,
+                                bytes: std::mem::take(&mut fetcher.buffer),
+                            });
                         }
                     }
                 }

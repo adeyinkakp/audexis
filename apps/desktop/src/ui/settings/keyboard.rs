@@ -154,10 +154,8 @@ impl Component for ShortcutRow {
                 on_cancel: EventHandler::new(move |restore| {
                     recording.set(None);
                     error.set(None);
-                    if restore {
-                        if let Some(id) = *return_focus.peek() {
-                            id.request_focus();
-                        }
+                    if restore && let Some(id) = *return_focus.peek() {
+                        id.request_focus();
                     }
                 }),
                 on_save: EventHandler::new(move |binding| {
@@ -175,15 +173,15 @@ impl Component for ShortcutRow {
                 }),
             });
         }
-        if let Some((failed, message)) = error.read().clone() {
-            if failed == action {
-                row = row.child(
-                    label()
-                        .text(message)
-                        .font_size(12.)
-                        .color(colors.destructive),
-                );
-            }
+        if let Some((failed, message)) = error.read().clone()
+            && failed == action
+        {
+            row = row.child(
+                label()
+                    .text(message)
+                    .font_size(12.)
+                    .color(colors.destructive),
+            );
         }
         row
     }

@@ -108,9 +108,8 @@ impl CloudWorker {
                     _ = stopping.changed() => break,
                     result = engine::cycle(&context, auto_sync || requested == 2, auto_sync || requested > 0, &worker_progress) => result,
                 };
-                if requested > 0 {
-                    if let Ok(0) = sqlx::query_scalar::<_, i64>("SELECT count(*) FROM cloud_outbox WHERE connection_id=? AND state='pending' AND (? OR json_extract(payload,'$.job')!='upload')").bind(&context.connection_id).bind(requested == 2).fetch_one(&context.db.pool).await { requested = 0; }
-                }
+                if requested > 0
+                    && let Ok(0) = sqlx::query_scalar::<_, i64>("SELECT count(*) FROM cloud_outbox WHERE connection_id=? AND state='pending' AND (? OR json_extract(payload,'$.job')!='upload')").bind(&context.connection_id).bind(requested == 2).fetch_one(&context.db.pool).await { requested = 0; }
                 worker_status.send_replace(match result {
                     Ok(()) => CloudSyncStatus::Idle,
                     Err(error) if error.status==Some(429) || (error.status==Some(503) && error.retry_after>0) => {

@@ -40,12 +40,12 @@ impl Component for AppMenuBar {
         let task_services = services.clone();
         let task_runtime = runtime.clone();
         let task_playback = playback.clone();
-        let task_router = router.clone();
+        let task_router = router;
         use_future(move || {
             let services = task_services.clone();
             let runtime = task_runtime.clone();
             let playback = task_playback.clone();
-            let router = task_router.clone();
+            let router = task_router;
             let library = library.clone();
             let commands = commands.clone();
             async move {
@@ -64,13 +64,12 @@ impl Component for AppMenuBar {
                                 if crate::ui::keyboard::is_recording() {
                                     continue;
                                 }
-                                if let Action::App(action) = action {
-                                    if let Some(shortcut) =
+                                if let Action::App(action) = action
+                                    && let Some(shortcut) =
                                         crate::ui::keyboard::app_shortcut(*action)
-                                    {
-                                        commands.0.call(shortcut);
-                                        continue;
-                                    }
+                                {
+                                    commands.0.call(shortcut);
+                                    continue;
                                 }
                                 let p = playback.state.peek().clone();
                                 let target = MediaTarget::track(p.id, p.path.unwrap_or_default());
@@ -80,7 +79,7 @@ impl Component for AppMenuBar {
                                     &playback,
                                     services.clone(),
                                     runtime.clone(),
-                                    router.clone(),
+                                    router,
                                     None,
                                 )
                                 .await
@@ -203,14 +202,16 @@ impl Component for AppMenuBar {
                                     .children(group.children.into_iter().map(|entry| {
                                         dropdown::item(
                                             entry,
-                                            target.clone(),
-                                            playback.clone(),
-                                            services.clone(),
-                                            runtime.clone(),
-                                            router.clone(),
-                                            busy,
-                                            close.clone(),
-                                            *edit_focus.peek(),
+                                            dropdown::DropdownContext {
+                                                target: target.clone(),
+                                                playback: playback.clone(),
+                                                services: services.clone(),
+                                                runtime: runtime.clone(),
+                                                router,
+                                                busy,
+                                                close: close.clone(),
+                                                edit_focus: *edit_focus.peek(),
+                                            },
                                             &colors,
                                         )
                                     }))

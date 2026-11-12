@@ -66,19 +66,19 @@ impl V1 {
             Self::write_field(&mut tag[97..125], &comment);
             tag[125] = 0;
 
-            if let Some(TagValue::Text(tn)) = fields.get(&FrameKey::TrackNumber) {
-                if let Ok(num) = tn.parse::<u8>() {
-                    tag[126] = num;
-                }
+            if let Some(TagValue::Text(tn)) = fields.get(&FrameKey::TrackNumber)
+                && let Ok(num) = tn.parse::<u8>()
+            {
+                tag[126] = num;
             }
         } else {
             Self::write_field(&mut tag[97..127], &comment);
         }
         tag[127] = 255;
-        if let Some(TagValue::Text(g)) = fields.get(&FrameKey::Genre) {
-            if let Ok(num) = g.parse::<u8>() {
-                tag[127] = num;
-            }
+        if let Some(TagValue::Text(g)) = fields.get(&FrameKey::Genre)
+            && let Ok(num) = g.parse::<u8>()
+        {
+            tag[127] = num;
         }
 
         let mut f = crate::library_files::open_for_update(path).map_err(|_| ())?;
@@ -218,10 +218,10 @@ impl TagFormat for V1 {
                 if let Some(TagValue::Text(s)) = vs.first() {
                     merged.insert(*k, TagValue::Text(s.clone()));
                 }
-            } else if let Some(vs) = existing_map.get(k) {
-                if let Some(TagValue::Text(s)) = vs.first() {
-                    merged.insert(*k, TagValue::Text(s.clone()));
-                }
+            } else if let Some(vs) = existing_map.get(k)
+                && let Some(TagValue::Text(s)) = vs.first()
+            {
+                merged.insert(*k, TagValue::Text(s.clone()));
             }
         }
 

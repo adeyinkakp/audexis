@@ -81,13 +81,13 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
         db.pool.clone(),
         tokio::runtime::Handle::current(),
         move |path_updates, file_ids| {
-            if let Some(player) = &missing_player {
-                if let Err(error) = player.send(audexis_audio::PlayerCmd::ReconcileLibraryFiles {
+            if let Some(player) = &missing_player
+                && let Err(error) = player.send(audexis_audio::PlayerCmd::ReconcileLibraryFiles {
                     path_updates,
                     file_ids,
-                }) {
-                    tracing::error!(%error, "Could not reconcile missing files with playback");
-                }
+                })
+            {
+                tracing::error!(%error, "Could not reconcile missing files with playback");
             }
         },
     );

@@ -44,9 +44,11 @@ impl Component for NowPlaying {
                     menu_playback.clone(),
                     services.clone(),
                     runtime.clone(),
-                    router.clone(),
-                    None,
-                    busy,
+                    router,
+                    crate::ui::menus::context::MenuOptions {
+                        playlist: None,
+                        busy,
+                    },
                 );
             }
         });

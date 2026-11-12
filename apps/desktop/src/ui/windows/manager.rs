@@ -46,10 +46,10 @@ impl WindowManager {
         }
     }
     pub fn open_settings(&self) -> Option<WindowId> {
-        if let Ok(window) = self.settings_window.lock() {
-            if let Some(window_id) = *window {
-                return Some(window_id);
-            }
+        if let Ok(window) = self.settings_window.lock()
+            && let Some(window_id) = *window
+        {
+            return Some(window_id);
         }
         let opened = self
             .settings_open
@@ -69,20 +69,12 @@ impl WindowManager {
     }
 
     pub fn close_settings(&self, window_id: WindowId) {
-        if let Ok(mut window) = self.settings_window.lock() {
-            if *window == Some(window_id) {
-                *window = None;
-                self.settings_open.store(false, Ordering::Release);
-            }
-        }
-    }
-
-    #[cfg(test)]
-    pub fn reset_settings(&self) {
-        if let Ok(mut window) = self.settings_window.lock() {
+        if let Ok(mut window) = self.settings_window.lock()
+            && *window == Some(window_id)
+        {
             *window = None;
+            self.settings_open.store(false, Ordering::Release);
         }
-        self.settings_open.store(false, Ordering::Release);
     }
 }
 

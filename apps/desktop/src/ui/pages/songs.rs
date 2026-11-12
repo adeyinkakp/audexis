@@ -202,20 +202,20 @@ impl Component for Songs {
                 width,
                 offset: scroll.position.read().0,
             });
-        let track_list = results::results(
+        let track_list = results::results(results::ResultsOptions {
             data,
             columns,
             playback_query,
             width,
             row_items,
-            scroll.clone(),
-            format!("{identity:?}"),
+            scroll: scroll.clone(),
+            identity: format!("{identity:?}"),
             length,
             busy,
             search,
             load_more,
-            colors.clone(),
-        );
+            colors: colors.clone(),
+        });
         rect()
             .expanded()
             .content(Content::Flex)

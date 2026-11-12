@@ -38,10 +38,10 @@ pub(crate) async fn run(
             router
                 .push(NavigationTarget::<String>::Internal(route.to_string()))
                 .map_err(|e| e.to_string())?;
-            if action == ShortcutAction::Search {
-                if let Some(search) = search {
-                    search.request_focus();
-                }
+            if action == ShortcutAction::Search
+                && let Some(search) = search
+            {
+                search.request_focus();
             }
         }
         return Ok(());

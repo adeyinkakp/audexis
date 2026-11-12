@@ -94,7 +94,7 @@ impl Component for PlayerDetails {
                     })
                     .color(colors.content_faint)
             }));
-        let details = if compact {
+        if compact {
             rect()
                 .width(Size::fill())
                 .horizontal()
@@ -136,7 +136,6 @@ impl Component for PlayerDetails {
                         .child(FavoriteButton { id: self.id }),
                 )
                 .into_element()
-        };
-        details
+        }
     }
 }

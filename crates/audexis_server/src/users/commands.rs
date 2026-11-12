@@ -70,7 +70,7 @@ fn new_key() -> (String, String) {
     (key, hash)
 }
 
-fn show_key(name: &str, key: &str) {
+fn show_key(_name: &str, key: &str) {
     println!(
         "API key: {key}\n\nSave this key now; it cannot be displayed again.\nEnter it with your server URL in Audexis's custom-server settings."
     );
@@ -121,7 +121,7 @@ pub async fn run(pool: &sqlx::PgPool, command: Command) -> Result<()> {
                 println!("No self-hosted users. Run audexis_server users create <name>.");
             } else {
                 println!("NAME\tSTATUS\tQUOTA (BYTES)");
-                for (name, disabled, quota) in rows {
+                for (_name, disabled, quota) in rows {
                     println!("{}\t{quota}", if disabled { "disabled" } else { "active" });
                 }
             }

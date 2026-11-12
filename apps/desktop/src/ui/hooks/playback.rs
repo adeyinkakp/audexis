@@ -159,23 +159,23 @@ pub(super) fn provide_playback(services: Arc<AppServices>) {
         cloud_track.read().clone(),
     );
     use_side_effect_with_deps(&metadata_key, move |(path, duration, cloud)| {
-        if let (Some(player), Some((cloud_path, track))) = (metadata_player.as_ref(), cloud) {
-            if path.as_ref() == Some(cloud_path) {
-                let _ = player.send(PlayerCmd::UpdateControlsMetadata {
-                    metadata: audexis_audio::PartialMetadata {
-                        title: Some(track.title()),
-                        artist: Some(track.artist()),
-                        album: track
-                            .metadata
-                            .tags
-                            .get("album")
-                            .and_then(|v| v.first())
-                            .cloned(),
-                        cover_url: None,
-                        duration: Some(*duration),
-                    },
-                });
-            }
+        if let (Some(player), Some((cloud_path, track))) = (metadata_player.as_ref(), cloud)
+            && path.as_ref() == Some(cloud_path)
+        {
+            let _ = player.send(PlayerCmd::UpdateControlsMetadata {
+                metadata: audexis_audio::PartialMetadata {
+                    title: Some(track.title()),
+                    artist: Some(track.artist()),
+                    album: track
+                        .metadata
+                        .tags
+                        .get("album")
+                        .and_then(|v| v.first())
+                        .cloned(),
+                    cover_url: None,
+                    duration: Some(*duration),
+                },
+            });
         }
     });
     use_provide_context(move || Playback {

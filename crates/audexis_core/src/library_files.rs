@@ -14,11 +14,13 @@ pub struct LibraryChange {
     pub artwork_only: bool,
 }
 
+type ReconcileHandler = dyn Fn(std::collections::HashMap<i64, String>, Vec<i64>) + Send + Sync;
+
 pub struct LibraryFiles {
     pool: sqlx::SqlitePool,
     runtime: Handle,
     changes: broadcast::Sender<LibraryChange>,
-    on_reconcile: Box<dyn Fn(std::collections::HashMap<i64, String>, Vec<i64>) + Send + Sync>,
+    on_reconcile: Box<ReconcileHandler>,
 }
 impl LibraryFiles {
     pub fn new(

@@ -30,10 +30,9 @@ impl Component for SmartPlaylistPeriod {
                             .await
                     })
                     .await
+                    && year.peek().is_empty()
                 {
-                    if year.peek().is_empty() {
-                        year.set(current);
-                    }
+                    year.set(current);
                 }
             }
         });
@@ -115,12 +114,11 @@ impl Component for SmartPlaylistPeriod {
                                     .selected(period.month == selected)
                                     .child(title)
                                     .on_press(move |_| {
-                                        if !busy {
-                                            if let Some(period) =
+                                        if !busy
+                                            && let Some(period) =
                                                 rules.write().listening_period.as_mut()
-                                            {
-                                                period.month = selected;
-                                            }
+                                        {
+                                            period.month = selected;
                                         }
                                     })
                                     .into_element()

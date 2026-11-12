@@ -59,7 +59,6 @@ pub(super) fn tracks(target: &MediaTarget) -> Vec<(i64, String)> {
             .map(|t| (t.track.id, t.track.path.clone()))
             .collect(),
         MediaTarget::Track { track, .. } => vec![(track.id, track.path.clone())],
-        MediaTarget::Album { tracks } => tracks.iter().map(|t| (t.id, t.path.clone())).collect(),
     };
     let mut result = Vec::new();
     for (id, path) in source {

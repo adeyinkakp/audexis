@@ -9,10 +9,9 @@ pub async fn run(state: Arc<AppState>) {
         if crate::storage::cooldown_error().is_some() {
             let deadline =
                 chrono::Utc::now().timestamp() + crate::storage::cooldown_seconds() as i64;
-            if deadline > extended_until {
-                if sqlx::query("UPDATE cloud_uploads SET expires_at=GREATEST(expires_at,$1+3600) WHERE state IN ('created','uploaded','processing')")
+            if deadline > extended_until
+                && sqlx::query("UPDATE cloud_uploads SET expires_at=GREATEST(expires_at,$1+3600) WHERE state IN ('created','uploaded','processing')")
                     .bind(deadline).execute(&state.db).await.is_ok() { extended_until = deadline; }
-            }
             continue;
         }
         for _ in 0..10 {

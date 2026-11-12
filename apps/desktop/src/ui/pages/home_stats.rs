@@ -53,7 +53,7 @@ fn count(value: i64) -> String {
     let digits = value.max(0).to_string();
     let mut result = String::new();
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index) % 3 == 0 {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
             result.push(',');
         }
         result.push(digit);

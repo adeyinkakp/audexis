@@ -56,12 +56,12 @@ impl Fetcher {
         if start != self.next_position {
             self.next_size = PAGE;
         }
-        if let Some(cache) = &self.cache {
-            if let Some(buffer) = cache.read(start, (self.source.size - start).min(PAGE) as usize) {
-                self.start = start;
-                self.buffer = buffer;
-                return Ok(());
-            }
+        if let Some(cache) = &self.cache
+            && let Some(buffer) = cache.read(start, (self.source.size - start).min(PAGE) as usize)
+        {
+            self.start = start;
+            self.buffer = buffer;
+            return Ok(());
         }
         self.position = start;
         if let Some(message) = limit_message(&self.source.options) {
@@ -197,10 +197,10 @@ impl Fetcher {
                 }
                 Ok(())
             })();
-            if let Err(error) = &read {
-                if error.kind() == io::ErrorKind::Interrupted {
-                    return read;
-                }
+            if let Err(error) = &read
+                && error.kind() == io::ErrorKind::Interrupted
+            {
+                return read;
             }
             if read.is_err() || buffer.len() as u64 != expected {
                 if attempt == 0 {

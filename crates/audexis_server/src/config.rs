@@ -72,10 +72,10 @@ pub(crate) fn load_env() -> StartupResult<()> {
             Err(error)
         }
     });
-    if let Err(error) = loaded {
-        if !error.not_found() {
-            return Err(std::io::Error::other("Could not load server .env").into());
-        }
+    if let Err(error) = loaded
+        && !error.not_found()
+    {
+        return Err(std::io::Error::other("Could not load server .env").into());
     }
     Ok(())
 }

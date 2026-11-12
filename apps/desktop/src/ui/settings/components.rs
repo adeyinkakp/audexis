@@ -128,14 +128,14 @@ impl Component for NavigationItem {
             )
             .on_press(move |_| section.set(item))
             .background(if selected {
-                self.colors.primary_washed.clone()
+                self.colors.primary_washed
             } else {
-                self.colors.transparent.clone()
+                self.colors.transparent
             })
             .color(if selected {
-                self.colors.primary.clone()
+                self.colors.primary
             } else {
-                self.colors.muted_foreground.clone()
+                self.colors.muted_foreground
             })
     }
 }

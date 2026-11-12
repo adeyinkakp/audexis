@@ -68,17 +68,17 @@ impl AppServices {
         })
     }
     pub fn sync_edits(&self) {
-        if let Ok(worker) = self.sync_worker.lock() {
-            if let Some(worker) = worker.as_ref() {
-                worker.wake_edits();
-            }
+        if let Ok(worker) = self.sync_worker.lock()
+            && let Some(worker) = worker.as_ref()
+        {
+            worker.wake_edits();
         }
     }
     pub fn sync_now(&self) {
-        if let Ok(worker) = self.sync_worker.lock() {
-            if let Some(worker) = worker.as_ref() {
-                worker.wake();
-            }
+        if let Ok(worker) = self.sync_worker.lock()
+            && let Some(worker) = worker.as_ref()
+        {
+            worker.wake();
         }
     }
     pub fn start_cloud_sync(self: &Arc<Self>) {
@@ -104,8 +104,8 @@ impl AppServices {
                         slot.take();
                     }
                     if fingerprint.as_ref().map(|f| &f.0) != next.as_ref().map(|f| &f.0) {
-                        if let Some(player) = &services.player {
-                            if player
+                        if let Some(player) = &services.player
+                            && player
                                 .subscribe()
                                 .borrow()
                                 .path
@@ -114,9 +114,8 @@ impl AppServices {
                                     p.starts_with("cloud-library://")
                                         || p.starts_with("cloud-stream://")
                                 })
-                            {
-                                let _ = player.send(audexis_audio::PlayerCmd::Stop);
-                            }
+                        {
+                            let _ = player.send(audexis_audio::PlayerCmd::Stop);
                         }
                         if let Err(error) = services
                             .db
@@ -129,10 +128,10 @@ impl AppServices {
                             return;
                         }
                     }
-                    if let Some(context) = &context {
-                        if let Err(error) = context.refresh_library().await {
-                            tracing::warn!(%error, "Could not restore cached cloud library");
-                        }
+                    if let Some(context) = &context
+                        && let Err(error) = context.refresh_library().await
+                    {
+                        tracing::warn!(%error, "Could not restore cached cloud library");
                     }
                     services.library_files.publish_changed(Vec::new());
                     if let Ok(mut slot) = services.sync_worker.lock() {

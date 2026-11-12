@@ -35,10 +35,11 @@ pub(crate) fn song_items(
         ))
     });
     let mut cache = cache.borrow_mut();
-    if let Some((previous, previous_playlist, items)) = cache.as_ref() {
-        if Arc::ptr_eq(previous, tracks) && *previous_playlist == playlist {
-            return items.clone();
-        }
+    if let Some((previous, previous_playlist, items)) = cache.as_ref()
+        && Arc::ptr_eq(previous, tracks)
+        && *previous_playlist == playlist
+    {
+        return items.clone();
     }
     let items: Arc<Vec<SelectedTrack>> = Arc::new(
         tracks

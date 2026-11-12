@@ -1,18 +1,33 @@
 use super::*;
 
-pub(super) fn collection_cards(
-    kind: Kind,
-    current: &Option<Collection>,
-    collections: &[Collection],
-    card_size: f32,
-    card_layout: ButtonLayoutThemePartial,
-    query: &str,
-    mut creating: State<bool>,
-    mut active_kind: State<Kind>,
-    mut detail: State<Option<Collection>>,
-    mut search: State<String>,
-    colors: crate::ui::theme::AudexisColors,
-) -> Vec<Element> {
+pub(super) struct CardOptions<'a> {
+    pub kind: Kind,
+    pub current: &'a Option<Collection>,
+    pub collections: &'a [Collection],
+    pub card_size: f32,
+    pub card_layout: ButtonLayoutThemePartial,
+    pub query: &'a str,
+    pub creating: State<bool>,
+    pub active_kind: State<Kind>,
+    pub detail: State<Option<Collection>>,
+    pub search: State<String>,
+    pub colors: crate::ui::theme::AudexisColors,
+}
+
+pub(super) fn collection_cards(options: CardOptions<'_>) -> Vec<Element> {
+    let CardOptions {
+        kind,
+        current,
+        collections,
+        card_size,
+        card_layout,
+        query,
+        mut creating,
+        mut active_kind,
+        mut detail,
+        mut search,
+        colors,
+    } = options;
     let mut cards = Vec::new();
     if kind == Kind::Playlists && current.is_none() {
         cards.push(

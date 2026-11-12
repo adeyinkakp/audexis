@@ -166,15 +166,14 @@ impl Component for HeaderCell {
                                 .columns
                                 .iter()
                                 .any(|c| c.column == resize_col && c.width != width);
-                            if changed {
-                                if let Some(col) = table
+                            if changed
+                                && let Some(col) = table
                                     .write()
                                     .columns
                                     .iter_mut()
                                     .find(|c| c.column == resize_col)
-                                {
-                                    col.width = width;
-                                }
+                            {
+                                col.width = width;
                             }
                             event.prevent_default();
                         }

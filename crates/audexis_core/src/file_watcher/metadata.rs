@@ -232,16 +232,18 @@ pub(super) fn read_duration_ms(path: &Path) -> Option<i64> {
     use std::io::{Read, Seek, SeekFrom};
     let mut source = source;
     let mut header = [0; 8];
-    if source.read_exact(&mut header).is_ok() && &header[..4] == b"fLaC" {
-        if header[4] & 0x7f == 0 && header[5..8] == [0, 0, 34] {
-            let mut info = [0; 34];
-            if source.read_exact(&mut info).is_ok() {
-                let packed = u64::from_be_bytes(info[10..18].try_into().ok()?);
-                let rate = packed >> 44;
-                let samples = packed & ((1u64 << 36) - 1);
-                if rate > 0 && samples > 0 {
-                    return Some((samples * 1000 / rate) as i64).filter(|ms| *ms > 0);
-                }
+    if source.read_exact(&mut header).is_ok()
+        && &header[..4] == b"fLaC"
+        && header[4] & 0x7f == 0
+        && header[5..8] == [0, 0, 34]
+    {
+        let mut info = [0; 34];
+        if source.read_exact(&mut info).is_ok() {
+            let packed = u64::from_be_bytes(info[10..18].try_into().ok()?);
+            let rate = packed >> 44;
+            let samples = packed & ((1u64 << 36) - 1);
+            if rate > 0 && samples > 0 {
+                return Some((samples * 1000 / rate) as i64).filter(|ms| *ms > 0);
             }
         }
     }

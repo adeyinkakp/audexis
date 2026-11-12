@@ -8,10 +8,10 @@ impl CloudSyncContext {
             ));
         }
         let local:Option<String>=sqlx::query_scalar("SELECT f.path FROM file_cloud_links l JOIN files f ON f.id=l.file_id WHERE l.connection_id=? AND l.cloud_track_id=? AND f.cloud_connection_id IS NULL AND f.missing_since IS NULL ORDER BY f.id LIMIT 1").bind(&self.connection_id).bind(&track.id).fetch_optional(&self.db.pool).await?;
-        if let Some(path) = local {
-            if tokio::fs::metadata(&path).await.is_ok() {
-                return Ok(Some(path.into()));
-            }
+        if let Some(path) = local
+            && tokio::fs::metadata(&path).await.is_ok()
+        {
+            return Ok(Some(path.into()));
         }
         let path = self.cache_path(track);
         if tokio::fs::metadata(&path)
@@ -111,10 +111,10 @@ impl CloudSyncContext {
                 .is_ok()
             {
                 let temporary = descriptor.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
-                if let Ok(bytes) = serde_json::to_vec(&saved) {
-                    if tokio::fs::write(&temporary, bytes).await.is_ok() {
-                        let _ = tokio::fs::rename(&temporary, &descriptor).await;
-                    }
+                if let Ok(bytes) = serde_json::to_vec(&saved)
+                    && tokio::fs::write(&temporary, bytes).await.is_ok()
+                {
+                    let _ = tokio::fs::rename(&temporary, &descriptor).await;
                 }
                 let _ = tokio::fs::remove_file(temporary).await;
             }

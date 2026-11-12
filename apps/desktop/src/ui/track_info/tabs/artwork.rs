@@ -129,14 +129,14 @@ impl Component for Artwork {
                     ),
             );
         }
-        let body = rect()
+
+        rect()
             .width(Size::fill())
             .horizontal()
             .content(Content::Flex)
             .spacing(20.)
             .child(preview)
-            .child(body);
-        body
+            .child(body)
     }
 }
 #[derive(PartialEq)]

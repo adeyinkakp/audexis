@@ -72,9 +72,9 @@ pub fn open(services: Arc<AppServices>, runtime: Handle, tracks: Vec<(i64, Strin
         return;
     }
     let window = window_config(services, runtime, tracks, tab);
-    let _ = Platform::get().post_callback(move |_, context| {
+    drop(Platform::get().post_callback(move |_, context| {
         context.launch_window(window);
-    });
+    }));
 }
 #[derive(PartialEq)]
 struct Editor {

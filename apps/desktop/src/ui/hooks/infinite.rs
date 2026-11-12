@@ -58,16 +58,14 @@ where
                 let result = fetch_pages(request.0.clone(), cursor, count, fetch).await;
                 if *source.peek() == request {
                     refreshing.set(false);
-                    if replace {
-                        if let Ok((pages, next)) = &result {
-                            let current = data.peek();
-                            if &current.pages == pages
-                                && &current.next == next
-                                && current.error.is_none()
-                                && !current.loading
-                            {
-                                return;
-                            }
+                    if replace && let Ok((pages, next)) = &result {
+                        let current = data.peek();
+                        if &current.pages == pages
+                            && &current.next == next
+                            && current.error.is_none()
+                            && !current.loading
+                        {
+                            return;
                         }
                     }
                     let mut state = data.write();

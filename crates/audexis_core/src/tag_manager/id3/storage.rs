@@ -229,7 +229,7 @@ fn write_container(
     target.write_all(layout.container.id3_name())?;
     target.write_all(&layout.container.encode_size(size)?)?;
     target.write_all(tag)?;
-    if size % 2 != 0 {
+    if !size.is_multiple_of(2) {
         target.write_all(&[0])?;
     }
     io::copy(source, target)?;

@@ -42,14 +42,14 @@ async fn clean_inputs() {
     };
     let mut entries = Vec::new();
     while let Ok(Some(entry)) = directory.next_entry().await {
-        if let Ok(meta) = entry.metadata().await {
-            if meta.is_file() {
-                entries.push((
-                    meta.modified().unwrap_or(SystemTime::UNIX_EPOCH),
-                    meta.len(),
-                    entry.path(),
-                ));
-            }
+        if let Ok(meta) = entry.metadata().await
+            && meta.is_file()
+        {
+            entries.push((
+                meta.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+                meta.len(),
+                entry.path(),
+            ));
         }
     }
     entries.sort_by_key(|entry| entry.0);
@@ -59,10 +59,10 @@ async fn clean_inputs() {
         .and_then(|v| v.parse().ok())
         .unwrap_or(5_000_000_000u64);
     for (modified, size, path) in entries {
-        if bytes > max || modified.elapsed().unwrap_or_default() > Duration::from_secs(86400) {
-            if tokio::fs::remove_file(path).await.is_ok() {
-                bytes = bytes.saturating_sub(size);
-            }
+        if (bytes > max || modified.elapsed().unwrap_or_default() > Duration::from_secs(86400))
+            && tokio::fs::remove_file(path).await.is_ok()
+        {
+            bytes = bytes.saturating_sub(size);
         }
     }
 }

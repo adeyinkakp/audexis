@@ -118,12 +118,11 @@ impl Component for VisibleArtwork {
                             cache.invalidate_source(id, &path).await;
                         }
                         let artwork = cache.load_sized(id, path, edge).await?;
-                        if backdrop {
-                            if let Some(artwork) = artwork {
+                        if backdrop
+                            && let Some(artwork) = artwork {
                                 return tokio::task::spawn_blocking(move || blurred_backdrop(artwork))
                                     .await.map_err(|error| error.to_string())?.map(Some);
                             }
-                        }
                         Ok(artwork)
                     });
 

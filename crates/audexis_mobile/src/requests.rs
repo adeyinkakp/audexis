@@ -76,7 +76,7 @@ impl MobileCore {
             }
             "snapshot" => return Ok(self.snapshot()),
             "identity" => {
-                let id = string(&request, "user_id")?;
+                let id = string(request, "user_id")?;
                 if self.state.user_id.as_deref().is_some_and(|old| old != id) {
                     return Err("The server account changed. Sign out and reconnect.".into());
                 }
@@ -172,7 +172,7 @@ impl MobileCore {
                 self.state.current = Some(index);
             }
             "enqueue" => {
-                let id = string(&request, "id")?.to_owned();
+                let id = string(request, "id")?.to_owned();
                 self.track(&id)?;
                 if request["next"].as_bool() == Some(true) {
                     self.state.queue.insert(
@@ -220,7 +220,7 @@ impl MobileCore {
             "media_plan" => return self.media_plan(request),
             "commit_download" => self.commit_download(request)?,
             "remove_download" => {
-                self.remove_download(string(&request, "id")?)?;
+                self.remove_download(string(request, "id")?)?;
             }
             _ => return Err("Unknown mobile operation".into()),
         }

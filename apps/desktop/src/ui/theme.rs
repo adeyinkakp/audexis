@@ -48,15 +48,12 @@ pub fn use_app_theme(services: Arc<AppServices>) {
         let mut updates = services.config_updates.subscribe();
         let mut preference = preference;
         async move {
-            loop {
-                match updates.recv().await {
-                    Ok(()) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                        let value = services.user_config.lock().ok().map(|c| c.theme);
-                        if let Some(value) = value {
-                            preference.set_if_modified(value);
-                        }
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            while let Ok(()) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) =
+                updates.recv().await
+            {
+                let value = services.user_config.lock().ok().map(|config| config.theme);
+                if let Some(value) = value {
+                    preference.set_if_modified(value);
                 }
             }
         }

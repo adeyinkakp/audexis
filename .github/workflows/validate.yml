@@ -4,10 +4,26 @@ on:
   pull_request:
     paths:
       - "apps/desktop/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain*"
+      - "rustfmt.toml"
+      - ".rustfmt.toml"
+      - "justfile"
+      - ".github/workflows/validate.yml"
   push:
     branches: [main]
     paths:
       - "apps/desktop/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain*"
+      - "rustfmt.toml"
+      - ".rustfmt.toml"
+      - "justfile"
+      - ".github/workflows/validate.yml"
   workflow_call:
 
 permissions:
@@ -25,16 +41,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          dest: ${{ runner.temp }}/setup-pnpm-${{ github.job }}
+      - name: Install CMake
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -45,10 +55,16 @@ jobs:
         if: ${{ !env.ACT }}
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./apps/desktop/src-tauri -> target"
+          workspaces: ". -> target"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-      - name: Run validation checks
-        run: pnpm validate
+      - name: Check workspace
+        run: cargo check --workspace --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace --locked

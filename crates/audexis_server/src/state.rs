@@ -91,14 +91,13 @@ impl AppState {
     pub(crate) async fn ticket(&self, key: String, write: bool, size: i64) -> String {
         let mut tickets = self.tickets.lock().await;
         tickets.retain(|_, v| v.expires > Instant::now());
-        if tickets.len() >= 10000 {
-            if let Some(oldest) = tickets
+        if tickets.len() >= 10000
+            && let Some(oldest) = tickets
                 .iter()
                 .min_by_key(|(_, t)| t.expires)
                 .map(|(k, _)| k.clone())
-            {
-                tickets.remove(&oldest);
-            }
+        {
+            tickets.remove(&oldest);
         }
         let token = format!(
             "{}{}",

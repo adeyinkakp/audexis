@@ -39,20 +39,20 @@ pub(crate) fn use_track_metadata(id: i64, path: Option<&str>) -> TrackMetadata {
         cloud: false,
     };
     let cloud = use_playback().cloud_track;
-    if let Some((cloud_path, track)) = &*cloud.read() {
-        if path == Some(cloud_path.as_str()) {
-            metadata.title = track.title();
-            metadata.artist = track.artist();
-            metadata.album = track
-                .metadata
-                .tags
-                .get("album")
-                .and_then(|values| values.first())
-                .cloned()
-                .unwrap_or_default();
-            metadata.available = true;
-            metadata.cloud = true;
-        }
+    if let Some((cloud_path, track)) = &*cloud.read()
+        && path == Some(cloud_path.as_str())
+    {
+        metadata.title = track.title();
+        metadata.artist = track.artist();
+        metadata.album = track
+            .metadata
+            .tags
+            .get("album")
+            .and_then(|values| values.first())
+            .cloned()
+            .unwrap_or_default();
+        metadata.available = true;
+        metadata.cloud = true;
     }
     metadata
 }

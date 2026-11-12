@@ -99,16 +99,16 @@ pub(super) async fn check_response(
 }
 
 pub(super) fn error_detail(body: &[u8]) -> Option<String> {
-    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(body) {
-        if let Some(message) = value.get("error").and_then(|v| v.as_str()) {
-            return Some(
-                message
-                    .chars()
-                    .filter(|c| !c.is_control())
-                    .take(512)
-                    .collect(),
-            );
-        }
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(body)
+        && let Some(message) = value.get("error").and_then(|v| v.as_str())
+    {
+        return Some(
+            message
+                .chars()
+                .filter(|c| !c.is_control())
+                .take(512)
+                .collect(),
+        );
     }
     let text = std::str::from_utf8(body).ok()?;
     let code = text.split("<Code>").nth(1)?.split("</Code>").next()?;

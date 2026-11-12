@@ -83,10 +83,10 @@ pub async fn start_upload(
 pub async fn upload_reply(state: &AppState, account: &Account, id: &str) -> Result<Upload> {
     let row=sqlx::query("SELECT state,stage_key,size,track_id,error,expires_at,request->>'sha256' AS sha256 FROM cloud_uploads WHERE id=$1 AND user_id=$2").bind(id).bind(&account.user_id).fetch_optional(&state.db).await?.ok_or_else(||Error(StatusCode::NOT_FOUND,"Upload not found".into()))?;
     let status: String = row.get("state");
-    if status != "ready" {
-        if let Some(error) = crate::storage::cooldown_error() {
-            return Err(error);
-        }
+    if status != "ready"
+        && let Some(error) = crate::storage::cooldown_error()
+    {
+        return Err(error);
     }
     let expires: i64 = row.get("expires_at");
     let key: String = row.get("stage_key");

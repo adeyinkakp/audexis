@@ -18,22 +18,19 @@ pub(super) async fn thumbnails(context: &CloudSyncContext, client: &CloudClient)
         let library_path = format!("cloud-library://{}/{}", context.connection_id, track.id);
         let needs: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM files WHERE cloud_connection_id=? AND path=? AND NOT EXISTS(SELECT 1 FROM metadata_pictures p WHERE p.file_id=files.id))")
             .bind(&context.connection_id).bind(&library_path).fetch_one(&context.db.pool).await?;
-        if needs {
-            if let Ok(bytes) = tokio::fs::read(&path).await {
-                sqlx::query("INSERT INTO metadata_pictures(file_id,data,mime_type,picture_type) SELECT id,?,'image/png',3 FROM files WHERE cloud_connection_id=? AND path=? AND NOT EXISTS(SELECT 1 FROM metadata_pictures p WHERE p.file_id=files.id)")
+        if needs && let Ok(bytes) = tokio::fs::read(&path).await {
+            sqlx::query("INSERT INTO metadata_pictures(file_id,data,mime_type,picture_type) SELECT id,?,'image/png',3 FROM files WHERE cloud_connection_id=? AND path=? AND NOT EXISTS(SELECT 1 FROM metadata_pictures p WHERE p.file_id=files.id)")
                     .bind(bytes).bind(&context.connection_id).bind(library_path).execute(&context.db.pool).await?;
-                let ids: Vec<i64> = sqlx::query_scalar(
-                    "SELECT id FROM files WHERE cloud_connection_id=? AND path=?",
-                )
-                .bind(&context.connection_id)
-                .bind(format!(
-                    "cloud-library://{}/{}",
-                    context.connection_id, track.id
-                ))
-                .fetch_all(&context.db.pool)
-                .await?;
-                context.files.publish_artwork_changed(ids);
-            }
+            let ids: Vec<i64> =
+                sqlx::query_scalar("SELECT id FROM files WHERE cloud_connection_id=? AND path=?")
+                    .bind(&context.connection_id)
+                    .bind(format!(
+                        "cloud-library://{}/{}",
+                        context.connection_id, track.id
+                    ))
+                    .fetch_all(&context.db.pool)
+                    .await?;
+            context.files.publish_artwork_changed(ids);
         }
     }
     Ok(())

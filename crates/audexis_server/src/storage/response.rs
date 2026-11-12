@@ -20,12 +20,11 @@ pub(super) fn validate_region(endpoint: &reqwest::Url, region: &str) -> Result<(
         .host_str()
         .and_then(|host| host.strip_prefix("s3."))
         .and_then(|host| host.strip_suffix(".backblazeb2.com"))
+        && region != expected
     {
-        if region != expected {
-            return Err(Error::bad(format!(
-                "B2_REGION must be {expected} to match B2_ENDPOINT (currently {region})"
-            )));
-        }
+        return Err(Error::bad(format!(
+            "B2_REGION must be {expected} to match B2_ENDPOINT (currently {region})"
+        )));
     }
     Ok(())
 }

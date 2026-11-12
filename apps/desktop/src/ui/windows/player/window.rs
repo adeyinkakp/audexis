@@ -17,25 +17,25 @@ pub(crate) fn open(
         crate::ui::hooks::request_expanded_player();
         if let Some(library_window) = library_window {
             let close = platform.clone();
-            let _ = platform.post_callback(move |current, context| {
+            drop(platform.post_callback(move |current, context| {
                 if let Some(window) = context.windows.get(&library_window) {
                     window.window().set_minimized(false);
                     window.window().focus_window();
                     crate::ui::windows::manager::window_manager().close_player_window(true);
                     close.close_window(current);
                 }
-            });
+            }));
         }
         return;
     }
-    let _ = platform.post_callback(move |source, context| {
+    drop(platform.post_callback(move |source, context| {
         let manager = crate::ui::windows::manager::window_manager();
-        if let Some(id) = manager.player_window(true) {
-            if let Some(window) = context.windows.get(&id) {
-                window.window().set_minimized(false);
-                window.window().focus_window();
-                return;
-            }
+        if let Some(id) = manager.player_window(true)
+            && let Some(window) = context.windows.get(&id)
+        {
+            window.window().set_minimized(false);
+            window.window().focus_window();
+            return;
         }
         let on_close = manager.clone();
         let window = WindowConfig::new_app(MiniPlayerWindow {
@@ -53,7 +53,7 @@ pub(crate) fn open(
         });
         let id = context.launch_window(window);
         manager.set_player_window(true, id);
-    });
+    }));
 }
 
 struct MiniPlayerWindow {

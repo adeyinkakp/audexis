@@ -169,10 +169,10 @@ impl CloudClient {
                 digest.update(&chunk);
                 file.write_all(&chunk).await?;
             }
-            if let Some(hash) = hash {
-                if format!("{:x}", digest.finalize()) != hash || size != limit {
-                    return Err(SyncError::local("Downloaded audio failed verification"));
-                }
+            if let Some(hash) = hash
+                && (format!("{:x}", digest.finalize()) != hash || size != limit)
+            {
+                return Err(SyncError::local("Downloaded audio failed verification"));
             }
             file.flush().await?;
             drop(file);

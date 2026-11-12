@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AC3000000000000000000001 = {isa = PBXBuildFile; productRef = AC3000000000000000000002; };
 		A9D8D05A8B004F5481AB4101 /* audexis.icon in Resources */ = {isa = PBXBuildFile; fileRef = A9D8D05A8B004F5481AB4102 /* audexis.icon */; };
+		AC3000000000000000000001 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = AC3000000000000000000002 /* Kingfisher */; };
 		EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */ = {isa = PBXBuildFile; productRef = EBA2BBAA3099BBF4009D7678 /* MarqueeText */; };
 /* End PBXBuildFile section */
 
@@ -47,7 +47,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				EBA2BBAB3099BBF4009D7678 /* MarqueeText in Frameworks */,
-				AC3000000000000000000001,
+				AC3000000000000000000001 /* Kingfisher in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -109,7 +109,7 @@
 			);
 			name = audexis;
 			packageProductDependencies = (
-				AC3000000000000000000002,
+				AC3000000000000000000002 /* Kingfisher */,
 				EBA2BBAA3099BBF4009D7678 /* MarqueeText */,
 			);
 			productName = audexis;
@@ -141,7 +141,7 @@
 			mainGroup = EB97F78930876C7E009D4B3C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				AC3000000000000000000003,
+				AC3000000000000000000003 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -484,10 +484,13 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		AC3000000000000000000003 = {
+		AC3000000000000000000003 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
-			requirement = { branch = master; kind = branch; };
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
 		};
 		EBA2BBA93099BBF4009D7678 /* XCRemoteSwiftPackageReference "MarqueeText" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -500,9 +503,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AC3000000000000000000002 = {
+		AC3000000000000000000002 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = AC3000000000000000000003;
+			package = AC3000000000000000000003 /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
 		};
 		EBA2BBAA3099BBF4009D7678 /* MarqueeText */ = {

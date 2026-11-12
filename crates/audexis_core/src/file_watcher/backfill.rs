@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::task as async_runtime;
 
+type BackfillRow = (i64, String, Option<String>, Option<i64>, Option<String>);
+
 pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<(), DatabaseError> {
     let total = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM files WHERE cloud_connection_id IS NULL AND missing_since IS NULL AND
@@ -23,7 +25,7 @@ pub(super) async fn backfill(pool: &SqlitePool, app: &WatcherContext) -> Result<
     let mut processed = 0_u64;
     let mut cursor: i64 = 0;
     loop {
-        let rows: Vec<(i64, String, Option<String>, Option<i64>, Option<String>)> = sqlx::query_as(
+        let rows: Vec<BackfillRow> = sqlx::query_as(
             "SELECT id, path, format, duration_ms, hash FROM files WHERE id > ?1 AND cloud_connection_id IS NULL AND missing_since IS NULL AND
              (duration_ms IS NULL OR duration_ms <= 0 OR format IS NULL OR format = ''
               OR last_validated = 0 OR size = 0 OR modified_at = 0 OR hash IS NULL OR hash = '')

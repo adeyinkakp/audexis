@@ -58,10 +58,10 @@ pub fn launch_settings(services: Arc<AppServices>, runtime: Handle) {
     });
 
     let platform = Platform::get();
-    let _ = platform.post_callback(move |_, context| {
+    drop(platform.post_callback(move |_, context| {
         let window_id = context.launch_window(window);
         manager_on_launch.set_settings_window(window_id);
-    });
+    }));
 }
 
 pub(crate) fn display_text(mut text: String) -> String {

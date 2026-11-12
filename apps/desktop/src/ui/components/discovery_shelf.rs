@@ -1,4 +1,4 @@
-use super::media::{MediaContent, MediaLayout, MediaTarget, MediaTrack, SelectedTrack};
+use super::media::{MediaContent, MediaTarget, MediaTrack, SelectedTrack};
 use super::track_selection::{SelectableTrack, TrackSelectionScope};
 use crate::ui::{hooks::use_playback, theme::use_audexis_colors};
 use audexis_audio::{PlayerCmd, queue_track::UnresolvedTrack};
@@ -68,7 +68,6 @@ impl Component for DiscoveryShelf {
                     path: track.path.clone(),
                     title: track.title.clone(),
                     subtitle: track.artist.clone(),
-                    layout: MediaLayout::Card,
                     current: false,
                 })
                 .into_element()

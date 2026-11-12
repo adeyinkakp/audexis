@@ -145,7 +145,7 @@ impl Component for LibraryPage {
             .spacing(20.)
             .font_size(14.)
             .on_sized(move |event: Event<SizedEventData>| {
-                let next = event.area.size.width as f32;
+                let next = event.area.size.width;
                 if (*width.peek() - next).abs() > 1. {
                     width.set(next);
                 }
@@ -153,10 +153,10 @@ impl Component for LibraryPage {
         let search_id = use_a11y();
         let search_focus = use_try_consume::<crate::ui::keyboard::SearchFocus>();
         use_side_effect_with_deps(&kind, move |kind| {
-            if *kind == Kind::Search {
-                if let Some(mut focus) = search_focus {
-                    focus.0.set(Some(search_id));
-                }
+            if *kind == Kind::Search
+                && let Some(mut focus) = search_focus
+            {
+                focus.0.set(Some(search_id));
             }
         });
         let search_box = Input::new(search)
@@ -285,19 +285,19 @@ impl Component for LibraryPage {
         match result {
             None => {}
             Some((collections, tracks)) => {
-                let cards = cards::collection_cards(
+                let cards = cards::collection_cards(cards::CardOptions {
                     kind,
-                    &current,
+                    current: &current,
                     collections,
                     card_size,
                     card_layout,
-                    &key.1,
+                    query: &key.1,
                     creating,
                     active_kind,
                     detail,
                     search,
-                    colors.clone(),
-                );
+                    colors: colors.clone(),
+                });
                 if !cards.is_empty() {
                     if kind != Kind::Playlists {
                         body = body.child(heading(

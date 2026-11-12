@@ -56,7 +56,7 @@ impl Component for KeyboardShortcuts {
         let command_services = services.clone();
         let command_runtime = runtime.clone();
         let command_playback = playback.clone();
-        let command_router = router.clone();
+        let command_router = router;
         let commands = EventHandler::new(move |action| {
             if is_recording() {
                 return;
@@ -64,7 +64,7 @@ impl Component for KeyboardShortcuts {
             let services = command_services.clone();
             let runtime = command_runtime.clone();
             let playback = command_playback.clone();
-            let router = command_router.clone();
+            let router = command_router;
             spawn(async move {
                 if let Err(message) =
                     run(action, &playback, services, runtime, router, *search.peek()).await

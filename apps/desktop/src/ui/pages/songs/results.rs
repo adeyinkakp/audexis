@@ -1,19 +1,43 @@
 use super::*;
 
-pub(super) fn results(
-    data: Arc<Vec<SongRow>>,
-    columns: Vec<audexis_core::config::TableColumn>,
-    playback_query: SongQuery,
-    width: f32,
-    row_items: Arc<Vec<crate::ui::components::media::SelectedTrack>>,
-    mut scroll: crate::ui::components::song_table::TableScroll,
-    identity: String,
-    length: usize,
-    busy: State<bool>,
-    search: State<String>,
-    load_more: State<Callback<(), ()>>,
-    colors: crate::ui::theme::AudexisColors,
-) -> impl IntoElement {
+type RowData = (
+    Arc<Vec<SongRow>>,
+    Vec<TableColumn>,
+    SongQuery,
+    f32,
+    Arc<Vec<crate::ui::components::media::SelectedTrack>>,
+);
+
+pub(super) struct ResultsOptions {
+    pub data: Arc<Vec<SongRow>>,
+    pub columns: Vec<TableColumn>,
+    pub playback_query: SongQuery,
+    pub width: f32,
+    pub row_items: Arc<Vec<crate::ui::components::media::SelectedTrack>>,
+    pub scroll: crate::ui::components::song_table::TableScroll,
+    pub identity: String,
+    pub length: usize,
+    pub busy: State<bool>,
+    pub search: State<String>,
+    pub load_more: State<Callback<(), ()>>,
+    pub colors: crate::ui::theme::AudexisColors,
+}
+
+pub(super) fn results(options: ResultsOptions) -> impl IntoElement {
+    let ResultsOptions {
+        data,
+        columns,
+        playback_query,
+        width,
+        row_items,
+        mut scroll,
+        identity,
+        length,
+        busy,
+        search,
+        load_more,
+        colors,
+    } = options;
     let mut viewport = scroll.viewport;
     let pointer_scroll = scroll.clone();
     let mut key_scroll = scroll.clone();
@@ -56,13 +80,7 @@ pub(super) fn results(
                             VirtualScrollView::new_with_data_controlled(
                                 (data, columns, playback_query, width, row_items),
                                 move |index,
-                                      (songs, columns, query, width, items): &(
-                                    Arc<Vec<SongRow>>,
-                                    Vec<TableColumn>,
-                                    SongQuery,
-                                    f32,
-                                    Arc<Vec<crate::ui::components::media::SelectedTrack>>,
-                                )| {
+                                      (songs, columns, query, width, items): &RowData| {
                                     let wheel = row_scroll.clone();
                                     if let Some(song) = songs.get(index) {
                                         rect()

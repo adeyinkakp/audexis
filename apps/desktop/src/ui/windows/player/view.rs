@@ -78,14 +78,14 @@ impl Component for PlayerView {
             }
             let platform = Platform::get();
             let close = platform.clone();
-            let _ = platform.post_callback(move |id, context| {
+            drop(platform.post_callback(move |id, context| {
                 if let Some(window) = library_window.and_then(|id| context.windows.get(&id)) {
                     window.window().set_minimized(false);
                     window.window().focus_window();
                 }
                 crate::ui::windows::manager::window_manager().close_player_window(true);
                 close.close_window(id);
-            });
+            }));
         });
         let content = rect()
             .width(if compact {

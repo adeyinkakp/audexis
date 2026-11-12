@@ -6,6 +6,10 @@ pub extern "C" fn audexis_mobile_create() -> *mut MobileCore {
 }
 
 #[unsafe(no_mangle)]
+#[expect(
+    clippy::missing_safety_doc,
+    reason = "Exported C ABI consumed through AudexisMobile.h"
+)]
 pub unsafe extern "C" fn audexis_mobile_call(
     core: *mut MobileCore,
     request: *const c_char,
@@ -29,6 +33,10 @@ pub unsafe extern "C" fn audexis_mobile_call(
 }
 
 #[unsafe(no_mangle)]
+#[expect(
+    clippy::missing_safety_doc,
+    reason = "Exported C ABI consumed through AudexisMobile.h"
+)]
 pub unsafe extern "C" fn audexis_mobile_destroy(core: *mut MobileCore) {
     if !core.is_null() {
         drop(unsafe { Box::from_raw(core) });
@@ -36,6 +44,10 @@ pub unsafe extern "C" fn audexis_mobile_destroy(core: *mut MobileCore) {
 }
 
 #[unsafe(no_mangle)]
+#[expect(
+    clippy::missing_safety_doc,
+    reason = "Exported C ABI consumed through AudexisMobile.h"
+)]
 pub unsafe extern "C" fn audexis_mobile_string_free(value: *mut c_char) {
     if !value.is_null() {
         drop(unsafe { CString::from_raw(value) });

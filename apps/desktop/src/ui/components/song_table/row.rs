@@ -95,7 +95,7 @@ impl Component for SongTableRow {
             crate::ui::display_text(self.song.title.clone()),
             crate::ui::display_text(self.song.artist.clone())
         ))
-        .background(if self.index % 2 == 0 {
+        .background(if self.index.is_multiple_of(2) {
             colors.surface_subtle
         } else {
             Color::TRANSPARENT

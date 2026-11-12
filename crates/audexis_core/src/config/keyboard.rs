@@ -237,10 +237,10 @@ impl KeyboardSettings {
         mut binding: Option<KeyBinding>,
         mac: bool,
     ) -> Result<(), String> {
-        if let Some(binding) = &mut binding {
-            if binding.key.chars().count() == 1 {
-                binding.key = binding.key.to_lowercase();
-            }
+        if let Some(binding) = &mut binding
+            && binding.key.chars().count() == 1
+        {
+            binding.key = binding.key.to_lowercase();
         }
         if let Some(binding) = &binding {
             binding.validate(mac)?;

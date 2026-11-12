@@ -4,14 +4,14 @@ use freya::prelude::*;
 use std::sync::Arc;
 
 pub(crate) fn open(services: Arc<AppServices>, runtime: tokio::runtime::Handle) {
-    let _ = Platform::get().post_callback(move |_, context| {
+    drop(Platform::get().post_callback(move |_, context| {
         let manager = super::manager::window_manager();
-        if let Some(id) = manager.equalizer_window() {
-            if let Some(window) = context.windows.get(&id) {
-                window.window().set_minimized(false);
-                window.window().focus_window();
-                return;
-            }
+        if let Some(id) = manager.equalizer_window()
+            && let Some(window) = context.windows.get(&id)
+        {
+            window.window().set_minimized(false);
+            window.window().focus_window();
+            return;
         }
         let on_close = manager.clone();
         let config = super::title_bar::configure(WindowConfig::new_app(EqualizerWindow {
@@ -26,7 +26,7 @@ pub(crate) fn open(services: Arc<AppServices>, runtime: tokio::runtime::Handle) 
             CloseDecision::Close
         });
         manager.set_equalizer_window(Some(context.launch_window(config)));
-    });
+    }));
 }
 
 struct EqualizerWindow {
