@@ -144,7 +144,7 @@ impl Component for CloudPanel {
                             .child(
                                 label()
                                     .text(
-                                        "Access your music with Audexis Cloud or your own server.",
+                                        "Access your music with audexis Cloud or your own server.",
                                     )
                                     .color(colors.muted_foreground),
                             ),
@@ -171,7 +171,7 @@ impl Component for CloudPanel {
                                     )
                                     .child(
                                         label()
-                                            .text("Audexis Cloud")
+                                            .text("audexis Cloud")
                                             .font_size(16.)
                                             .font_weight(FontWeight::BOLD),
                                     )
@@ -190,7 +190,7 @@ impl Component for CloudPanel {
                                             } else if *logging_in.read() {
                                                 "Waiting for login…"
                                             } else {
-                                                "Log in to Audexis Cloud"
+                                                "Log in to audexis Cloud"
                                             })
                                             .on_press(move |_| {
                                                 if cloud_active {
@@ -211,7 +211,7 @@ impl Component for CloudPanel {
                                             }))
                                     }))
                                     .maybe_child(active_server.read().as_ref().is_some_and(|server| server.kind == ServerKind::Cloud).then(|| {
-                                        label().text("Audexis Cloud is active.").font_size(12.)
+                                        label().text("audexis Cloud is active.").font_size(12.)
                                     }))
                                     .maybe_child(login_error.read().clone().map(|error| {
                                         label().text(error).font_size(12.).color(colors.destructive)
@@ -239,7 +239,7 @@ impl Component for CloudPanel {
                                     )
                                     .child(
                                         label()
-                                            .text("Use your own Audexis server.")
+                                            .text("Use your own audexis server.")
                                             .font_size(13.)
                                             .color(colors.muted_foreground),
                                     )
@@ -323,7 +323,7 @@ impl Component for CloudPanel {
                     .maybe_child(active_server.read().as_ref()
                         .filter(|server| server.credential_id.is_none())
                         .map(|_| label()
-                            .text("Keyring unavailable. Signed in for this session only; you’ll need to sign in again after closing Audexis.")
+                            .text("Keyring unavailable. Signed in for this session only; you’ll need to sign in again after closing audexis.")
                             .font_size(12.).color(colors.muted_foreground)))
                     .maybe_child(logout_error.read().clone().map(|error| {
                         label().text(error).font_size(12.).color(colors.destructive)

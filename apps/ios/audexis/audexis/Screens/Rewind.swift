@@ -98,7 +98,7 @@ struct RewindPage: View {
                         ContentUnavailableView(
                             "Your Rewind starts here", systemImage: "headphones",
                             description: Text(
-                                "Listen to music in Audexis to see your favorites for \(period)."),
+                                "Listen to music in audexis to see your favorites for \(period)."),
                         )
                     }
                 } else if library.isLoading || isLoading {

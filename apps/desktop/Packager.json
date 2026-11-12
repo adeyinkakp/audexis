@@ -1,0 +1,30 @@
+{
+  "name": "audexis",
+  "productName": "audexis",
+  "identifier": "com.kp.audexis",
+  "version": "0.20.0",
+  "outDir": "../../target/packages",
+  "binariesDir": "../../target/release",
+  "formats": [
+    "all"
+  ],
+  "binaries": [
+    {
+      "path": "audexis",
+      "main": true
+    }
+  ],
+  "icons": [
+    "../../icons/audexis.ico",
+    "../../icons/audexis-iOS-Default-16@1x.png",
+    "../../icons/audexis-iOS-Default-32@1x.png",
+    "../../icons/audexis-iOS-Default-64@1x.png",
+    "../../icons/audexis-iOS-Default-128@1x.png",
+    "../../icons/audexis-iOS-Default-256@1x.png",
+    "../../icons/audexis-iOS-Default-512@1x.png"
+  ],
+  "nsis": {
+    "installerIcon": "../../icons/audexis.ico"
+  },
+  "beforePackagingCommand": "cargo build --release --locked --package audexis"
+}

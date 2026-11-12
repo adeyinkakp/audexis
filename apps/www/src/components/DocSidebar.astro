@@ -57,7 +57,7 @@ const pathname = Astro.url.pathname.replace(/\/$/, "");
                                 {slug === "index"
                                     ? "Introduction"
                                     : (page?.frontmatter.title.replace(
-                                          /^Audexis — /,
+                                          /^audexis — /,
                                           "",
                                       ) ?? slug)}
                             </a>

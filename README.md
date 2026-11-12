@@ -2,7 +2,7 @@
     <img src="apps/www/public/audexis-logo.png" alt="Audexis logo" width="96">
 </p>
 
-<h1 align="center">Audexis</h1>
+<h1 align="center">audexis</h1>
 
 <p align="center">A cross platform music player.</p>
 
@@ -13,7 +13,7 @@
   <a href="SUPPORT.md">Support</a>
 </p>
 
-Audexis is for people who keep their own music library. Browse and play local
+audexis is for people who keep their own music library. Browse and play local
 files, edit their metadata, and keep library data on your computer. Optional
 server that connect that library to mobile clients (can self-host).
 
@@ -91,7 +91,7 @@ select a package or `--workspace` to check all Rust packages.
 
 ## Audio formats
 
-Audexis recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA, SPX,
+audexis recognizes MP3, MP2, MP1, FLAC, M4A, M4B, MP4, Ogg, Opus, OGA, SPX,
 OGV, MOV, M4V, and QuickTime files. Playback and metadata support depend on the
 codec and container, and differ between native clients (for now).
 
@@ -117,4 +117,4 @@ contributions are welcome.
 
 ## License
 
-Audexis is under the [MIT License](LICENSE).
+audexis is under the [MIT License](LICENSE).

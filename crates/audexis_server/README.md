@@ -1,6 +1,6 @@
 # audexis_server
 
-The Audexis cloud library and media server. Built with Axum and PostgreSQL,
+The audexis cloud library and media server. Built with Axum and PostgreSQL,
 with local disk or Backblaze B2 storage for uploaded audio. (inspired by navidrome)
 
 ## WHat it does

@@ -1,12 +1,7 @@
 # Audexis for iOS
 
-The native SwiftUI client for an Audexis cloud library. The app includes account
-sign-in, library browsing, downloads, lyrics, and native playback controls.
-Mobile development is in progress.
-
-## TO DO
-
-- playback and decoding w symphonia n cpal
+The native SwiftUI client for an audexis cloud library. The app includes account
+sign-in, library browsing, downloads, playback, lyrics, and native playback controls.
 
 ## Development
 

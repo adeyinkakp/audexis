@@ -40,7 +40,7 @@ struct AccountView: View {
                 }
                 Section("Connection") {
                     Label(
-                        custom ? "Custom server" : "Audexis Cloud",
+                        custom ? "Custom server" : "audexis Cloud",
                         systemImage: custom ? "server.rack" : "cloud", )
                     if let connection = authManager.connection {
                         Text(connection.url).font(.subheadline).foregroundStyle(.secondary)

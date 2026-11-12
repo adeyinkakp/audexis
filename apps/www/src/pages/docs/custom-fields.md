@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "Audexis — Custom metadata fields"
+title: "audexis — Custom metadata fields"
 description: "Create reusable custom field definitions and display their values in Songs."
 ---
 
@@ -14,7 +14,7 @@ with your music.
 
 These are three different things:
 
-- **Display title:** the friendly name shown in Audexis, such as `My category`.
+- **Display title:** the friendly name shown in audexis, such as `My category`.
 - **Metadata key:** the name stored in the file, such as `MY_CATEGORY`.
 - **Value:** the information for one song, such as `Late-night listening`.
 

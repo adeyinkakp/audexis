@@ -8,10 +8,10 @@ interface Props {
     imageAlt?: string;
 }
 const {
-    title = "Audexis — Home.",
-    description = "A desktop music player for the collection you've made your own. Browse your albums, build playlists, tag metadata, and rediscover your favorites with Audexis.",
+    title = "audexis — Home.",
+    description = "A desktop music player for the collection you've made your own. Browse your albums, build playlists, tag metadata, and rediscover your favorites with audexis.",
     image = "/screenshots/home.png",
-    imageAlt = "Audexis music library",
+    imageAlt = "audexis music library",
 } = Astro.props;
 const canonical = new URL(
     Astro.url.pathname.replace(/\/$/, "") || "/",
@@ -33,7 +33,7 @@ const socialImage = new URL(image, Astro.site);
         <link rel="icon" type="image/png" href="/audexis-logo.png" />
         <meta name="description" content={description} />
         <link rel="canonical" href={canonical} />
-        <meta property="og:site_name" content="Audexis" />
+        <meta property="og:site_name" content="audexis" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
@@ -56,7 +56,7 @@ const socialImage = new URL(image, Astro.site);
 
         <footer class="mx-auto flex w-full flex-col gap-8 border-t border-border px-5 py-8 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
             <a class="font-mono font-semibold" href="/">
-                Audexis
+                audexis
             </a>
             <div class="flex flex-wrap gap-6 text-muted-foreground *:hover:text-primary">
                 <a href="/download">Download</a>

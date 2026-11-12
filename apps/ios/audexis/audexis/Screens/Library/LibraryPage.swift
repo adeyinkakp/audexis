@@ -105,7 +105,7 @@ struct LibraryPage: View {
                     description: Text(
                         downloadedOnly
                             ? "Download music to keep it with you offline."
-                            : "Try another search or add music from Audexis Desktop."),
+                            : "Try another search or add music from audexis Desktop."),
                 )
                 .listRowBackground(Color.clear)
             }

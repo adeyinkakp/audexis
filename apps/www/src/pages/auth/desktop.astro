@@ -29,7 +29,7 @@ const params = Astro.url.searchParams;
 const grant = validAuthorization(params);
 if (!grant)
     return new Response(
-        "Invalid desktop sign-in request. Restart sign-in in Audexis.",
+        "Invalid desktop sign-in request. Restart sign-in in audexis.",
         { status: 400, headers: privateHeaders },
     );
 if (!Astro.locals.user) {
@@ -67,7 +67,7 @@ if (Astro.request.method === "POST") {
         submitted.length !== expected.length ||
         !timingSafeEqual(Buffer.from(submitted), Buffer.from(expected))
     ) {
-        return new Response("Sign-in expired. Restart sign-in in Audexis.", {
+        return new Response("Sign-in expired. Restart sign-in in audexis.", {
             status: 403,
             headers: privateHeaders,
         });
@@ -97,14 +97,14 @@ Astro.response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
 
 <Layout>
     <main class="mx-auto flex w-full flex-1 max-w-md flex-col justify-center gap-6 px-6 py-12">
-        <h1 class="text-3xl font-bold">Connect Audexis Desktop</h1>
+        <h1 class="text-3xl font-bold">Connect audexis Desktop</h1>
         <p>
-            Continue as {subscriber.email} to give Audexis Desktop access to
+            Continue as {subscriber.email} to give audexis Desktop access to
             your cloud music library.
         </p>
         <p class="text-sm text-muted-foreground">
             Your subscription is active. Only continue if you started this
-            sign-in from Audexis.
+            sign-in from audexis.
         </p>
         <form
             method="POST"

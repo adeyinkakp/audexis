@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "apps/desktop/**"
+      - "apps/ios/**"
+      - "apps/www/**"
+      - "audexis.icon/**"
+      - "icons/**"
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -12,10 +16,16 @@ on:
       - ".rustfmt.toml"
       - "justfile"
       - ".github/workflows/validate.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/**"
   push:
     branches: [main]
     paths:
       - "apps/desktop/**"
+      - "apps/ios/**"
+      - "apps/www/**"
+      - "audexis.icon/**"
+      - "icons/**"
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -24,6 +34,8 @@ on:
       - ".rustfmt.toml"
       - "justfile"
       - ".github/workflows/validate.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/**"
   workflow_call:
 
 permissions:
@@ -68,3 +80,155 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace --locked
+
+  desktop:
+    name: Build and package desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            format: app
+          - os: windows-latest
+            format: nsis
+          - os: ubuntu-latest
+            format: deb
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake pkg-config libasound2-dev libdbus-1-dev libfontconfig1-dev libxkbcommon-dev libx11-dev libxi-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev
+
+      - name: Install macOS CMake
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
+
+      - name: Check Windows CMake
+        if: runner.os == 'Windows'
+        run: cmake --version
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        if: ${{ !env.ACT }}
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Build release executable
+        run: cargo build --package audexis --release --locked
+
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --version 0.11.8 --locked
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build native package
+        run: cargo packager --config apps/desktop/Packager.json --formats "${{ matrix.format }}"
+
+      - name: Archive macOS app
+        if: runner.os == 'macOS'
+        run: tar -czf target/packages/audexis-macos.tar.gz -C target/packages audexis.app
+
+      - name: Upload package for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.format }}
+          path: |
+            target/packages/*.tar.gz
+            target/packages/*.exe
+            target/packages/*.deb
+          if-no-files-found: error
+          retention-days: 7
+
+  ios:
+    name: Build iOS Simulator
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
+
+      - name: Check Xcode and Simulator SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+
+      - name: Rust cache
+        if: ${{ !env.ACT }}
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target/mobile"
+
+      - name: Build Simulator app
+        run: >-
+          xcodebuild
+          -project apps/ios/audexis/audexis.xcodeproj
+          -scheme audexis
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath target/xcode-ci
+          -clonedSourcePackagesDirPath target/swift-packages
+          -onlyUsePackageVersionsFromResolvedFile
+          -skipPackageUpdates
+          ARCHS=arm64
+          ONLY_ACTIVE_ARCH=YES
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+  website:
+    name: Build website
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/www
+    env:
+      BETTER_AUTH_URL: https://www.audexis.app
+      BETTER_AUTH_SECRET: ci-build-only-secret-never-use-in-production
+      STRIPE_SECRET_KEY: sk_test_ci_build_only
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/audexis_ci
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Install website dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build website
+        run: pnpm run build

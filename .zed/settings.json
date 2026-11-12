@@ -6,4 +6,5 @@
       "formatter": "none",
     },
   },
+  "file_scan_exclusions": ["**/apps/ios/audexis"],
 }

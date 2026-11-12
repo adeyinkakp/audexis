@@ -83,7 +83,7 @@ export async function redeemDesktopCode(
       id: `key_${randomBytes(12).toString("hex")}`,
       userId: subscriber.id,
       keyHash: hashSecret(token),
-      label: "Audexis Desktop App",
+      label: "audexis Desktop App",
       createdAt: new Date(),
     });
     return token;

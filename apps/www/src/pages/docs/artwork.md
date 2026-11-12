@@ -1,12 +1,12 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "Audexis — Artwork"
+title: "audexis — Artwork"
 description: "Read, import, organize, and save album artwork in audio files."
 ---
 
 # Artwork
 
-Audexis displays embedded artwork in the library and players. A placeholder
+audexis displays embedded artwork in the library and players. A placeholder
 appears when usable artwork is absent or cannot be loaded.
 
 ## Open the artwork editor
@@ -32,7 +32,7 @@ descriptions and picture types than others. For example, MP4 cover artwork does
 not offer the same per-picture fields as ID3 or FLAC.
 
 Use conventional front-cover artwork for the image you want other players to
-recognize most reliably. Audexis’s display and another player’s
+recognize most reliably. audexis’s display and another player’s
 artwork-selection rules may differ when several images are embedded.
 
 ## Several selected songs

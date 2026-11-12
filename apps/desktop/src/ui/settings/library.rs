@@ -30,7 +30,7 @@ impl Component for LibraryPanel {
                     )
                     .child(
                         label()
-                            .text("Manage the folders Audexis watches for music.")
+                            .text("Manage the folders audexis watches for music.")
                             .color(colors.muted_foreground),
                     ),
             )

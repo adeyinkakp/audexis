@@ -226,7 +226,7 @@ impl Component for AppearancePanel {
                     )
                     .child(
                         label()
-                            .text("Change how Audexis looks.")
+                            .text("Change how audexis looks.")
                             .color(colors.muted_foreground),
                     ),
             )

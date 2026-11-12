@@ -8,7 +8,7 @@ description:
 
 # Development guide
 
-This page is for working on Audexis itself. For everyday use, start with
+This page is for working on audexis itself. For everyday use, start with
 [Getting started](/docs/getting-started).
 
 ## Repository structure

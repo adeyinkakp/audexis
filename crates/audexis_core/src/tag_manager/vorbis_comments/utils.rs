@@ -188,7 +188,7 @@ pub fn parse_comments(data: &[u8]) -> Result<HashMap<FrameKey, Vec<TagValue>>, E
 
 pub fn build_comments(tags: &HashMap<FrameKey, Vec<TagValue>>, needs_picture: bool) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::new();
-    let vendor_string = "Audexis"; // cheeky boy
+    let vendor_string = "audexis"; // cheeky boy
     let vendor_bytes = vendor_string.as_bytes();
     let vendor_length = vendor_bytes.len() as u32;
     out.extend(&vendor_length.to_le_bytes());

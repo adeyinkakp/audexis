@@ -1,163 +1,266 @@
 name: Release
-
-on:
+"on":
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
-
+      - v*
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: "release-${{ github.ref }}"
+  cancel-in-progress: false
 jobs:
   validate:
     uses: ./.github/workflows/validate.yml
-
-  release:
+  package:
     needs: validate
-    permissions:
-      contents: write
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest"
-            args: "--target universal-apple-darwin"
-          - platform: "windows-latest"
-            args: "--target x86_64-pc-windows-msvc"
-
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install dependencies (macOS only)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          dest: ${{ runner.temp }}/setup-pnpm-${{ github.job }}-${{ matrix.platform }}
-
-      - name: Get pnpm store directory
+          - platform: macos-latest
+            target: universal-apple-darwin
+            targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            targets: x86_64-pc-windows-msvc
+    runs-on: "${{ matrix.platform }}"
+    defaults:
+      run:
         shell: bash
-        run: echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
-
-      - name: Cache pnpm store
-        if: ${{ !env.ACT }}
-        uses: actions/cache@v4
+    env:
+      APPLE_ID: "${{ secrets.APPLE_ID }}"
+      APPLE_PASSWORD: "${{ secrets.APPLE_PASSWORD }}"
+      APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          path: ${{ env.PNPM_STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc'}}
-
-      - name: Rust cache
-        if: ${{ !env.ACT }}
-        uses: swatinem/rust-cache@v2
+          targets: "${{ matrix.targets }}"
+      - uses: swatinem/rust-cache@v2
+        if: "${{ !env.ACT }}"
         with:
-          workspaces: "./apps/desktop/src-tauri -> target"
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
-
-      # macOS Certificate Import
-      - name: Import signing certificate (macOS only)
-        if: matrix.platform == 'macos-latest'
+          workspaces: . -> target
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          # Create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # Import certificate from secrets
-          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
-
-          # Create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # Import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
-          # Allow codesign to access the keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-      # Windows Build and Signing
-      - name: Install Windows dependencies
-        if: matrix.platform == 'windows-latest'
-        run: |
-          rustup target add x86_64-pc-windows-msvc
-          # Install additional dependencies if needed
-      - name: Install Windows dependencies2
-        if: matrix.platform == 'windows-latest'
-        run: cargo install trusted-signing-cli
-      - name: Ensure .NET  is installed
-        if: matrix.platform == 'windows-latest'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "9.0.x"
-
-      - name: Install Azure CLI
-        if: matrix.platform == 'windows-latest'
-        run: |
-          choco install azure-cli -y
-          az --version
-
-      - name: Verify signtool availability
-        if: matrix.platform == 'windows-latest'
-        run: |
-          echo "Checking signtool..."
-          where signtool || echo "signtool not found; installing Windows SDK"
-          choco install windows-sdk-11-version-22h2-all -y
-          where signtool
-      - name: Build and sign app
-        uses: tauri-apps/tauri-action@v0
-
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
+      - name: Install packager
+        run: cargo install cargo-packager --version 0.11.8 --locked
+      - name: Prepare release signing configuration
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-          AZURE_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          AZURE_CODE_SIGNING_ACCOUNT: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Audexis v__VERSION__"
-          releaseBody: "See https://www.audexis.app/releases/v__VERSION__ for details."
-          releaseDraft: true
-          prerelease: false
-          includeRelease: true
-          includeUpdaterJson: true
-          args: --verbose ${{ matrix.args }}
-          projectPath: "./apps/desktop"
+          APPLE_SIGNING_IDENTITY: "${{ secrets.APPLE_SIGNING_IDENTITY }}"
+          AZURE_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+          AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+          AZURE_CLIENT_SECRET: "${{ secrets.AZURE_CLIENT_SECRET }}"
+          AZURE_ENDPOINT: "${{ secrets.AZURE_SIGNING_ENDPOINT }}"
+          AZURE_CERTIFICATE_PROFILE_NAME: "${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}"
+          AZURE_CODE_SIGNING_ACCOUNT: >-
+            ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT ||
+            secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}"
+          RELEASE_TARGET: "${{ matrix.target }}"
+        run: >
+          node .github/scripts/release.mjs configure "$RELEASE_TARGET"
 
-      - name: Cleanup keychain (macOS only)
-        if: always() && matrix.platform == 'macos-latest'
+          printf 'Audexis signing key verification\n' >
+          "$RUNNER_TEMP/signing-probe"
+
+          cargo packager signer sign "$RUNNER_TEMP/signing-probe"
+
+          node .github/scripts/verify-signature.mjs apps/desktop/updater.pub
+          "$RUNNER_TEMP/signing-probe"
+      - name: Import Apple signing certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: "${{ secrets.APPLE_CERTIFICATE }}"
+          APPLE_CERTIFICATE_PASSWORD: "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+          KEYCHAIN_PASSWORD: "${{ secrets.KEYCHAIN_PASSWORD }}"
+        run: >
+          test -n "$APPLE_CERTIFICATE"
+
+          test -n "$APPLE_CERTIFICATE_PASSWORD"
+
+          test -n "$KEYCHAIN_PASSWORD"
+
+          certificate="$RUNNER_TEMP/build_certificate.p12"
+
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+
+          security set-keychain-settings -lut 21600 "$keychain"
+
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+
+          security import "$certificate" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t
+          cert -f pkcs12 -k "$keychain"
+
+          security list-keychains -d user -s "$keychain"
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k
+          "$KEYCHAIN_PASSWORD" "$keychain"
+      - name: Build universal macOS executable
+        if: runner.os == 'macOS'
+        run: >
+          cargo build --package audexis --release --locked --target
+          aarch64-apple-darwin
+
+          cargo build --package audexis --release --locked --target
+          x86_64-apple-darwin
+
+          mkdir -p target/universal-apple-darwin/release
+
+          lipo -create target/aarch64-apple-darwin/release/audexis
+          target/x86_64-apple-darwin/release/audexis -output
+          target/universal-apple-darwin/release/audexis
+      - name: Build Windows executable
+        if: runner.os == 'Windows'
+        run: >-
+          cargo build --package audexis --release --locked --target
+          x86_64-pc-windows-msvc
+      - name: Sign Windows executable
+        if: runner.os == 'Windows'
+        uses: azure/artifact-signing-action@v2
+        with:
+          azure-tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
+          azure-client-id: "${{ secrets.AZURE_CLIENT_ID }}"
+          azure-client-secret: "${{ secrets.AZURE_CLIENT_SECRET }}"
+          endpoint: "${{ secrets.AZURE_SIGNING_ENDPOINT }}"
+          signing-account-name: >-
+            ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT ||
+            secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+          certificate-profile-name: "${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}"
+          files: >-
+            ${{ github.workspace
+            }}\target\x86_64-pc-windows-msvc\release\audexis.exe
+          file-digest: SHA256
+          timestamp-rfc3161: "http://timestamp.acs.microsoft.com"
+          timestamp-digest: SHA256
+          description: Audexis
+          exclude-azure-cli-credential: true
+          cache-dependencies: false
+      - name: Package and sign macOS app
+        if: runner.os == 'macOS'
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}"
+        run: cargo packager --config "$RUNNER_TEMP/Packager.json"
+      - name: Package Windows installer
+        if: runner.os == 'Windows'
+        run: cargo packager --config "$RUNNER_TEMP/Packager.json"
+      - name: Sign Windows installer
+        if: runner.os == 'Windows'
+        uses: azure/artifact-signing-action@v2
+        with:
+          azure-tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
+          azure-client-id: "${{ secrets.AZURE_CLIENT_ID }}"
+          azure-client-secret: "${{ secrets.AZURE_CLIENT_SECRET }}"
+          endpoint: "${{ secrets.AZURE_SIGNING_ENDPOINT }}"
+          signing-account-name: >-
+            ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT ||
+            secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+          certificate-profile-name: "${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}"
+          files-folder: '${{ github.workspace }}\target\packages'
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: "http://timestamp.acs.microsoft.com"
+          timestamp-digest: SHA256
+          description: Audexis
+          exclude-azure-cli-credential: true
+          cache-dependencies: false
+      - name: Verify Apple signing and notarization
+        if: runner.os == 'macOS'
         run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          if [ -f "$KEYCHAIN_PATH" ]; then
-            security delete-keychain "$KEYCHAIN_PATH" || true
+          codesign --verify --deep --strict target/packages/audexis.app
+          xcrun stapler validate target/packages/audexis.app
+      - name: Verify Windows code signatures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          $files = @('target/x86_64-pc-windows-msvc/release/audexis.exe') +
+          @(Get-ChildItem target/packages/*.exe | ForEach-Object FullName)
+
+          foreach ($file in $files) {
+            if ((Get-AuthenticodeSignature $file).Status -ne 'Valid') { throw "Invalid code signature: $file" }
+          }
+      - name: Sign final Windows installer for updates
+        if: runner.os == 'Windows'
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}"
+        run: |
+          shopt -s nullglob
+          installers=(target/packages/*.exe)
+          test "${#installers[@]}" -eq 1
+          for installer in "${installers[@]}"; do
+            cargo packager signer sign "$installer"
+          done
+      - name: Verify updater signatures
+        run: |
+          shopt -s nullglob
+          signatures=(target/packages/*.sig)
+          test "${#signatures[@]}" -gt 0
+          for signature in "${signatures[@]}"; do
+            node .github/scripts/verify-signature.mjs apps/desktop/updater.pub "${signature%.sig}"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "release-${{ matrix.target }}"
+          path: |
+            target/packages/*.dmg
+            target/packages/*.tar.gz
+            target/packages/*.exe
+            target/packages/*.sig
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove Apple signing material
+        if: always() && runner.os == 'macOS'
+        run: >
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+
+          if [ -f "$keychain" ]; then security delete-keychain "$keychain"; fi
+
+          node -e
+          'require("node:fs").rmSync(require("node:path").join(process.env.RUNNER_TEMP,
+          "build_certificate.p12"), {force:true})'
+  draft:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: target/release-assets
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Generate updater manifest
+        id: manifest
+        run: node .github/scripts/release.mjs manifest
+      - name: Create draft release
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          RELEASE_TAG: "${{ steps.manifest.outputs.tag }}"
+          RELEASE_VERSION: "${{ steps.manifest.outputs.version }}"
+        run: >
+          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' >
+          "$RUNNER_TEMP/release-draft"; then
+            test "$(cat "$RUNNER_TEMP/release-draft")" = true
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Audexis v$RELEASE_VERSION" --notes "See https://www.audexis.app/releases/$RELEASE_TAG for details."
           fi
+
+          gh release upload "$RELEASE_TAG" target/release-assets/* --clobber

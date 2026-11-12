@@ -20,7 +20,7 @@ struct LoginView: View {
                         .accessibilityHidden(true)
                     Text("All your music.\nRight here.").font(.largeTitle.bold())
                     Text(
-                        "Bring your library with Audexis Cloud or connect your own server. Stream or Download tracks"
+                        "Bring your library with audexis Cloud or connect your own server. Stream or Download tracks"
                     )
                     .font(.body).foregroundStyle(.secondary)
                 }
@@ -34,7 +34,7 @@ struct LoginView: View {
                             if authService.isLoading { ProgressView().tint(.white) }
                             Text(
                                 authService.isLoading
-                                    ? "Connecting…" : "Continue with Audexis Cloud")
+                                    ? "Connecting…" : "Continue with audexis Cloud")
                             if !authService.isLoading { Image(systemName: "arrow.right") }
                         }
                         .font(.subheadline.bold()).frame(maxWidth: .infinity).padding(
@@ -59,7 +59,7 @@ struct LoginView: View {
                     }
                     .buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 14))
                     Text(
-                        "Cloud sign-in requires an active subscription.\nAlready hosting Audexis? Use your server URL and API key."
+                        "Cloud sign-in requires an active subscription.\nAlready hosting audexis? Use your server URL and API key."
                     )
                     .font(.caption).foregroundStyle(AudexisStyle.muted_foreground)
                     .multilineTextAlignment(

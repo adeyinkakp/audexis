@@ -8,6 +8,9 @@ pub fn windows_title_bar() -> bool {
 }
 
 pub fn configure(config: WindowConfig) -> WindowConfig {
+    let config = config.with_app_id("audexis");
+    #[cfg(not(target_os = "macos"))]
+    let config = with_icon(config);
     #[cfg(target_os = "macos")]
     {
         use freya::winit::platform::macos::WindowAttributesExtMacOS;
@@ -25,6 +28,13 @@ pub fn configure(config: WindowConfig) -> WindowConfig {
     }
     #[cfg(not(target_os = "macos"))]
     config
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn with_icon(config: WindowConfig) -> WindowConfig {
+    config.with_icon(LaunchConfig::window_icon(include_bytes!(
+        "../../../../../icons/audexis-iOS-Default-256@1x.png"
+    )))
 }
 
 #[derive(PartialEq)]

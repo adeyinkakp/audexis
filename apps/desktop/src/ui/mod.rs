@@ -26,8 +26,12 @@ pub fn launch(services: Arc<AppServices>, runtime: Handle) {
         title_bar::configure(main_window)
     }
     .with_title("Audexis")
+    .with_app_id("audexis")
     .with_size(1200., 800.)
     .with_min_size(800., 550.);
+
+    #[cfg(not(target_os = "macos"))]
+    let main_window = title_bar::with_icon(main_window);
 
     freya::prelude::launch(
         LaunchConfig::new()

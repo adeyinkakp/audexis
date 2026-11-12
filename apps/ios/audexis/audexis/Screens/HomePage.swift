@@ -32,7 +32,7 @@ struct HomePage: View {
                     ContentUnavailableView(
                         "Your music starts here", systemImage: "music.note.house",
                         description: Text(
-                            "Add music from Audexis Desktop, then pull down to refresh."),
+                            "Add music from audexis Desktop, then pull down to refresh."),
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 48)

@@ -9,6 +9,9 @@ publish = false
 default = []
 hotreload = ["freya/hotreload"]
 
+[build-dependencies]
+winresource = { version = "0.1.34", default-features = false }
+
 [dependencies]
 uuid.workspace = true
 audexis_core.workspace = true

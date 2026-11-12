@@ -55,7 +55,7 @@ extension CloudAuthService {
         if let error = items.first(where: { $0.name == "error" })?.value {
             errorMessage =
                 error == "subscription_required"
-                ? "An active Audexis Cloud subscription is required."
+                ? "An active audexis Cloud subscription is required."
                 : "Sign-in was cancelled or failed."
             return
         }
