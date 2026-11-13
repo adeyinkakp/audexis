@@ -69,7 +69,7 @@ impl MobileCore {
     pub(super) fn media_plan(&mut self, request: &Value) -> Result<Value, String> {
         let track = self.track(string(request, "id")?)?;
         let automatic = match request.get("purpose").and_then(Value::as_str) {
-            None | Some("streaming") => "aac_256",
+            None | Some("streaming") => "original",
             Some("download") => {
                 if audio_format(track) == "spx" {
                     "aac_256"
