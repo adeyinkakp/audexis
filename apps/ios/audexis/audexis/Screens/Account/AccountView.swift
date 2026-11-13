@@ -13,7 +13,7 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showServerSettings = false
     @AppStorage(AudioQualityPreferences.streamingKey) private var streamingQuality = AudioQuality
-        .automatic
+        .original
     @AppStorage(AudioQualityPreferences.downloadKey) private var downloadQuality = AudioQuality
         .automatic
 

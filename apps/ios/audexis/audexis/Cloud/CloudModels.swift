@@ -280,7 +280,7 @@ enum AudioQualityPreferences {
         AudioQuality(
             rawValue: UserDefaults.standard.string(forKey: streamingKey) ?? ""
         )
-            ?? .automatic
+            ?? .original
     }
     static var download: AudioQuality {
         AudioQuality(
