@@ -9,6 +9,7 @@ pub struct WindowManager {
     settings_open: AtomicBool,
     equalizer_window: Mutex<Option<WindowId>>,
     settings_window: Mutex<Option<WindowId>>,
+    update_window: Mutex<Option<WindowId>>,
 }
 
 impl Default for WindowManager {
@@ -18,11 +19,20 @@ impl Default for WindowManager {
             settings_open: AtomicBool::new(false),
             equalizer_window: Mutex::new(None),
             settings_window: Mutex::new(None),
+            update_window: Mutex::new(None),
         }
     }
 }
 
 impl WindowManager {
+    pub fn update_window(&self) -> Option<WindowId> {
+        *self.update_window.lock().ok()?
+    }
+    pub fn set_update_window(&self, id: Option<WindowId>) {
+        if let Ok(mut window) = self.update_window.lock() {
+            *window = id;
+        }
+    }
     pub fn equalizer_window(&self) -> Option<WindowId> {
         *self.equalizer_window.lock().ok()?
     }

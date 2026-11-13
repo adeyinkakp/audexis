@@ -19,6 +19,7 @@ impl App for AudexisApp {
         use_provide_context(move || runtime);
 
         use_app_theme(self.services.clone());
+        super::windows::updates::use_update_checks(self.services.clone(), self.runtime.clone());
         super::hooks::use_app_state(self.services.clone(), self.runtime.clone());
         let expanded = *super::hooks::use_playback().expanded.read();
 

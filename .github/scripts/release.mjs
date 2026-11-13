@@ -89,10 +89,10 @@ if (process.argv[2] === "configure") {
   const files = readdirSync(assets);
   const platforms = {};
   const base = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${tag}/`;
-  for (const [suffix, names] of [
-    [".app.tar.gz", ["darwin-aarch64", "darwin-x86_64"]],
-    [".exe", ["windows-x86_64"]],
-    [".AppImage", ["linux-x86_64"]],
+  for (const [suffix, names, format] of [
+    [".app.tar.gz", ["macos-aarch64", "macos-x86_64", "darwin-aarch64", "darwin-x86_64"], "app"],
+    [".exe", ["windows-x86_64"], "nsis"],
+    [".AppImage", ["linux-x86_64"], "appimage"],
   ]) {
     const matches = files.filter((name) => name.endsWith(suffix));
     if (matches.length !== 1)
@@ -100,7 +100,7 @@ if (process.argv[2] === "configure") {
     const file = matches[0];
     const signature = readFileSync(join(assets, `${file}.sig`), "utf8").trim();
     for (const name of names)
-      platforms[name] = { signature, url: base + encodeURIComponent(file) };
+      platforms[name] = { signature, url: base + encodeURIComponent(file), format };
   }
   const manifest = {
     version,
@@ -111,6 +111,16 @@ if (process.argv[2] === "configure") {
   writeFileSync(
     join(assets, "latest.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
+  );
+  const normalized = {
+    ...manifest,
+    platforms: Object.fromEntries(
+      Object.entries(platforms).filter(([name]) => !name.startsWith("darwin-")),
+    ),
+  };
+  writeFileSync(
+    join(assets, "updater.json"),
+    `${JSON.stringify(normalized, null, 2)}\n`,
   );
   appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nversion=${version}\n`);
 } else {

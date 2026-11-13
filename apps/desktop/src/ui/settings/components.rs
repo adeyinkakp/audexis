@@ -6,6 +6,7 @@ use crate::ui::theme::AudexisColors;
 pub enum Section {
     Appearance,
     Keyboard,
+    Updates,
 
     Library,
     Cloud,
@@ -48,6 +49,13 @@ impl Component for Navigation {
                 label: "Library",
                 item: Section::Library,
                 icon: icons::lucide::folder(),
+                section,
+                colors: colors.clone(),
+            })
+            .child(NavigationItem {
+                label: "Updates",
+                icon: icons::lucide::download(),
+                item: Section::Updates,
                 section,
                 colors: colors.clone(),
             })

@@ -20,6 +20,7 @@ pub(super) fn view(
             label()
                 .text(match selected {
                     Section::Keyboard => "Keyboard shortcuts are saved automatically.",
+                    Section::Updates => "Update preferences are saved automatically.",
                     Section::Metadata => "Field selections are saved automatically.",
                     Section::CustomFields => "Saved fields apply immediately.",
                     Section::Logs => "Backend logs",

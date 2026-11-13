@@ -2,7 +2,7 @@
   "name": "audexis",
   "productName": "audexis",
   "identifier": "com.kp.audexis",
-  "version": "0.20.0",
+  "version": "0.9.0",
   "outDir": "../../target/packages",
   "binariesDir": "../../target/release",
   "formats": [

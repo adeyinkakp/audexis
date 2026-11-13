@@ -22,6 +22,7 @@ mod keyboard;
 mod library;
 mod metadata;
 mod unsupported;
+mod updates;
 
 use appearance::AppearancePanel;
 pub(crate) use components::Section;
@@ -181,6 +182,11 @@ impl Component for Settings {
                                 section: Section::Cloud,
                                 selected,
                                 child: CloudPanel.into_element(),
+                            })
+                            .child(Panel {
+                                section: Section::Updates,
+                                selected,
+                                child: updates::UpdatesPanel.into_element(),
                             })
                             .child(Panel {
                                 section: Section::Metadata,
