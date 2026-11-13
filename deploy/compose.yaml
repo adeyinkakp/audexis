@@ -1,0 +1,51 @@
+name: audexis
+
+services:
+  api:
+    image: audexis-server:local
+    build:
+      context: ..
+      dockerfile: crates/audexis_server/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://audexis:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/audexis
+      AUDEXIS_BIND: 0.0.0.0:3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - server_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: audexis
+      POSTGRES_USER: audexis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audexis -d audexis"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  server_data:
+  postgres_data:

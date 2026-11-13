@@ -11,9 +11,74 @@ with local disk or Backblaze B2 storage for uploaded audio. (inspired by navidro
 - Serve media links and optional AAC streaming variants.
 - Manage self-hosted users and API keys from cli.
 
-# TODO
+## Docker deployment
 
-- ADD dockerfile
+The image includes the Rust server, FFmpeg for AAC streaming copies, and a
+health check.
+Install Docker Engine with the Compose plugin on the host, then run from the
+repository root:
+
+```sh
+cp deploy/.env.example deploy/.env
+openssl rand -hex 32
+```
+
+Put the generated password in `POSTGRES_PASSWORD` in `deploy/.env`. Configure
+the B2 settings and `AUDEXIS_PUBLIC_ORIGIN`. To use the server disk,
+uncomment `AUDEXIS_STORAGE_DIR` instead of configuring B2.
+
+```sh
+cd deploy
+docker compose build api
+docker compose up -d --wait
+curl --fail http://localhost:3000/health
+docker compose exec api audexis_server users create developer --quota 100GB
+```
+
+Save the API key printed by the last command. Use `users --help` for account
+management. Database migrations run automatically at startup. The health
+endpoint returns HTTP 204; it checks HTTP availability, not B2 connectivity.
+
+The API is published on host loopback port 3000. PostgreSQL has no published
+port. For public access, put a host reverse proxy in front of
+`127.0.0.1:3000`, enable HTTPS, and set `AUDEXIS_PUBLIC_ORIGIN` to that HTTPS
+address. Set `AUDEXIS_TRUSTED_PROXIES` only to the proxy's actual source IP as
+seen by the container.
+
+To build just the image, use the repository root as the build context:
+
+```sh
+docker build -f crates/audexis_server/Dockerfile -t audexis-server:local .
+docker run --rm audexis-server:local users --help
+```
+
+Build on Linux CI or another build machine if the VPS is short on RAM. On an
+Apple Silicon Mac targeting an x86 VPS, use:
+
+```sh
+docker buildx build --platform linux/amd64 --load \
+  -f crates/audexis_server/Dockerfile -t audexis-server:local .
+```
+
+Transfer the image through a private registry or
+`docker save`/`docker load`; with the image loaded on the VPS, start Compose
+with `docker compose up -d --no-build --wait`.
+
+For updates, rebuild or load the new image and recreate only the API service;
+Older binaries may be
+incompatible with newer migrations, so take a database backup before updates.
+
+```sh
+docker compose logs --tail=100 -f api
+docker compose exec -T postgres pg_dump -U audexis -d audexis -Fc > audexis.dump
+docker compose up -d --build --no-deps api
+```
+
+Copy database backups off the VPS and test restores. Volumes survive
+`docker compose down`; `docker compose down -v` deletes them. Existing database
+passwords are not changed by editing `POSTGRES_PASSWORD` after init.
+Compose restarts exited processes, but an unhealthy health check alone does
+not restart a running process.
 
 ## Development
 
