@@ -1,3 +1,4 @@
+import { getSecret } from "astro:env/server";
 import type { APIRoute } from "astro";
 import { stripe } from "../../../lib/stripe";
 import { db } from "../../../db";
@@ -7,7 +8,7 @@ import type Stripe from "stripe";
 
 export const POST: APIRoute = async ({ request }) => {
   const signature = request.headers.get("stripe-signature");
-  const signingSecret = import.meta.env.STRIPE_WEBHOOK_SECRET;
+  const signingSecret = getSecret("STRIPE_WEBHOOK_SECRET");
 
   if (!signature || !signingSecret) {
     return new Response("Missing signature or secret", { status: 400 });

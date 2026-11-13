@@ -1,16 +1,19 @@
+import { getSecret } from "astro:env/server";
 import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { db } from "../db";
 import * as schema from "../db/schema";
 
 const developmentOrigins: string[] = import.meta.env.DEV
-  ? (import.meta.env.AUDEXIS_DEV_AUTH_ORIGINS ?? "")
+  ? (getSecret("AUDEXIS_DEV_AUTH_ORIGINS") ?? "")
       .split(",")
       .map((value: string) => value.trim())
       .filter(Boolean)
       .map((value: string) => new URL(value).origin)
   : [];
-const configuredOrigin = import.meta.env.BETTER_AUTH_URL;
+const configuredOrigin =
+  getSecret("BETTER_AUTH_URL")?.trim() ||
+  (import.meta.env.DEV ? "http://localhost:4321" : "https://www.audexis.app");
 const allowedOrigins = [
   ...new Set([
     ...(configuredOrigin ? [new URL(configuredOrigin).origin] : []),
@@ -19,12 +22,10 @@ const allowedOrigins = [
 ];
 
 export const auth = betterAuth({
+  secret: getSecret("BETTER_AUTH_SECRET"),
   baseURL: import.meta.env.DEV
     ? {
-        allowedHosts: [
-          "my-macbook-air.tail5c4e82.ts.net",
-          ...allowedOrigins.map((origin) => new URL(origin).host),
-        ],
+        allowedHosts: [...allowedOrigins.map((origin) => new URL(origin).host)],
         protocol: "auto",
       }
     : configuredOrigin,
@@ -74,12 +75,12 @@ export const auth = betterAuth({
   },
   socialProviders: {
     github: {
-      clientId: import.meta.env.GITHUB_CLIENT_ID!,
-      clientSecret: import.meta.env.GITHUB_CLIENT_SECRET!,
+      clientId: getSecret("GITHUB_CLIENT_ID")!,
+      clientSecret: getSecret("GITHUB_CLIENT_SECRET")!,
     },
     google: {
-      clientId: import.meta.env.GOOGLE_CLIENT_ID!,
-      clientSecret: import.meta.env.GOOGLE_CLIENT_SECRET!,
+      clientId: getSecret("GOOGLE_CLIENT_ID")!,
+      clientSecret: getSecret("GOOGLE_CLIENT_SECRET")!,
     },
   },
 });

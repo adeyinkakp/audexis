@@ -1,0 +1,17 @@
+**
+!apps/
+!apps/www/
+!apps/www/**
+!shared/
+!shared/assets/
+!shared/assets/**
+
+
+**/.env*
+**/*.pem
+**/*.key
+**/node_modules
+**/dist
+**/.astro
+**/.git
+**/*.log

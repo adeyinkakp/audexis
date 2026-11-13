@@ -1,3 +1,4 @@
+import { getSecret } from "astro:env/server";
 import type { APIRoute } from "astro";
 import type Stripe from "stripe";
 import { stripe } from "../../lib/stripe";
@@ -51,7 +52,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       client_reference_id: dbUser.id,
       line_items: [
         {
-          price: import.meta.env.STRIPE_AUDEXIS_PRICE_ID,
+          price: getSecret("STRIPE_AUDEXIS_PRICE_ID"),
           quantity: 1,
         },
       ],

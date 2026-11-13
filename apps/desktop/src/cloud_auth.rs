@@ -13,11 +13,13 @@ use tokio::{
 
 pub const CLOUD_API_URL: &str = match option_env!("AUDEXIS_CLOUD_API_URL") {
     Some(value) => value,
-    None => "http://localhost:3000",
+    None if cfg!(debug_assertions) => "http://localhost:3000",
+    None => "https://api.audexis.app",
 };
 const AUTH_ORIGIN: &str = match option_env!("AUDEXIS_AUTH_ORIGIN") {
     Some(value) => value,
-    None => "http://localhost:4321",
+    None if cfg!(debug_assertions) => "http://localhost:4321",
+    None => "https://www.audexis.app",
 };
 
 fn auth_url(path: &str) -> Result<reqwest::Url, String> {
