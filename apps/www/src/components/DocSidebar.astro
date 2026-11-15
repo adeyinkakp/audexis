@@ -9,7 +9,7 @@ const pages = Object.values(
 const groups = [
     {
         title: "Getting started",
-        slugs: ["index", "getting-started", "library"],
+        slugs: ["index", "library", "cloud-sync"],
     },
     {
         title: "Listening",
@@ -42,7 +42,10 @@ const pathname = Astro.url.pathname.replace(/\/$/, "");
             <h2>{group.title}</h2>
             <ul>
                 {group.slugs.map((slug) => {
-                    const href = slug === "index" ? "/docs" : `/docs/${slug}`;
+                    const href =
+                        slug === "index"
+                            ? "/docs/apps/desktop"
+                            : `/docs/apps/desktop/${slug}`;
                     const page = pages.find(
                         (page) => page.url?.replace(/\/$/, "") === href,
                     );

@@ -85,7 +85,7 @@ impl Component for LyricLines {
                 resume_follow.start();
             })
             .width(Size::fill())
-            .padding((*viewport.read() * 0.32, 8.0, *viewport.read() * 0.65, 8.0));
+            .padding((*viewport.read() * 0.32, 0.0, *viewport.read() * 0.65, 0.0));
         for (index, line) in self.lyrics.lines.iter().enumerate() {
             let playback = playback.clone();
             let time = line.time_ms;

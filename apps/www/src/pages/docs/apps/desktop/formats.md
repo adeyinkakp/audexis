@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Formats and compatibility"
 description:
   "Distinguish recognized containers, audio decoding, and editable metadata
@@ -70,5 +70,5 @@ specialized editor where one exists.
 other player you rely on. Keep backups of files you cannot replace. Audexis
 performs write verification, but this is not an automatic version history.
 
-[Metadata reference](/docs/metadata-reference) ·
-[Custom fields](/docs/custom-fields)
+[Metadata reference](/docs/apps/desktop/metadata-reference) ·
+[Custom fields](/docs/apps/desktop/custom-fields)

@@ -1,8 +1,7 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Playback and queue"
-description:
-  "Use playback controls, the queue, shuffle, repeat, and system media controls."
+description: "Use playback controls, the queue, shuffle, repeat, and system media controls."
 ---
 
 # Playback and queue
@@ -35,7 +34,7 @@ queue. Choose a queued item to jump to it. Starting playback from a different
 collection can replace the current queue.
 
 Adding songs to the queue does not move audio files or create a saved playlist.
-Use [Playlists](/docs/playlists) when you want a collection you can return to
+Use [Playlists](/docs/apps/desktop/playlists) when you want a collection you can return to
 later.
 
 ## Shuffle
@@ -68,9 +67,9 @@ same playback session as the app.
 
 ## Other player views
 
-The [fullscreen player and mini player](/docs/players) share the same active
+The [fullscreen player and mini player](/docs/apps/desktop/players) share the same active
 track and queue. Opening another view does not start an independent audio
 session.
 
-[Equalizer](/docs/equalizer) · [Lyrics](/docs/lyrics) ·
-[Troubleshooting](/docs/troubleshooting)
+[Equalizer](/docs/apps/desktop/equalizer) · [Lyrics](/docs/apps/desktop/lyrics) ·
+[Troubleshooting](/docs/apps/desktop/troubleshooting)

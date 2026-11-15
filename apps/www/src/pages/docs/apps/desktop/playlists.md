@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Playlists and favorites"
 description: "Create saved collections, reorder tracks, and mark favorites."
 ---
@@ -51,10 +51,8 @@ make a referenced track unavailable. Try reconnecting the drive or relinking the
 missing file before removing its record.
 
 Removing a watched library folder can also remove songs from playlists. Keep a
-[backup of your library data](/docs/privacy-and-data) if those collections are
+[backup of your library data](/docs/apps/desktop/privacy-and-data) if those collections are
 important to you.
 
 to Playlist** for a saved collection. Editing one does not imply editing the
 other.
-
-[Library](/docs/library) · [Playback and queue](/docs/playback)

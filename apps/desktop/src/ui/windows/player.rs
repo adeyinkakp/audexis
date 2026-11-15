@@ -15,6 +15,7 @@ pub(crate) struct ExpandedPlayer;
 impl Component for ExpandedPlayer {
     fn render(&self) -> impl IntoElement {
         use_provide_context(|| ExpandedPlayerContext);
+        use_provide_theme(crate::ui::theme::audexis_dark_theme);
         PlayerView {
             compact: false,
             library_window: None,

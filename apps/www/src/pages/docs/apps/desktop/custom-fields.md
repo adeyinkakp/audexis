@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "audexis — Custom metadata fields"
 description: "Create reusable custom field definitions and display their values in Songs."
 ---
@@ -69,5 +69,5 @@ display a value; adding the column itself does not write anything. FLAC/Ogg keys
 are normalized to uppercase for storage lookup. Separate text and URL frames can
 exist in ID3, while other formats use text storage for both.
 
-[Metadata editing](/docs/metadata) · [Field reference](/docs/metadata-reference)
-· [Formats](/docs/formats)
+[Metadata editing](/docs/apps/desktop/metadata) · [Field reference](/docs/apps/desktop/metadata-reference)
+· [Formats](/docs/apps/desktop/formats)

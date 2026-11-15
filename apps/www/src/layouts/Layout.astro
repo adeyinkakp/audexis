@@ -23,13 +23,14 @@ const socialImage = new URL(image, Astro.site);
 <!doctype html>
 <html
     lang="en"
-    data-theme="dark"
+    data-theme="light"
     class="m-0 h-full w-full scroll-pt-8 scroll-smooth motion-reduce:scroll-auto"
 >
     <head>
         <link rel="sitemap" href="/sitemap-index.xml" />
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width" />
+        <meta name="theme-color" content="#ffffff" />
         <link rel="icon" type="image/png" href="/audexis-logo.png" />
         <meta name="description" content={description} />
         <link rel="canonical" href={canonical} />
@@ -48,9 +49,9 @@ const socialImage = new URL(image, Astro.site);
         <meta name="generator" content={Astro.generator} />
         <title>{title}</title>
     </head>
-    <body class="m-0 min-h-dvh flex flex-col w-full bg-background font-mono text-foreground antialiased selection:bg-primary selection:text-primary-foreground">
+    <body class="m-0 min-h-dvh flex flex-col w-full bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground *:motion-reduce:transition-none">
         <Navbar />
-        <div class="flex flex-1 flex-col">
+        <div class="flex flex-1 flex-col font-sans">
             <slot />
         </div>
 
@@ -58,7 +59,7 @@ const socialImage = new URL(image, Astro.site);
             <a class="font-mono font-semibold" href="/">
                 audexis
             </a>
-            <div class="flex flex-wrap gap-6 text-muted-foreground *:hover:text-primary">
+            <div class="flex flex-wrap gap-6 text-muted-foreground font-sans *:hover:text-primary">
                 <a href="/download">Download</a>
                 <a href="/docs">Docs</a>
                 <a href="https://github.com/adeyinkakp/audexis">GitHub ↗</a>

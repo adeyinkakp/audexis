@@ -1,8 +1,7 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Lyrics and synchronization"
-description:
-  "Edit plain lyrics, work with LRC timestamps, and find lyrics online."
+description: "Edit plain lyrics, work with LRC timestamps, and find lyrics online."
 ---
 
 # Lyrics and synchronization
@@ -76,6 +75,6 @@ rather than maintaining a language-by-language collection.
 
 Lyrics editing is available for supported ID3v2, FLAC, Ogg, and MP4/iTunes tag
 formats. Other applications may interpret synchronized lyrics differently,
-especially outside ID3. See [Formats and compatibility](/docs/formats).
+especially outside ID3. See [Formats and compatibility](/docs/apps/desktop/formats).
 
-[Playback](/docs/playback) · [Metadata editing](/docs/metadata)
+[Playback](/docs/apps/desktop/playback) · [Metadata editing](/docs/apps/desktop/metadata)

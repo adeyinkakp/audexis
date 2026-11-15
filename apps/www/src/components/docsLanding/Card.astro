@@ -1,0 +1,18 @@
+---
+interface Props {
+    title: string;
+    description: string;
+    link: string;
+}
+const { title, description, link } = Astro.props;
+---
+
+<div class="border-border border py-4 px-4 rounded-lg flex flex-col space-y-2 hover:shadow-2xl transition-all hover:cursor-default">
+    <span class="font-semibold text-lg">{title}</span>
+    <span class="text-muted-foreground">{description}</span>
+    <a href={link} class="mt-auto">
+        <button class="w-max no-underline rounded-lg bg-primary px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+            View Docs
+        </button>
+    </a>
+</div>

@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Fullscreen and mini players"
 description: "Choose an immersive player view or a compact separate window."
 ---
@@ -58,5 +58,3 @@ current playback.
 A song without embedded artwork uses a placeholder. If no song is active, choose
 one from the library. A missing image does not mean the audio itself is
 unavailable.
-
-[Playback and queue](/docs/playback) · [Artwork](/docs/artwork)

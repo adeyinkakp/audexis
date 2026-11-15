@@ -11,9 +11,17 @@ type Props = MarkdownLayoutProps<{
     imageAlt?: string;
 }>;
 const { frontmatter, headings } = Astro.props;
+const labelOptions = [{ path: "/docs/apps/desktop", label: "Desktop App" }];
 const sections = headings.filter(
     (heading) => heading.depth === 2 || heading.depth === 3,
 );
+const { pathname } = Astro.url;
+
+const found = labelOptions.find((opt) => pathname.startsWith(opt.path));
+let label = "";
+if (found) {
+    label = found.label;
+}
 ---
 
 <Layout {...frontmatter}>
@@ -29,7 +37,7 @@ const sections = headings.filter(
             </details>
         </div>
         <main id="main" class="docs-main" tabindex="-1">
-            <p class="docs-label">audexis documentation</p>
+            <p class="docs-label">audexis {label} documentation</p>
             {sections.length > 0 && (
                 <details class="docs-mobile-toc">
                     <summary>On this page</summary>

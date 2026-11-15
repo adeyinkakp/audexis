@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Frequently asked questions"
 description: "Answers about files, offline use, playlists, metadata, and player views."
 ---
@@ -9,12 +9,16 @@ description: "Answers about files, offline use, playlists, metadata, and player 
 ## Does Audexis copy my music into its own folder?
 
 No. It indexes the music folders you choose and plays those source files. Keep
-the originals available, including any external drives that hold them.
+the originals available, including any external drives that hold them. Optional
+[Cloud sync](/docs/apps/desktop/cloud-sync) uploads copies to your connected
+server, and offline downloads use local app storage.
 
 ## Can I use it offline?
 
 Yes, for local library browsing, playback, and manual editing. Online metadata,
-artwork, and lyrics lookup require internet access.
+artwork, and lyrics lookup require internet access. Cloud songs need a local
+copy for reliable offline playback; use **Download for Offline** before
+disconnecting and keep the same account signed in.
 
 ## Does editing metadata change the audio file?
 
@@ -42,4 +46,4 @@ affects library membership and can also affect playlist references.
 
 Use the project’s [issue tracker](https://github.com/adeyinkakp/audexis/issues).
 Include your operating system, app version, steps to reproduce, and any relevant
-log message. See [Troubleshooting](/docs/troubleshooting).
+log message. See [Troubleshooting](/docs/apps/desktop/troubleshooting).

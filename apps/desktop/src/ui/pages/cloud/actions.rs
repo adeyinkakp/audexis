@@ -24,7 +24,11 @@ pub(super) fn dispatch(
             };
             match result {
                 Ok(()) => {
-                    services.sync_edits();
+                    if keep_local {
+                        services.sync_now();
+                    } else {
+                        services.sync_edits();
+                    }
                     message.set(Some("Sync change updated.".into()));
                 }
                 Err(error) => message.set(Some(error)),

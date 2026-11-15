@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Metadata field reference"
 description:
   "The regular field catalog, supported value types, and specialized metadata
@@ -194,5 +194,5 @@ empty when the backend does not expose a display value.
 
 ## More detail
 
-[Metadata editing](/docs/metadata) · [Custom fields](/docs/custom-fields) ·
-[Formats and compatibility](/docs/formats)
+[Metadata editing](/docs/apps/desktop/metadata) · [Custom fields](/docs/apps/desktop/custom-fields) ·
+[Formats and compatibility](/docs/apps/desktop/formats)

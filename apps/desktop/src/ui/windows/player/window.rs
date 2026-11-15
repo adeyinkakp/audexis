@@ -46,6 +46,7 @@ pub(crate) fn open(
         .with_title("Audexis Mini Player")
         .with_size(460., 260.)
         .with_min_size(420., 250.)
+    
         .with_window_attributes(|attributes, _| attributes.with_window_level(WindowLevel::Normal))
         .with_on_close(move |_, _| {
             on_close.close_player_window(true);

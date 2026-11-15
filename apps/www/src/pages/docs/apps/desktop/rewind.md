@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Rewind and listening history"
 description: "Understand listening time, recent activity, and counted plays."
 ---
@@ -44,5 +44,5 @@ Listening records live in the local library database. Copying audio files to
 another computer does not carry Audexis’s listening history with them. Back up
 app data as well as music if you want to preserve it.
 
-[Privacy](/docs/privacy-and-data) ·
-[Playback](/docs/playback)
+[Privacy](/docs/apps/desktop/privacy-and-data) ·
+[Playback](/docs/apps/desktop/playback)

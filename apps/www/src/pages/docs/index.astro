@@ -1,0 +1,67 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Card from "../../components/docsLanding/Card.astro";
+---
+
+<Layout>
+    <main class="flex flex-col px-4 md:px-12 lg:px-24">
+        <section class="flex mt-20 flex-col space-y-4">
+            <h1 class="font-semibold text-4xl">audexis Documentation</h1>
+            <span class="text-muted-foreground text-xl">
+                Explore guides, examples and documentation of audexis
+            </span>
+        </section>
+        <section class="mt-32">
+            <h2 class="font-semibold text-3xl">Apps</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 py-4 gap-5">
+                <Card
+                    title="Desktop"
+                    description=" Manage, play and organize your library"
+                    link="/docs/apps/desktop"
+                />
+                <Card
+                    title="iOS"
+                    description="Stream or download music for offline use"
+                    link="/docs/apps/ios"
+                />
+                <Card
+                    title="Android"
+                    description="Coming soon"
+                    link="/docs/apps/android"
+                />
+            </div>
+        </section>
+        <section class="mt-32">
+            <h2 class="font-semibold text-3xl">Crates</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 py-4 gap-5">
+                <Card
+                    title="Server"
+                    description="The audexis cloud library and media server"
+                    link="/docs/crates/server"
+                />
+                <Card
+                    title="Core"
+                    description="Shared library and metadata functionality for audexis."
+                    link="/docs/crates/core"
+                />
+                <Card
+                    title="Audio"
+                    description="The audio engine."
+                    link="/docs/crates/audio"
+                />
+                <Card
+                    title="Mobile"
+                    description="Coming soon"
+                    link="/docs/crates/mobile"
+                />
+                <Card
+                    title="Protocol"
+                    description="Coming soon"
+                    link="/docs/crates/protocol"
+                />
+            </div>
+        </section>
+    </main>
+</Layout>

@@ -3,6 +3,7 @@
 }
 
 html:not([data-theme="dark"]) {
+    color-scheme: light;
     --background: #fff;
     --foreground: #2a2523;
     --hover: #e0d6d3;
@@ -32,6 +33,7 @@ html:not([data-theme="dark"]) {
     --heading: #1a1614;
 }
 [data-theme="dark"] {
+    color-scheme: dark;
     --heading: #f1f1f1;
     --background: #0f0f0f;
     --foreground: #f1f1f1;

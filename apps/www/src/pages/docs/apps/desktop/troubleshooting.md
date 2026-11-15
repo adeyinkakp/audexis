@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Troubleshooting"
 description: "Resolve scanning, playback, metadata, artwork, and startup problems."
 ---
@@ -72,6 +72,21 @@ Check your connection, shorten the search, and try again later if the provider
 is unavailable. Local playback and manual editing can still be used. Do not
 repeatedly apply a result without checking whether an earlier save succeeded.
 
+## Cloud sync or streaming fails
+
+Open **Cloud Sync** and read the error beside the queued operation. Check
+**Settings → Cloud** for the active connection. Confirm that local source files
+are still available for uploads, and use **Check storage usage** if storage is
+full.
+
+Retry a failed operation after correcting its cause. Retry starts a manual
+sync pass even with automatic uploads off. Resolve conflicting edits
+with **Use my change** or **Use cloud version**.
+
+For offline playback, finish **Download for Offline** before disconnecting.
+A partially streamed song may not have all its audio cached. See
+[Cloud sync](/docs/apps/desktop/cloud-sync) for the full workflow.
+
 ## The app cannot start
 
 Read the startup error and use the offered relaunch action. Preserve your
@@ -87,7 +102,7 @@ Include:
 - What happened instead, including the full visible error.
 - Whether one file or many are affected.
 - File extension, codec, and tag format when known.
-- Relevant log excerpts.
+- Relevant logs.
 
 [Report an issue](https://github.com/adeyinkakp/audexis/issues) ·
-[Privacy](/docs/privacy-and-data)
+[Privacy](/docs/apps/desktop/privacy-and-data)

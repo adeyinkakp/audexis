@@ -28,14 +28,24 @@ impl Component for PlayerHeader {
         let services = use_consume::<Arc<AppServices>>();
         let runtime = use_consume::<tokio::runtime::Handle>();
         let mut pinned = use_state(|| false);
+        let title_geometry = crate::ui::windows::title_bar::use_title_geometry();
+        let native_controls = compact && cfg!(target_os = "macos");
         rect()
             .width(Size::fill())
-            .height(Size::px(if compact { 40. } else { 64. }))
+            .height(Size::px(if native_controls {
+                (title_geometry.0 - 24.).max(36.)
+            } else if compact {
+                40.
+            } else {
+                64.
+            }))
             .padding((
                 0.,
                 if compact { 0. } else { 24. },
                 0.,
-                if !compact && cfg!(target_os = "macos") {
+                if native_controls {
+                    (title_geometry.1 - 12.).max(0.)
+                } else if !compact && cfg!(target_os = "macos") {
                     120.
                 } else {
                     0.
@@ -46,14 +56,20 @@ impl Component for PlayerHeader {
             .cross_align(Alignment::Center)
             .spacing(8.)
             .child(
-                label()
-                    .text("AUDEXIS")
+                rect()
                     .width(Size::flex(1.))
-                    .max_lines(1)
-                    .text_overflow(TextOverflow::Ellipsis)
-                    .font_size(11.)
-                    .font_weight(FontWeight::BOLD)
-                    .color(colors.content_faint),
+                    .height(Size::fill())
+                    .main_align(Alignment::Center)
+                    .maybe(compact, |area| area.window_drag())
+                    .child(
+                        label()
+                            .text("AUDEXIS")
+                            .max_lines(1)
+                            .text_overflow(TextOverflow::Ellipsis)
+                            .font_size(11.)
+                            .font_weight(FontWeight::BOLD)
+                            .color(colors.content_faint),
+                    ),
             )
             .child({
                 rect()

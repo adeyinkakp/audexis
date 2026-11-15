@@ -11,6 +11,10 @@ import { config as loadEnv } from "dotenv";
 export default defineConfig({
   site: "https://www.audexis.app",
   output: "server",
+  markdown: {
+    shikiConfig: { theme: "github-light" },
+  },
+
   security: {
     allowedDomains: [
       { hostname: "www.audexis.app", protocol: "https" },
@@ -54,6 +58,8 @@ export default defineConfig({
             vite: {
               server: {
                 allowedHosts: [
+                  "http://localhost:4321",
+                  "http://127.0.0.1:4321",
                   ...new Set(origins.map((origin) => origin.hostname)),
                 ],
               },

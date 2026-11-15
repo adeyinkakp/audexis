@@ -93,7 +93,7 @@ fn install_native_toolbar(window: &mut freya::winit::window::Window) {
     native_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
 }
 
-fn use_title_geometry() -> (f32, f32) {
+pub(crate) fn use_title_geometry() -> (f32, f32) {
     let geometry = use_state(|| (TITLE_BAR_HEIGHT, 100.0));
     #[cfg(target_os = "macos")]
     use_hook(move || {

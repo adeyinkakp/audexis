@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Library and folders"
 description: "Understand scanning, library views, Songs columns, and missing files."
 ---
@@ -40,8 +40,8 @@ column does not create a tag in the file. Multiple values may be displayed
 together in a cell; that display is separate from how values are edited and
 stored.
 
-See [Custom fields](/docs/custom-fields) for named columns and
-[Metadata editing](/docs/metadata) for the Details field picker.
+See [Custom fields](/docs/apps/desktop/custom-fields) for named columns and
+[Metadata editing](/docs/apps/desktop/metadata) for the Details field picker.
 
 ## Add, remove, or rescan folders
 
@@ -72,5 +72,5 @@ membership. Relink first if you want to keep the existing library identity.
 
 ## Related guides
 
-[Playlists](/docs/playlists) ·
-[Troubleshooting](/docs/troubleshooting)
+[Playlists](/docs/apps/desktop/playlists) ·
+[Troubleshooting](/docs/apps/desktop/troubleshooting)

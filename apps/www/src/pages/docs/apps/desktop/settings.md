@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Settings"
 description: "Learn which preferences save automatically and which require Save changes."
 ---
@@ -28,8 +28,20 @@ Use Rescan to refresh the saved library roots. The rescan action is unavailable
 while folder edits need to be saved. Removing a root affects library records and
 playlists, but does not erase the source audio files.
 
-[Library and folders](/docs/library) explains disconnected drives, overlapping
+[Library and folders](/docs/apps/desktop/library) explains disconnected drives, overlapping
 roots, and missing-file recovery.
+
+## Cloud
+
+Connect to audexis Cloud through browser sign-in, or enter a custom server URL
+and API key. Log out before switching providers.
+
+**Automatically sync library** saves immediately. It is off by default and
+controls automatic music uploads; cloud-library updates and edits can still
+sync while it is off. Choose **Sync now** for a manual upload and sync pass.
+
+See [Cloud sync](/docs/apps/desktop/cloud-sync) for downloads, storage usage,
+credentials, and conflict resolution.
 
 ## Metadata
 
@@ -52,7 +64,7 @@ These definitions are available in the custom-field editor and Songs column
 menu. Creating a definition does not populate songs with values. Removing one
 does not delete existing embedded tags.
 
-See [Custom fields](/docs/custom-fields) for examples and key validation.
+See [Custom fields](/docs/apps/desktop/custom-fields) for examples and key validation.
 
 ## Logs
 
@@ -63,5 +75,5 @@ When reporting a problem, include the relevant error and the steps that caused
 it. Review log text before sharing because paths and diagnostic details may
 identify files on your computer.
 
-[Getting started](/docs/getting-started) ·
-[Privacy and data](/docs/privacy-and-data)
+[Getting started](/docs/apps/desktop/) ·
+[Privacy and data](/docs/apps/desktop/privacy-and-data)

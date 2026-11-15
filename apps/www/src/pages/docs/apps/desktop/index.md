@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Getting started"
 description: "Install Audexis, add a music folder, and play your first track."
 ---
@@ -38,7 +38,7 @@ If nothing appears:
 1. Confirm that the selected folder contains supported audio files.
 2. Check that the folder is available and that Audexis can read it.
 3. Open **Settings → Library** and rescan the saved folders.
-4. Check [Troubleshooting](/docs/troubleshooting) if the problem continues.
+4. Check [Troubleshooting](/docs/apps/desktop/troubleshooting) if the problem continues.
 
 ## Play your first song
 
@@ -59,6 +59,7 @@ Details tab. Those selections save automatically.
 
 ## Next steps
 
-- [Organize the library](/docs/library).
-- [Understand the playback queue](/docs/playback).
-- [Edit song metadata](/docs/metadata).
+- [Connect a cloud library](/docs/apps/desktop/cloud-sync).
+- [Organize the library](/docs/apps/desktop/library).
+- [Understand the playback queue](/docs/apps/desktop/playback).
+- [Edit song metadata](/docs/apps/desktop/metadata).

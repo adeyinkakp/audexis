@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "audexis — Artwork"
 description: "Read, import, organize, and save album artwork in audio files."
 ---
@@ -69,4 +69,4 @@ refreshed.
 Artwork is embedded when saved; moving or deleting the original image file
 afterward does not remove that embedded copy.
 
-[Metadata editing](/docs/metadata) · [Formats](/docs/formats)
+[Metadata editing](/docs/apps/desktop/metadata) · [Formats](/docs/apps/desktop/formats)

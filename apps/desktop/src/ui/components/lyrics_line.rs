@@ -77,8 +77,9 @@ impl Component for LyricText {
                     })
                     .child(
                         label()
-                            .text(crate::ui::display_text(self.text.clone()))
+                            .text(crate::ui::display_text(self.text.trim().to_owned()))
                             .width(Size::fill())
+                            .text_align(TextAlign::Left)
                             .font_size(if expanded { 42.0 } else { 27.0 })
                             .font_weight(FontWeight::BOLD)
                             .color(if self.active {

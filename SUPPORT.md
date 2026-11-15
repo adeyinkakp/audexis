@@ -9,8 +9,6 @@ app and crate. For setup and build questions, use the README for the crate/app
 you are working with. See [Contributing](CONTRIBUTING.md) for development checks.
 
 The repository includes website documentation under `apps/www/src/pages/docs`.
-Pages still describe the previous tauri implementation, so use the current
-component READMEs for build commands and repository paths.
 
 ## Questions and troubleshooting
 

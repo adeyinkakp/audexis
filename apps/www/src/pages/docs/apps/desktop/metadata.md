@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
+layout: ../../../../layouts/MarkdownLayout.astro
 title: "Audexis — Metadata editing"
 description:
   "Edit regular tags, choose Details fields, and save single-song or batch
@@ -31,7 +31,7 @@ settings only hides the editor control. It does not remove the embedded value
 from any file.
 
 For a new field with your own key and display title, use
-[Custom Fields](/docs/custom-fields) instead.
+[Custom Fields](/docs/apps/desktop/custom-fields) instead.
 
 ## Edit and save
 
@@ -81,5 +81,5 @@ artwork is retained by the cover-import flow.
 
 Online lookup requires a connection. Manual editing of local files does not.
 
-[Custom fields](/docs/custom-fields) · [Artwork](/docs/artwork) ·
-[Lyrics](/docs/lyrics)
+[Custom fields](/docs/apps/desktop/custom-fields) · [Artwork](/docs/apps/desktop/artwork) ·
+[Lyrics](/docs/apps/desktop/lyrics)

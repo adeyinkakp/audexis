@@ -43,7 +43,7 @@ in `drizzle.config.ts`.
 | Path                 | Purpose                                              |
 | -------------------- | ---------------------------------------------------- |
 | `src/pages/`         | Website pages and API routes                         |
-| `src/pages/docs/`    | Markdown product documentation                       |
+| `src/pages/docs`     | Markdown product documentation                       |
 | `src/lib/`           | Authentication, desktop sign-in, and billing helpers |
 | `src/db/`            | Database connection and schema                       |
 | `src/assets/styles/` | Site styles                                          |
