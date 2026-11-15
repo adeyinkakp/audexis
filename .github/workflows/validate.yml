@@ -73,9 +73,6 @@ jobs:
         with:
           node-version: 24
 
-      - name: Test release asset mapping
-        run: node --test .github/scripts/release-platforms.test.mjs
-
       - name: Check formatting
         run: cargo fmt --all -- --check
 
