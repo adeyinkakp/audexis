@@ -69,6 +69,13 @@ jobs:
         with:
           workspaces: ". -> target"
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Test release asset mapping
+        run: node --test .github/scripts/release-platforms.test.mjs
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -93,7 +100,9 @@ jobs:
             format: app
           - os: windows-latest
             format: nsis
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
+            format: deb,appimage
+          - os: ubuntu-24.04-arm
             format: deb,appimage
     defaults:
       run:

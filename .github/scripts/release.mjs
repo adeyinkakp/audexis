@@ -1,4 +1,5 @@
 // shout out gtt
+import { releaseAssets, linuxTargets } from "./release-platforms.mjs";
 import { execFileSync } from "node:child_process";
 import {
   readFileSync,
@@ -64,7 +65,7 @@ if (process.argv[2] === "configure") {
       "AZURE_CERTIFICATE_PROFILE_NAME",
     );
     config.formats = ["nsis"];
-  } else if (target === "x86_64-unknown-linux-gnu") {
+  } else if (linuxTargets.includes(target)) {
     config.formats = ["deb", "appimage"];
   } else {
     throw new Error(`Unsupported release target: ${target}`);
@@ -89,15 +90,7 @@ if (process.argv[2] === "configure") {
   const files = readdirSync(assets);
   const platforms = {};
   const base = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${tag}/`;
-  for (const [suffix, names, format] of [
-    [".app.tar.gz", ["macos-aarch64", "macos-x86_64", "darwin-aarch64", "darwin-x86_64"], "app"],
-    [".exe", ["windows-x86_64"], "nsis"],
-    [".AppImage", ["linux-x86_64"], "appimage"],
-  ]) {
-    const matches = files.filter((name) => name.endsWith(suffix));
-    if (matches.length !== 1)
-      throw new Error(`Expected exactly one release asset ending in ${suffix}`);
-    const file = matches[0];
+  for (const { file, names, format } of releaseAssets(files)) {
     const signature = readFileSync(join(assets, `${file}.sig`), "utf8").trim();
     for (const name of names)
       platforms[name] = { signature, url: base + encodeURIComponent(file), format };

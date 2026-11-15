@@ -28,6 +28,9 @@ jobs:
           - platform: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             targets: x86_64-unknown-linux-gnu
+          - platform: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            targets: aarch64-unknown-linux-gnu
     runs-on: "${{ matrix.platform }}"
     defaults:
       run:
@@ -137,7 +140,9 @@ jobs:
           x86_64-pc-windows-msvc
       - name: Build Linux executable
         if: runner.os == 'Linux'
-        run: cargo build --package audexis --release --locked --target x86_64-unknown-linux-gnu
+        env:
+          RELEASE_TARGET: "${{ matrix.target }}"
+        run: cargo build --package audexis --release --locked --target "$RELEASE_TARGET"
       - name: Sign Windows executable
         if: runner.os == 'Windows'
         uses: azure/artifact-signing-action@v2
