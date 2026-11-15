@@ -21,11 +21,15 @@ impl FileWatcher {
         app: &WatcherContext,
         events: &[DebouncedEvent],
     ) -> Result<(), DatabaseError> {
+        let _save_guard = crate::metadata_editor::SAVE_LOCK.lock().await;
         let ClassifiedEvents {
-            changed,
-            removed,
-            renamed,
+            mut changed,
+            mut removed,
+            mut renamed,
         } = classify_events(events);
+        changed.retain(|path| !super::saved_edits::matches(path));
+        removed.retain(|path| !super::saved_edits::matches(path));
+        renamed.retain(|(_, path)| !super::saved_edits::matches(path));
         if changed.is_empty() && removed.is_empty() && renamed.is_empty() {
             return Ok(());
         }

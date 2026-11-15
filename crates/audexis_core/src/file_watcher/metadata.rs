@@ -122,85 +122,149 @@ impl FileWatcher {
         file_id: i64,
         metadata: &MetadataFile,
     ) -> Result<(), DatabaseError> {
+        Self::store_metadata_inner(pool, file_id, metadata, false).await
+    }
+
+    pub(crate) async fn store_edited_metadata(
+        pool: &sqlx::SqlitePool,
+        file_id: i64,
+        metadata: &MetadataFile,
+    ) -> Result<(), DatabaseError> {
+        Self::store_metadata_inner(pool, file_id, metadata, true).await
+    }
+
+    async fn store_metadata_inner(
+        pool: &sqlx::SqlitePool,
+        file_id: i64,
+        metadata: &MetadataFile,
+        preserve_duration: bool,
+    ) -> Result<(), DatabaseError> {
         let path = metadata.path.clone();
-        let (duration_ms, hash) = async_runtime::spawn_blocking(move || {
+        let started = std::time::Instant::now();
+        let (duration_ms, hash, stat) = async_runtime::spawn_blocking(move || {
+            let hash = super::hashing::attempt_file_hash(&path);
+            let stat = crate::library_files::metadata(&path)
+                .ok()
+                .and_then(|metadata| {
+                    Some((
+                        metadata.len() as i64,
+                        metadata
+                            .modified()
+                            .ok()?
+                            .duration_since(UNIX_EPOCH)
+                            .ok()?
+                            .as_secs() as i64,
+                    ))
+                });
             (
-                read_duration_ms(&path),
-                super::hashing::attempt_file_hash(&path),
+                if preserve_duration {
+                    None
+                } else {
+                    read_duration_ms(&path)
+                },
+                hash,
+                stat,
             )
         })
         .await
         .map_err(DatabaseError::Join)?;
-        let mut tx = pool.begin().await.map_err(DatabaseError::Sqlx)?;
-
-        sqlx::query("DELETE FROM metadata_texts WHERE file_id = ?1")
-            .bind(file_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(DatabaseError::Sqlx)?;
-        sqlx::query("DELETE FROM metadata_pictures WHERE file_id = ?1")
-            .bind(file_id)
-            .execute(&mut *tx)
+        let hash_elapsed = started.elapsed();
+        static STORE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+        let _guard = STORE_LOCK.lock().await;
+        let mut tx = pool
+            .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(DatabaseError::Sqlx)?;
 
+        let mut texts = std::collections::BTreeMap::<String, Vec<(i64, String)>>::new();
+        let mut pictures = Vec::new();
         for (key, values) in &metadata.tags {
             for (ord, value) in values.iter().enumerate() {
-                match value {
+                let (storage_key, storage_value) = match value {
                     TagValue::Picture {
                         mime,
                         data,
                         picture_type,
                         description,
                     } => {
-                        sqlx::query(
-                            "INSERT INTO metadata_pictures
-                             (file_id, data, mime_type, picture_type, description)
-                             VALUES (?1, ?2, ?3, ?4, ?5)",
-                        )
-                        .bind(file_id)
-                        .bind(data)
-                        .bind(mime)
-                        .bind(i64::from(picture_type.unwrap_or(3)))
-                        .bind(description.as_deref().unwrap_or_default())
-                        .execute(&mut *tx)
-                        .await
-                        .map_err(DatabaseError::Sqlx)?;
+                        pictures.push((
+                            data.clone(),
+                            mime.clone(),
+                            i64::from(picture_type.unwrap_or(3)),
+                            description.clone().unwrap_or_default(),
+                        ));
+                        (key.to_string(), value.to_string())
                     }
-                    _ => {
-                        let (storage_key, storage_value) = match value {
-                            TagValue::UserText(entry) => (
-                                format!("custom:text:{}", entry.description),
-                                entry.value.clone(),
-                            ),
-                            TagValue::UserUrl(entry) => (
-                                format!("custom:url:{}", entry.description),
-                                entry.url.clone(),
-                            ),
-                            TagValue::Comment { text, .. } => (key.to_string(), text.clone()),
-                            _ => (key.to_string(), value.to_string()),
-                        };
-                        sqlx::query(
-                            "INSERT INTO metadata_texts (file_id, key, value, ord)
-                             VALUES (?1, ?2, ?3, ?4)",
-                        )
-                        .bind(file_id)
-                        .bind(storage_key)
-                        .bind(storage_value)
-                        .bind(ord as i64)
-                        .execute(&mut *tx)
-                        .await
-                        .map_err(DatabaseError::Sqlx)?;
-                    }
+                    TagValue::UserText(entry) => (
+                        format!("custom:text:{}", entry.description),
+                        entry.value.clone(),
+                    ),
+                    TagValue::UserUrl(entry) => (
+                        format!("custom:url:{}", entry.description),
+                        entry.url.clone(),
+                    ),
+                    TagValue::Comment { text, .. } => (key.to_string(), text.clone()),
+                    _ => (key.to_string(), value.to_string()),
+                };
+                texts
+                    .entry(storage_key)
+                    .or_default()
+                    .push((ord as i64, storage_value));
+                if matches!(value, TagValue::UserText(_) | TagValue::UserUrl(_)) {
+                    texts
+                        .entry(key.to_string())
+                        .or_default()
+                        .push((ord as i64, value.to_string()));
                 }
-                if matches!(
-                    value,
-                    TagValue::Picture { .. } | TagValue::UserText(_) | TagValue::UserUrl(_)
-                ) {
-                    sqlx::query("INSERT INTO metadata_texts (file_id, key, value, ord) VALUES (?1, ?2, ?3, ?4)")
-                        .bind(file_id).bind(key.to_string()).bind(value.to_string()).bind(ord as i64)
-                        .execute(&mut *tx).await.map_err(DatabaseError::Sqlx)?;
-                }
+            }
+        }
+        let existing: Vec<(String, i64, String)> = sqlx::query_as(
+            "SELECT key, ord, value FROM metadata_texts WHERE file_id = ?1 ORDER BY ord, value",
+        )
+        .bind(file_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let mut previous = std::collections::BTreeMap::<String, Vec<(i64, String)>>::new();
+        for (key, ord, value) in existing {
+            previous.entry(key).or_default().push((ord, value));
+        }
+        for key in previous.keys() {
+            texts.entry(key.clone()).or_default();
+        }
+        for (key, mut values) in texts {
+            values.sort();
+            if previous.get(&key).is_some_and(|old| old == &values) {
+                continue;
+            }
+            sqlx::query("DELETE FROM metadata_texts WHERE file_id = ?1 AND key = ?2")
+                .bind(file_id)
+                .bind(&key)
+                .execute(&mut *tx)
+                .await?;
+            for (ord, value) in values {
+                sqlx::query(
+                    "INSERT INTO metadata_texts (file_id, key, value, ord) VALUES (?1, ?2, ?3, ?4)",
+                )
+                .bind(file_id)
+                .bind(&key)
+                .bind(value)
+                .bind(ord)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        let previous_pictures: Vec<(Vec<u8>, String, i64, String)> = sqlx::query_as(
+            "SELECT data, mime_type, COALESCE(picture_type, 3), COALESCE(description, '') FROM metadata_pictures WHERE file_id = ?1 ORDER BY id",
+        ).bind(file_id).fetch_all(&mut *tx).await?;
+        if previous_pictures != pictures {
+            sqlx::query("DELETE FROM metadata_pictures WHERE file_id = ?1")
+                .bind(file_id)
+                .execute(&mut *tx)
+                .await?;
+            for (data, mime, picture_type, description) in pictures {
+                sqlx::query("INSERT INTO metadata_pictures (file_id, data, mime_type, picture_type, description) VALUES (?1, ?2, ?3, ?4, ?5)")
+                    .bind(file_id).bind(data).bind(mime).bind(picture_type).bind(description)
+                    .execute(&mut *tx).await?;
             }
         }
 
@@ -211,7 +275,7 @@ impl FileWatcher {
 
         sqlx::query(
             "UPDATE files
-               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = ?3, hash = ?5
+               SET status = 'ok', format = ?1, last_validated = ?2, duration_ms = CASE WHEN ?6 THEN duration_ms ELSE ?3 END, hash = ?5, size = COALESCE(?7, size), modified_at = COALESCE(?8, modified_at)
                WHERE id = ?4",
         )
         .bind(metadata.tag_format.to_string())
@@ -219,11 +283,21 @@ impl FileWatcher {
         .bind(duration_ms)
         .bind(file_id)
         .bind(hash)
+        .bind(preserve_duration)
+        .bind(stat.map(|value| value.0))
+        .bind(stat.map(|value| value.1))
         .execute(&mut *tx)
         .await
         .map_err(DatabaseError::Sqlx)?;
 
-        tx.commit().await.map_err(DatabaseError::Sqlx)
+        tx.commit().await.map_err(DatabaseError::Sqlx)?;
+        tracing::debug!(
+            file_id,
+            hash_ms = hash_elapsed.as_millis(),
+            database_ms = started.elapsed().saturating_sub(hash_elapsed).as_millis(),
+            "Stored metadata"
+        );
+        Ok(())
     }
 }
 

@@ -217,29 +217,6 @@ impl TagBackend for DefaultBackend {
                     continue;
                 }
             };
-            let existing_tags = match self.read(&path).map(|metadata| metadata.tags) {
-                Ok(m) => m,
-                Err(error) => {
-                    results.push(BackendError::WriteFailed(TagError {
-                        path: path_str.clone(),
-                        public_message: "Failed to read existing tags".to_string(),
-                        internal_message: format!("{error:?}"),
-                    }));
-                    continue;
-                }
-            };
-            let mut diffs: Vec<TagDiff> = Vec::new();
-            for (k, new_vals) in &updated {
-                let old_vals = existing_tags.get(k).cloned();
-                if old_vals.as_ref() != Some(new_vals) {
-                    diffs.push(TagDiff::from_change(
-                        *k,
-                        old_vals.clone(),
-                        Some(new_vals.clone()),
-                    ));
-                }
-            }
-
             let write_res = self.write_verified(&fmt, release.as_ref(), &path, updated);
             if let Err(message) = write_res {
                 results.push(BackendError::WriteFailed(TagError {

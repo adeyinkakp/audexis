@@ -62,9 +62,19 @@ Only edited fields are submitted. Leaving a mixed field untouched preserves each
 song’s value. Editing it replaces that field on the selected songs. Clearing an
 edited field removes it from those songs.
 
+There is no fixed 200-file selection limit. Track Info loads metadata in
+background batches and shows progress. Editing becomes available when loading
+finishes. If some files cannot be read, the message lists failures and edits
+apply only to the files that loaded.
+
+Choose **Cancel** to stop loading or saving after the current file finishes.
+Cancelling a load clears the partial selection; reopen Track Info to try again.
+Cancelling a save keeps successful changes and leaves unsaved edits in the
+editor. It does not undo files already saved.
+
 A save can partially succeed. Read any reported failures before retrying: files
-that succeeded have already been changed. The backend limits a single metadata
-update request to 200 files.
+that succeeded have already been changed. Large selections still need memory
+for their metadata, especially embedded artwork, and can take time to load.
 
 Custom Fields uses a song selector for editing individual files within a
 selection; it is not the same bulk editor as Details.

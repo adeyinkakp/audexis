@@ -67,17 +67,16 @@ async fn load_cloud(
                 description: Some(description),
             });
     }
-    Ok(EditFile {
+    Ok(EditFile::from_metadata(
         id,
-        tags: tags.clone(),
-        original: MetadataFile {
+        MetadataFile {
             path: path.into(),
             tags,
             tag_format: format.clone(),
             tag_formats: vec![format],
             freeforms: vec![],
         },
-    })
+    ))
 }
 pub(super) async fn save_cloud(db: &Database, file: EditFile) -> Result<EditFile, String> {
     validate_changes(&file)?;

@@ -26,7 +26,6 @@ impl Component for HeaderCell {
             .map(|c| c.reduce_motion)
             .unwrap_or(true);
         let shift = use_drag_offset(self.shift, reduced, source.is_some());
-        use_drop(|| Cursor::set(CursorIcon::default()));
         let mut table = self.settings.table;
         let column = self.col.column.clone();
         let title = self.settings.title(&column);

@@ -54,7 +54,7 @@ impl App for EditorApp {
             move || runtime
         });
         crate::ui::theme::use_app_theme(self.services.clone());
-        let mut session = use_state(|| Session {
+        let session = use_state(|| Session {
             busy: true,
             ..Session::default()
         });
@@ -63,17 +63,7 @@ impl App for EditorApp {
             let db = self.services.db.clone();
             let runtime = self.runtime.clone();
             move || {
-                spawn(async move {
-                    let result = runtime
-                        .spawn(async move { metadata_editor::load_library(db, tracks).await })
-                        .await;
-                    let mut s = session.write();
-                    s.busy = false;
-                    match result {
-                        Ok(Ok(files)) => s.files = files,
-                        other => s.message = format!("Could not read metadata: {other:?}"),
-                    }
-                });
+                super::operations::load(session, db, runtime, tracks);
             }
         });
         use_provide_context(move || session);

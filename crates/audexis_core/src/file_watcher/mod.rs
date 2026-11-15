@@ -5,6 +5,7 @@ mod hashing;
 mod metadata;
 mod paths;
 mod reconciliation;
+pub(crate) mod saved_edits;
 mod scan;
 
 use crate::{database::Database, library_files::LibraryFiles};

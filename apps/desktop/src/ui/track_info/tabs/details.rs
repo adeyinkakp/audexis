@@ -66,7 +66,7 @@ impl Component for Details {
                         .font_size(12.)
                         .color(colors.muted_foreground),
                 )
-                .children(s.files.iter().map(|file| {
+                .children(s.files.iter().take(20).map(|file| {
                     label()
                         .text(
                             if file
@@ -82,6 +82,11 @@ impl Component for Details {
                         )
                         .font_size(12.)
                         .into_element()
+                }))
+                .maybe_child((s.files.len() > 20).then(|| {
+                    label()
+                        .text(format!("And {} more files", s.files.len() - 20))
+                        .font_size(12.)
                 })),
         )
     }

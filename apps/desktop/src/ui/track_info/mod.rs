@@ -1,6 +1,7 @@
 mod window;
 pub use window::*;
 
+mod operations;
 mod session;
 pub use session::*;
 
@@ -64,13 +65,6 @@ pub fn open(services: Arc<AppServices>, runtime: Handle, tracks: Vec<(i64, Strin
     if tracks.is_empty() {
         return;
     }
-    if tracks.len() > 200 {
-        rfd::MessageDialog::new()
-            .set_title("Track Info")
-            .set_description("Select at most 200 tracks to edit at once.")
-            .show();
-        return;
-    }
     let window = window_config(services, runtime, tracks, tab);
     drop(Platform::get().post_callback(move |_, context| {
         context.launch_window(window);
@@ -90,11 +84,26 @@ impl Component for Editor {
         let s = session.read().clone();
         let busy = s.busy;
         let active_tab = *tab.read();
-        let scoped = s.scoped(active_tab);
-        let tab_dirty = scoped.iter().any(EditFile::dirty);
-        let validation = scoped
-            .iter()
-            .find_map(|file| metadata_editor::validate_changes(file).err());
+        let tab_dirty = !busy
+            && s.files.iter().enumerate().any(|(index, file)| {
+                s.includes_file(index, active_tab)
+                    && file
+                        .changed_keys_matching(|key| active_tab.includes(key))
+                        .next()
+                        .is_some()
+            });
+        let validation = if busy {
+            None
+        } else {
+            s.files
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| s.includes_file(*index, active_tab))
+                .find_map(|(_, file)| {
+                    metadata_editor::validate_changes_matching(file, |key| active_tab.includes(key))
+                        .err()
+                })
+        };
         let save_services = services.clone();
         rect()
             .expanded()
@@ -165,15 +174,23 @@ impl Component for Editor {
                                     "No metadata loaded."
                                 })
                             }))
-                            .maybe_child((!s.files.is_empty()).then(|| match *tab.read() {
-                                Tab::Details => tabs::Details.into_element(),
-                                Tab::Custom => tabs::Custom.into_element(),
-                                Tab::Artwork => tabs::Artwork.into_element(),
-                                Tab::Plain => tabs::Lyrics { synced: false }.into_element(),
-                                Tab::Synced => tabs::Lyrics { synced: true }.into_element(),
+                            .maybe_child((s.cancel.is_none() && !s.files.is_empty()).then(|| {
+                                match *tab.read() {
+                                    Tab::Details => tabs::Details.into_element(),
+                                    Tab::Custom => tabs::Custom.into_element(),
+                                    Tab::Artwork => tabs::Artwork.into_element(),
+                                    Tab::Plain => tabs::Lyrics { synced: false }.into_element(),
+                                    Tab::Synced => tabs::Lyrics { synced: true }.into_element(),
+                                }
                             })),
                     ),
             )
+            .maybe_child((!s.progress.is_empty()).then(|| {
+                label()
+                    .text(s.progress.clone())
+                    .font_size(12.)
+                    .margin((8., 24.))
+            }))
             .maybe_child((!s.message.is_empty()).then(|| {
                 label()
                     .text(s.message.clone())
@@ -210,6 +227,20 @@ impl Component for Editor {
                             })
                     }))
                     .child(rect().width(Size::flex(1.)))
+                    .maybe_child(s.cancel.clone().map(|cancel| {
+                        Button::new()
+                            .enabled(!cancel.load(Ordering::Acquire))
+                            .child(if cancel.load(Ordering::Acquire) {
+                                "Cancelling…"
+                            } else {
+                                "Cancel"
+                            })
+                            .on_press(move |_| {
+                                cancel.store(true, Ordering::Release);
+                                session.write().progress =
+                                    "Cancelling after the current file…".into();
+                            })
+                    }))
                     .child(
                         Button::new()
                             .enabled(tab_dirty && !busy)
@@ -229,48 +260,12 @@ impl Component for Editor {
                                 format!("Save {}", active_tab.title())
                             })
                             .on_press(move |_| {
-                                let files = session.peek().scoped(active_tab);
-                                let services = save_services.clone();
-                                let runtime = runtime.clone();
-                                session.write().busy = true;
-                                spawn(async move {
-                                    let db = services.db.clone();
-                                    let result = runtime
-                                        .spawn(
-                                            async move { metadata_editor::save(db, files).await },
-                                        )
-                                        .await;
-                                    match result {
-                                        Ok(result) => {
-                                            let ids = result.saved.iter().map(|f| f.id).collect();
-                                            services.library_files.publish_changed(ids);
-                                            services.sync_edits();
-                                            let cache = services.artwork.clone();
-                                            let _ = runtime
-                                                .spawn(async move {
-                                                    cache.invalidate().await;
-                                                })
-                                                .await;
-                                            let mut s = session.write();
-                                            let count = result.saved.len();
-                                            for file in result.saved {
-                                                s.accept(file, active_tab);
-                                            }
-                                            s.message = if result.failures.is_empty() {
-                                                format!("Saved {count} file(s).")
-                                            } else {
-                                                format!(
-                                                    "Saved {count}; {} failed. {}",
-                                                    result.failures.len(),
-                                                    result.failures.join("\n")
-                                                )
-                                            };
-                                            s.revision += 1;
-                                        }
-                                        Err(e) => session.write().message = e.to_string(),
-                                    }
-                                    session.write().busy = false;
-                                });
+                                operations::save(
+                                    session,
+                                    save_services.clone(),
+                                    runtime.clone(),
+                                    active_tab,
+                                );
                             }),
                     ),
             )

@@ -147,23 +147,29 @@ struct CustomRow {
     key: FrameKey,
     index: usize,
 }
-fn custom_part(s: &Session, file: usize, key: FrameKey, index: usize, name: bool) -> &String {
-    match &s.files[file].tags[&key][index] {
+fn custom_part(
+    s: &Session,
+    file: usize,
+    key: FrameKey,
+    index: usize,
+    name: bool,
+) -> Option<&String> {
+    match s.files.get(file)?.tags.get(&key)?.get(index)? {
         TagValue::UserText(v) => {
             if name {
-                &v.description
+                Some(&v.description)
             } else {
-                &v.value
+                Some(&v.value)
             }
         }
         TagValue::UserUrl(v) => {
             if name {
-                &v.description
+                Some(&v.description)
             } else {
-                &v.url
+                Some(&v.url)
             }
         }
-        _ => unreachable!(),
+        _ => None,
     }
 }
 fn custom_part_mut(
@@ -172,31 +178,45 @@ fn custom_part_mut(
     key: FrameKey,
     index: usize,
     name: bool,
-) -> &mut String {
-    match &mut s.files[file].tags.get_mut(&key).unwrap()[index] {
+) -> Option<&mut String> {
+    match s.files.get_mut(file)?.tags.get_mut(&key)?.get_mut(index)? {
         TagValue::UserText(v) => {
             if name {
-                &mut v.description
+                Some(&mut v.description)
             } else {
-                &mut v.value
+                Some(&mut v.value)
             }
         }
         TagValue::UserUrl(v) => {
             if name {
-                &mut v.description
+                Some(&mut v.description)
             } else {
-                &mut v.url
+                Some(&mut v.url)
             }
         }
-        _ => unreachable!(),
+        _ => None,
     }
 }
 impl Component for CustomRow {
     fn render(&self) -> impl IntoElement {
         let mut session = use_consume::<State<Session>>();
         let (file, key, index) = (self.file, self.key, self.index);
-        let busy = session.read().busy;
+        let snapshot = session.read();
+        let busy = snapshot.busy;
+        let current_name = custom_part(&snapshot, file, key, index, true).cloned();
+        let current_value = custom_part(&snapshot, file, key, index, false).cloned();
+        let mut name = use_state(|| current_name.clone().unwrap_or_default());
+        let mut value = use_state(|| current_value.clone().unwrap_or_default());
+        name.set_if_modified(current_name.clone().unwrap_or_default());
+        value.set_if_modified(current_value.clone().unwrap_or_default());
+        drop(snapshot);
         let colors = crate::ui::theme::use_audexis_colors();
+        if current_name.is_none() || current_value.is_none() {
+            return label()
+                .text("This custom field has an unsupported value type. Its existing value will be preserved.")
+                .color(colors.muted_foreground)
+                .into_element();
+        }
         rect()
             .width(Size::fill())
             .padding(16.)
@@ -242,18 +262,32 @@ impl Component for CustomRow {
                                                             return;
                                                         }
                                                         let mut s = session.write();
-                                                        let name =
+                                                        if s.busy {
+                                                            return;
+                                                        }
+                                                        let Some(name) =
                                                             custom_part(&s, file, key, index, true)
-                                                                .clone();
-                                                        let value = custom_part(
+                                                                .cloned()
+                                                        else {
+                                                            return;
+                                                        };
+                                                        let Some(value) = custom_part(
                                                             &s, file, key, index, false,
                                                         )
-                                                        .clone();
-                                                        s.files[file]
-                                                            .tags
-                                                            .get_mut(&key)
-                                                            .unwrap()
-                                                            .remove(index);
+                                                        .cloned() else {
+                                                            return;
+                                                        };
+                                                        let Some(values) =
+                                                            s.files.get_mut(file).and_then(
+                                                                |file| file.tags.get_mut(&key),
+                                                            )
+                                                        else {
+                                                            return;
+                                                        };
+                                                        if index >= values.len() {
+                                                            return;
+                                                        }
+                                                        values.remove(index);
                                                         let entry =
                                                             if kind == FrameKey::UserDefinedText {
                                                                 TagValue::UserText(UserTextEntry {
@@ -288,13 +322,21 @@ impl Component for CustomRow {
                                     .color(colors.muted_foreground),
                             )
                             .child(
-                                Input::new(session.into_writable().map(
-                                    move |s| custom_part(s, file, key, index, true),
-                                    move |s| custom_part_mut(s, file, key, index, true),
-                                ))
-                                .width(Size::fill())
-                                .enabled(!busy)
-                                .placeholder("Field name"),
+                                Input::new(name)
+                                    .on_validate(move |input: InputValidator| {
+                                        let mut state = session.write();
+                                        if state.busy {
+                                            return;
+                                        }
+                                        if let Some(part) =
+                                            custom_part_mut(&mut state, file, key, index, true)
+                                        {
+                                            *part = input.text().clone();
+                                        }
+                                    })
+                                    .width(Size::fill())
+                                    .enabled(!busy)
+                                    .placeholder("Field name"),
                             ),
                     )
                     .child(
@@ -303,11 +345,18 @@ impl Component for CustomRow {
                             .enabled(!busy)
                             .child("Remove")
                             .on_press(move |_| {
-                                session.write().files[file]
-                                    .tags
-                                    .get_mut(&key)
-                                    .unwrap()
-                                    .remove(index);
+                                let mut state = session.write();
+                                if state.busy {
+                                    return;
+                                }
+                                if let Some(values) = state
+                                    .files
+                                    .get_mut(file)
+                                    .and_then(|file| file.tags.get_mut(&key))
+                                    && index < values.len()
+                                {
+                                    values.remove(index);
+                                }
                             }),
                     ),
             )
@@ -318,14 +367,20 @@ impl Component for CustomRow {
                     .color(colors.muted_foreground),
             )
             .child(crate::ui::track_info::text_area::TextArea {
-                value: session.into_writable().map(
-                    move |s| custom_part(s, file, key, index, false),
-                    move |s| custom_part_mut(s, file, key, index, false),
-                ),
+                value: value.into(),
                 enabled: !busy,
                 height: 88.,
-                on_change: EventHandler::new(|_: String| {}),
+                on_change: EventHandler::new(move |text: String| {
+                    let mut state = session.write();
+                    if state.busy {
+                        return;
+                    }
+                    if let Some(part) = custom_part_mut(&mut state, file, key, index, false) {
+                        *part = text;
+                    }
+                }),
             })
+            .into_element()
     }
 
     fn render_key(&self) -> DiffKey {
