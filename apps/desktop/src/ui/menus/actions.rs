@@ -50,6 +50,55 @@ pub(super) async fn dispatch(
             services.library_files.publish_changed(Vec::new());
             None
         }
+        Action::Delete => {
+            let ids: Vec<_> = tracks(target).into_iter().map(|(id, _)| id).collect();
+            let confirmation = rfd::AsyncMessageDialog::new()
+                .set_title("Delete from library?")
+                .set_description(format!(
+                    "Delete {} selected song(s)?\n\nThis removes them from your library and playlists, including linked copies in your cloud library. Original audio files and offline downloads on this computer will be permanently deleted, not moved to Trash. Listening history for these library records will also be removed.\n\nThis cannot be undone. Cloud deletion requires a connection. If a deletion fails, earlier completed deletions are not undone.",
+                    ids.len()
+                ))
+                .set_level(rfd::MessageLevel::Warning)
+                .set_buttons(rfd::MessageButtons::OkCancelCustom("Delete permanently".into(), "Cancel".into()))
+                .show()
+                .await;
+            if confirmation != rfd::MessageDialogResult::Custom("Delete permanently".into()) {
+                return Ok(());
+            }
+            let context = services.cloud_context().ok();
+            let worker_services = services.clone();
+            runtime
+                .spawn(async move {
+                    let mut deleted = 0;
+                    let mut failure = None;
+                    for id in &ids {
+                        if let Err(error) = worker_services
+                            .db
+                            .delete_library_song(
+                                &worker_services.library_files,
+                                context.as_ref(),
+                                *id,
+                            )
+                            .await
+                        {
+                            failure =
+                                Some(format!("Deleted {deleted} of {} songs. {error}", ids.len()));
+                            break;
+                        }
+                        deleted += 1;
+                    }
+                    worker_services.library_files.publish_changed(ids);
+                    worker_services.sync_edits();
+                    if let Some(error) = failure {
+                        Err(error)
+                    } else {
+                        Ok(())
+                    }
+                })
+                .await
+                .map_err(|error| error.to_string())??;
+            None
+        }
         Action::Play => {
             target.play(playback);
             None

@@ -331,6 +331,7 @@ impl Component for LibraryPage {
                 }
                 if current.is_some() || matches!(kind, Kind::Favorites | Kind::Search) {
                     body = body.child(TrackList {
+                        album: kind == Kind::Albums && current.is_some(),
                         tracks: tracks.clone(),
                         playlist: current.as_ref().and_then(|c| c.playlist_id),
                         on_change: EventHandler::new(move |()| *reload.write() += 1),

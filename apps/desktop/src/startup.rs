@@ -11,7 +11,7 @@ pub async fn initialize() -> Result<Arc<AppServices>, Box<dyn std::error::Error>
     let dirs = ProjectDirs::from("com", "kp", "audexis")
         .ok_or_else(|| io::Error::other("Cannot locate app directories"))?;
 
-    let database_path = dirs.data_local_dir().join("audexis_test.db");
+    let database_path = dirs.data_local_dir().join("audexis_main.db");
     let user_config_path = dirs.data_local_dir().join("user_config.json");
     let mut user_config = UserConfig::load_config(&user_config_path);
     if user_config.equalizer.validate().is_err() {

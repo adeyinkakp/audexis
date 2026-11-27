@@ -1,4 +1,5 @@
 ---
+import Dropdown from "./Dropdown.astro";
 import type { MarkdownInstance } from "astro";
 const pages = Object.values(
     import.meta.glob<MarkdownInstance<{ title: string }>>(
@@ -6,7 +7,7 @@ const pages = Object.values(
         { eager: true },
     ),
 );
-const groups = [
+const desktopGroups = [
     {
         title: "Getting started",
         slugs: ["index", "library", "cloud-sync"],
@@ -33,19 +34,107 @@ const groups = [
         slugs: ["faq", "troubleshooting", "development"],
     },
 ];
-const pathname = Astro.url.pathname.replace(/\/$/, "");
+const options = [
+    {
+        label: "Apps",
+        options: [
+            { value: "/docs/apps/desktop", label: "Desktop" },
+            { value: "/docs/apps/ios", label: "iOS" },
+            { value: "/docs/apps/android", label: "Android" },
+        ],
+    },
+    {
+        label: "Crates",
+        options: [
+            { value: "/docs/crates/server", label: "Server" },
+            { value: "/docs/crates/core", label: "Core" },
+            { value: "/docs/crates/audio", label: "Audio" },
+            { value: "/docs/crates/mobile", label: "Mobile" },
+            { value: "/docs/crates/protocol", label: "Protocol" },
+        ],
+    },
+];
+const normalized = options.flatMap((g) => g.options);
+const { pathname } = Astro.url;
+
+const found = normalized.find(
+    (opt) =>
+        pathname.replace(/\/$/, "") === opt.value ||
+        pathname.startsWith(`${opt.value}/`),
+);
+let value = "";
+if (found) {
+    value = found.value;
+}
+
+const pathName = Astro.url.pathname.replace(/\/$/, "");
+const crateGroups: Record<string, { title: string; slugs: string[] }[]> = {
+    server: [
+        {
+            title: "Getting started",
+            slugs: ["index", "installation", "docker"],
+        },
+        {
+            title: "Setup",
+            slugs: ["configuration", "users", "storage", "public-access"],
+        },
+        { title: "Using the server", slugs: ["uploads", "streaming"] },
+        { title: "Maintenance", slugs: ["backups", "troubleshooting"] },
+        { title: "Development", slugs: ["api", "development"] },
+    ],
+    core: [
+        { title: "Core", slugs: ["index", "library", "metadata"] },
+        { title: "Development", slugs: ["development"] },
+    ],
+    audio: [
+        { title: "Audio", slugs: ["index", "playback"] },
+        { title: "Development", slugs: ["development"] },
+    ],
+    mobile: [
+        { title: "Mobile", slugs: ["index", "requests", "native-integration"] },
+        { title: "Development", slugs: ["development"] },
+    ],
+    protocol: [
+        { title: "Protocol", slugs: ["index", "types", "sync"] },
+        { title: "Development", slugs: ["development"] },
+    ],
+};
+const crate = pathName.match(/^\/docs\/crates\/([^/]+)(?:\/|$)/)?.[1];
+const basePath = crate ? `/docs/crates/${crate}` : "/docs/apps/desktop";
+const groups = (crate && crateGroups[crate]) || desktopGroups;
+const { id = "docs-sidebar" } = Astro.props;
+const pickerId = `${id}-platform`;
 ---
 
+<script>
+    document.addEventListener("change", (event) => {
+        const select = event.target;
+        if (!(select instanceof HTMLSelectElement)) return;
+        if (!select.matches("[data-platform-picker] [data-select]")) return;
+        if (!select.value) return;
+        window.location.assign(select.value);
+    });
+</script>
+
 <nav class="docs-nav" aria-label="Documentation">
+    <div class="mt-2 pb-4">
+        <label for={pickerId}>Platform</label>
+        <div data-platform-picker>
+            <Dropdown
+                value={value}
+                label="Platform"
+                id={pickerId}
+                options={options}
+            />
+        </div>
+    </div>
     {groups.map((group) => (
         <section>
             <h2>{group.title}</h2>
             <ul>
                 {group.slugs.map((slug) => {
                     const href =
-                        slug === "index"
-                            ? "/docs/apps/desktop"
-                            : `/docs/apps/desktop/${slug}`;
+                        slug === "index" ? basePath : `${basePath}/${slug}`;
                     const page = pages.find(
                         (page) => page.url?.replace(/\/$/, "") === href,
                     );
@@ -54,13 +143,13 @@ const pathname = Astro.url.pathname.replace(/\/$/, "");
                             <a
                                 href={href}
                                 aria-current={
-                                    pathname === href ? "page" : undefined
+                                    pathName === href ? "page" : undefined
                                 }
                             >
                                 {slug === "index"
                                     ? "Introduction"
                                     : (page?.frontmatter.title.replace(
-                                          /^audexis — /,
+                                          /^audexis — /i,
                                           "",
                                       ) ?? slug)}
                             </a>

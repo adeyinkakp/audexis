@@ -56,6 +56,25 @@ Removing a folder from the configured library can remove its songs and playlist
 membership from Audexis. It does not delete the source audio files. Re-adding a
 folder is not a substitute for backing up library data.
 
+## Delete songs
+
+Right-click a song or a selection of songs and choose **Delete from Library…**.
+Read the warning, then choose **Delete permanently** to confirm.
+
+This removes the selected library records, their playlist entries, and their
+listening history. Original audio files and offline downloads on this computer
+are permanently deleted, not moved to Trash. Linked songs are also removed from
+your cloud library. There is no undo.
+
+For synced songs, connect to the account that owns them and finish or resolve
+pending changes in **Cloud Sync** first. Cloud deletion requires a connection.
+If a batch stops with an error, the message reports how many songs were deleted;
+completed deletions are not rolled back. If cloud deletion succeeds but a local
+file cannot be deleted, fix the file access problem and try again.
+
+To remove only an offline copy, choose **Remove Download** instead. To remove a
+song from a playlist without deleting it, choose **Remove from Playlist**.
+
 ## Moved and missing files
 
 Audexis monitors filesystem changes, including moves and renames. If a file can

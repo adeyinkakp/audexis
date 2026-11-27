@@ -5,6 +5,7 @@ pub(super) enum Action {
     Play,
     Download,
     RemoveDownload,
+    Delete,
     Info,
     Edit,
     Next,
@@ -196,5 +197,7 @@ pub(super) fn entries(
             available,
         ));
     }
+    items.push(Entry::separator());
+    items.push(Entry::item("Delete from Library…", Action::Delete, indexed));
     items
 }

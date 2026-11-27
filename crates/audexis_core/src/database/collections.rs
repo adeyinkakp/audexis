@@ -138,8 +138,9 @@ impl Database {
         if filter.playlist.is_some() {
             super::smart_playlists::refresh(&self.pool).await?;
         }
+        let album_order = filter.album.is_some() && filter.playlist.is_none();
         let mut q = QueryBuilder::<Sqlite>::new(format!(
-            "SELECT songs.* FROM ({}) songs WHERE 1=1",
+            "SELECT songs.*, (SELECT CASE WHEN CAST(value AS INTEGER)>0 THEN CAST(value AS INTEGER) END FROM metadata_texts WHERE file_id=songs.id AND key='discnumber' ORDER BY ord LIMIT 1) AS disc_number, (SELECT CASE WHEN CAST(value AS INTEGER)>0 THEN CAST(value AS INTEGER) END FROM metadata_texts WHERE file_id=songs.id AND key='trackNumber' ORDER BY ord LIMIT 1) AS track_number FROM ({}) songs WHERE 1=1",
             super::songs::SONG_SOURCE
         ));
         if filter.favorites {
@@ -172,6 +173,8 @@ impl Database {
         }
         q.push(if filter.playlist.is_some() {
             " ORDER BY pt.ord"
+        } else if album_order {
+            " ORDER BY disc_number IS NULL, disc_number, track_number IS NULL, track_number, title COLLATE NOCASE, id"
         } else {
             " ORDER BY title COLLATE NOCASE, id"
         });

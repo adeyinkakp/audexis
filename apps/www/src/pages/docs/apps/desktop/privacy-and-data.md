@@ -26,9 +26,8 @@ Library records include paths, indexed metadata, artwork, playlists, favorites,
 and listening activity. Settings include choices such as watched folders and
 display preferences.
 
-The current desktop source uses `user_config.json` for its settings store and
-`audexis_test.db` for the library database. These are implementation
-names, not a stable export format; they can change between builds.
+The desktop uses `user_config.json` for its settings store and
+`audexis_main.db` for the library database.
 
 ## Features that use the internet
 

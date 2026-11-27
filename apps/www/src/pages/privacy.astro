@@ -18,149 +18,81 @@ export const prerender = true;
                 Privacy Policy
             </h1>
             <p class="mt-2 text-sm text-muted-foreground">
-                Effective Date: October 19, 2026
+                Last updated: November 27, 2026
             </p>
         </header>
 
         <div class="space-y-10 text-sm leading-relaxed text-muted-foreground">
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    1. Core Philosophy: Zero Telemetry
-                </h2>
-                <p>
-                    Audexis is designed with a strict privacy-first principle.
-                    We believe software should simply perform its function
-                    without surveilling its users.
-                    <strong>
-                        The Audexis desktop application does not collect, track,
-                        log, or transmit any listening habits, analytics,
-                        behavioral telemetry, device identifiers, or usage logs.
-                    </strong>
-                    Your local library and playback activity remain entirely on
-                    your physical hardware.
-                </p>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">1. About this policy</h2>
+                <p>This Privacy Policy explains how Audexis handles information when you use our website, applications, and hosted cloud service. In this policy, “we” and “us” mean the operator of Audexis.</p>
+                <p>If you connect an app to a self-hosted or third-party server, that server's operator is responsible for the information it receives. Contact that operator about its storage, logs, and privacy practices.</p>
             </section>
-
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    2. Information We Process for Audexis Cloud
-                </h2>
-                <p class="mb-3">
-                    If you voluntarily subscribe to the optional{" "}
-                    <strong>Audexis Cloud</strong> service, we process only the
-                    strictly necessary technical data required to maintain your
-                    account, handle payments, and serve your files:
-                </p>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">2. Information we collect</h2>
                 <ul class="list-disc pl-5 space-y-2">
-                    <li>
-                        <strong>Account Credentials:</strong> Your email address
-                        and basic profile identifier provided via OAuth
-                        authentication (GitHub or Google) or standard
-                        registration to authenticate your identity.
-                    </li>
-                    <li>
-                        <strong>Payment & Billing Information:</strong> Payment
-                        transactions are handled directly by our PCI-compliant
-                        payment processor, Stripe. Audexis never sees, stores,
-                        or processes your raw credit card numbers or banking
-                        credentials. We receive only confirmation of payment
-                        status, subscription renewal dates, and randomized
-                        customer tokens from Stripe.
-                    </li>
-                    <li>
-                        <strong>Personal Audio & Metadata:</strong> WWhen you
-                        upload audio tracks to your Audexis Cloud storage, we
-                        host your audio files and their parsed metadata (track
-                        names, artist names, album titles, durations) strictly
-                        to provide remote playback to your authorized devices.
-                        Files are protected using industry-standard encryption
-                        at rest (AES-256 storage-level encryption) and TLS
-                        encryption in transit.
-                    </li>
+                <li><strong>Account information.</strong> When you sign in through GitHub or Google, we receive account information such as your name, email address, profile image, and provider identifier. We store account and session records to keep you signed in.</li>
+                <li><strong>Billing information.</strong> Stripe processes subscription payments. We store Stripe customer and subscription identifiers, subscription status, plan information, and billing-period dates. Payment details are entered through Stripe; our application does not store your full card number or security code.</li>
+                <li><strong>Cloud library data.</strong> When you use cloud sync, we receive the audio files and library data you upload or sync. This can include file names, artwork, lyrics contained in files, tags, playlists, favorites, file sizes, durations, and file hashes.</li>
+                <li><strong>Connection and diagnostic information.</strong> Account sessions can include your IP address and browser or device user agent. Device credentials include a label, creation date, and last-used time. Our servers and hosting providers may record request details and errors when you use online features.</li>
+                <li><strong>Support messages.</strong> If you contact us, we receive the information you send, including any attachments or diagnostic logs you choose to share.</li>
                 </ul>
             </section>
-
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    3. How Your Files Are Handled
-                </h2>
-                <p>Your audio library is treated as strictly private data:</p>
-                <ul class="list-disc pl-5 space-y-2 mt-2">
-                    <li>
-                        We do not analyze, data-mine, fingerprint, or run
-                        machine learning algorithms on your uploaded audio
-                        content.
-                    </li>
-                    <li>
-                        Your files are never shared with, licensed to, or
-                        accessible by third parties.
-                    </li>
-                    <li>
-                        Your audio streams are accessible only to devices
-                        authenticated with your personal API keys or account
-                        session tokens.
-                    </li>
-                </ul>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">3. Information stored on your device</h2>
+                <p>The desktop app stores library records, file paths, metadata, artwork, playlists, settings, and listening activity on your device. These records support features such as library browsing, play counts, and listening history.</p>
+                <p>Using local playback does not by itself upload your music collection to Audexis Cloud. Cloud sync and other online features send the information needed for those features. Local caches, downloads, and app data may remain on your device after you sign out.</p>
             </section>
-
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    4. Third-Party Service Providers
-                </h2>
-                <p class="mb-3">
-                    To provide the cloud infrastructure and authentication
-                    services, we partner with trusted infrastructure providers
-                    who adhere to strict data security standards:
-                </p>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">4. How we use information</h2>
+                <p>We use information to:</p>
                 <ul class="list-disc pl-5 space-y-2">
-                    <li>
-                        <strong>Authentication:</strong> GitHub and Google
-                        (strictly for identity verification during OAuth login).
-                    </li>
-                    <li>
-                        <strong>Billing:</strong> Stripe, Inc. (for secure
-                        billing and subscription lifecycle management).
-                    </li>
-                    <li>
-                        <strong>Cloud Infrastructure:</strong> Cloud
-                        Infrastructure: Managed cloud servers and secure object
-                        storage providers for housing audio storage and
-                        operational databases with encryption at rest and
-                        isolated tenant access controls. databases.
-                    </li>
+                <li>Create and manage accounts, sessions, and authorized devices.</li>
+                <li>Process subscriptions and check access to paid features.</li>
+                <li>Store, synchronize, and stream your music and library data.</li>
+                <li>Check uploads, read metadata and artwork, and create streaming copies when requested.</li>
+                <li>Enforce storage limits, prevent abuse, investigate errors, and respond to support requests.</li>
+                <li>Meet applicable legal obligations and handle billing disputes.</li>
                 </ul>
+                <p>Uploaded files are processed to provide these features. For example, the server calculates file hashes, reads audio metadata, and may convert audio to AAC for streaming.</p>
             </section>
-
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    5. Data Retention & Deletion
-                </h2>
-                <p>
-                    You retain absolute ownership of your account and personal
-                    data. You may delete your account, revoke device API keys,
-                    or cancel your subscription at any time via your dashboard.
-                    Upon account deletion, all personal records, active keys,
-                    and associated cloud audio files are permanently purged from
-                    our primary database and storage infrastructure.
-                </p>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">5. Cookies and online requests</h2>
+                <p>The website uses cookies and session storage for sign-in and related account features. Blocking these cookies may prevent you from signing in or managing your account.</p>
+                <p>Some app features contact outside services. Metadata and artwork searches use Apple's iTunes services, lyrics searches use LRCLIB, and update checks contact the release service. These requests can include your IP address and the search terms or song information needed for the request. Those services handle the information under their own privacy policies.</p>
             </section>
-
-            <section>
-                <h2 class="text-lg font-semibold text-foreground mb-3">
-                    6. Contact Information
-                </h2>
-                <p>
-                    If you have questions regarding this Privacy Policy or our
-                    zero-telemetry architecture, you can contact the project
-                    maintainer directly at{" "}
-                    <a
-                        href="mailto:support@audexis.app"
-                        class="text-primary hover:underline"
-                    >
-                        support@audexis.app
-                    </a>{" "}
-                    or open an issue on our official GitHub repository.
-                </p>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">6. When information is shared</h2>
+                <p>Information is shared with providers as needed to operate the service:</p>
+                <ul class="list-disc pl-5 space-y-2">
+                <li>GitHub and Google provide the sign-in options offered on the website.</li>
+                <li>Stripe processes payments and provides the billing portal.</li>
+                <li>Hosting, database, storage, and network providers process information needed to run the website and cloud service. Cloud files may be stored with Backblaze B2 or on server storage.</li>
+                </ul>
+                <p>We do not sell your personal information or provide your music library to advertisers. We may disclose information when required by law or when necessary to investigate abuse, protect the service, or protect someone's rights or safety.</p>
+                <p>Providers may process information in countries other than the one where you live.</p>
+            </section>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">7. Retention and deletion</h2>
+                <p>We keep account and cloud library information while it is needed to provide the service. Billing records, security logs, and records needed to resolve disputes or meet legal obligations may be retained longer.</p>
+                <p>Removing a track or playlist from your cloud library does not necessarily erase every stored copy immediately. Synchronization records, stored media, caches, and backups may remain after an item is removed from the library.</p>
+                <p>Canceling a subscription, signing out, or uninstalling an app does not automatically delete your cloud account or library. To request account deletion or removal of personal information, email <a href="mailto:support@audexis.app" class="text-primary hover:underline">support@audexis.app</a>. We may need to verify that you control the account before acting on the request.</p>
+            </section>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">8. Your choices</h2>
+                <p>You can use local playback without subscribing to Audexis Cloud. You can manage your subscription through the billing portal and revoke device keys from the account dashboard.</p>
+                <p>Depending on where you live, you may have rights to access, correct, delete, or obtain a copy of your personal information, or to object to or restrict certain uses. Contact us to make a request. We will handle it according to the law that applies to your request.</p>
+                <p>For information stored only on your device, you control the app's local files and data. Keep a backup of anything you want to retain before removing it.</p>
+            </section>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">9. Security</h2>
+                <p>Audexis uses account authentication and access controls to restrict access to cloud libraries. Device API keys are stored as hashes on the website. Keep your API keys and account credentials private, and revoke a device key if you believe it has been exposed.</p>
+                <p>No system can guarantee complete security. If you suspect unauthorized access to your account, contact us.</p>
+            </section>
+            <section class="space-y-3">
+                <h2 class="text-lg font-semibold text-foreground">10. Changes and contact</h2>
+                <p>We may update this policy as the service or its data practices change. The date at the top shows when it was last updated. Where required, we will provide additional notice of significant changes.</p>
+                <p>For privacy questions or requests, email <a href="mailto:support@audexis.app" class="text-primary hover:underline">support@audexis.app</a>. Send account details privately rather than posting them in a public issue.</p>
             </section>
         </div>
     </main>

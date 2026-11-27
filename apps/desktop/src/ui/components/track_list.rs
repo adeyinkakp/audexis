@@ -9,11 +9,12 @@ use crate::{
 };
 use audexis_audio::{PlayerCmd, queue_track::UnresolvedTrack};
 use audexis_core::database::songs::SongRow;
-use freya::prelude::*;
+use freya::{icons::lucide, prelude::*};
 use std::sync::Arc;
 
 #[derive(PartialEq)]
 pub(crate) struct TrackList {
+    pub album: bool,
     pub tracks: Arc<Vec<SongRow>>,
     pub playlist: Option<i64>,
     pub on_change: EventHandler<()>,
@@ -22,10 +23,21 @@ impl Component for TrackList {
     fn render(&self) -> impl IntoElement {
         let colors = use_audexis_colors();
         let selection_items = song_items(&self.tracks, self.playlist);
-        let (visible_range, on_sized) = super::visibility::use_visible_rows(self.tracks.len(), 64.);
+        let mut display_rows = Vec::new();
+        for (index, song) in self.tracks.iter().enumerate() {
+            if self.album
+                && song.disc_number.is_some()
+                && (index == 0 || self.tracks[index - 1].disc_number != song.disc_number)
+            {
+                display_rows.push((index, true));
+            }
+            display_rows.push((index, false));
+        }
+        let (visible_range, on_sized) =
+            super::visibility::use_visible_rows(display_rows.len(), 64.);
         let mut jump = use_state(|| None::<usize>);
         let range = match *jump.read() {
-            Some(index) if index < self.tracks.len() && !visible_range.contains(&index) => {
+            Some(index) if index < display_rows.len() && !visible_range.contains(&index) => {
                 index..index + 1
             }
             _ => visible_range.clone(),
@@ -104,8 +116,33 @@ impl Component for TrackList {
                 .key("before")
                 .height(Size::px(range.start as f32 * 64.)),
         );
-        for index in range.clone() {
+        for row_index in range.clone() {
+            let (index, is_heading) = display_rows[row_index];
             let song = &self.tracks[index];
+            if is_heading {
+                rows = rows.child(
+                    rect()
+                        .key(("disc-heading", song.disc_number))
+                        .width(Size::fill())
+                        .height(Size::px(64.))
+                        .horizontal()
+                        .cross_align(Alignment::Center)
+                        .padding((0., 12.))
+                        .spacing(10.)
+                        .child(
+                            SvgViewer::new(lucide::disc())
+                                .width(Size::px(20.))
+                                .height(Size::px(20.))
+                                .stroke(colors.muted_foreground),
+                        )
+                        .child(
+                            label()
+                                .text(format!("Disc {}", song.disc_number.unwrap_or_default()))
+                                .font_size(16.),
+                        ),
+                );
+                continue;
+            }
             let play = playback.clone();
             let tracks = self.tracks.clone();
             let id = song.id;
@@ -157,7 +194,13 @@ impl Component for TrackList {
                                 .spacing(12.)
                                 .child(
                                     label()
-                                        .text((index + 1).to_string())
+                                        .text(if self.album {
+                                            song.track_number
+                                                .map(|number| number.to_string())
+                                                .unwrap_or_else(|| "—".into())
+                                        } else {
+                                            (index + 1).to_string()
+                                        })
                                         .width(Size::px(28.))
                                         .color(colors.muted_foreground),
                                 )
@@ -277,7 +320,7 @@ impl Component for TrackList {
                     ),
             );
         }
-        let count = self.tracks.len();
+        let count = display_rows.len();
         let body = body.child(
             rows.child(
                 rect()
@@ -289,7 +332,9 @@ impl Component for TrackList {
             items: selection_items,
             child: body.into_element(),
             fill: false,
-            on_navigate: Some(EventHandler::new(move |index| jump.set(Some(index)))),
+            on_navigate: Some(EventHandler::new(move |index| {
+                jump.set(display_rows.iter().position(|row| *row == (index, false)));
+            })),
             on_select_all: None,
         }
     }

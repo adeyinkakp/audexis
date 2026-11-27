@@ -11,7 +11,14 @@ type Props = MarkdownLayoutProps<{
     imageAlt?: string;
 }>;
 const { frontmatter, headings } = Astro.props;
-const labelOptions = [{ path: "/docs/apps/desktop", label: "Desktop App" }];
+const labelOptions = [
+    { path: "/docs/apps/desktop", label: "Desktop App" },
+    { path: "/docs/crates/server", label: "Server" },
+    { path: "/docs/crates/core", label: "Core" },
+    { path: "/docs/crates/audio", label: "Audio" },
+    { path: "/docs/crates/mobile", label: "Mobile" },
+    { path: "/docs/crates/protocol", label: "Protocol" },
+];
 const sections = headings.filter(
     (heading) => heading.depth === 2 || heading.depth === 3,
 );
@@ -27,13 +34,12 @@ if (found) {
 <Layout {...frontmatter}>
     <div class="docs-layout">
         <aside class="docs-sidebar docs-sticky">
-            <p class="docs-label">Documentation</p>
-            <DocSidebar />
+            <DocSidebar id="docs-desktop" />
         </aside>
         <div class="docs-mobile-nav">
             <details>
                 <summary>Browse documentation</summary>
-                <DocSidebar />
+                <DocSidebar id="docs-mobile" />
             </details>
         </div>
         <main id="main" class="docs-main" tabindex="-1">
@@ -57,3 +63,74 @@ if (found) {
         )}
     </div>
 </Layout>
+
+<script>
+    function initializeCodeBlocks() {
+        document
+            .querySelectorAll<HTMLPreElement>(".docs-content pre")
+            .forEach((pre) => {
+                if (pre.parentElement?.classList.contains("docs-code-block"))
+                    return;
+                const code = pre.querySelector("code");
+                if (!code) return;
+                const wrapper = document.createElement("div");
+                wrapper.className = "docs-code-block";
+                const header = document.createElement("div");
+                header.className = "docs-code-header";
+                const language = document.createElement("span");
+                language.textContent =
+                    pre.dataset.language ??
+                    code.className.match(/language-([\w-]+)/)?.[1] ??
+                    "Code";
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "docs-code-copy";
+                button.textContent = "Copy";
+                button.setAttribute("aria-label", "Copy code");
+                const status = document.createElement("span");
+                status.className = "sr-only";
+                status.setAttribute("role", "status");
+                button.addEventListener("click", async () => {
+                    button.disabled = true;
+                    const text = code.textContent ?? "";
+                    try {
+                        if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(text);
+                        } else {
+                            const input = document.createElement("textarea");
+                            input.value = text;
+                            input.style.position = "fixed";
+                            input.style.opacity = "0";
+                            document.body.append(input);
+                            try {
+                                input.select();
+                                if (!document.execCommand("copy"))
+                                    throw new Error("Copy failed");
+                            } finally {
+                                input.remove();
+                            }
+                        }
+                        button.textContent = "Copied!";
+                        status.textContent = "Code copied to clipboard.";
+                    } catch {
+                        button.textContent = "Try again";
+                        status.textContent =
+                            "Could not copy. Select the code and copy it manually.";
+                    } finally {
+                        button.disabled = false;
+                        button.focus({ preventScroll: true });
+                        setTimeout(() => {
+                            button.textContent = "Copy";
+                            status.textContent = "";
+                        }, 2000);
+                    }
+                });
+                header.append(language, button);
+                pre.before(wrapper);
+                wrapper.append(header, pre, status);
+            });
+    }
+
+    initializeCodeBlocks();
+    document.addEventListener("astro:page-load", initializeCodeBlocks);
+</script>

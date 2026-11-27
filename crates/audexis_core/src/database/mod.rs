@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 mod connections;
+mod deletion;
 pub mod discovery;
 pub(crate) mod search;
 pub mod songs;

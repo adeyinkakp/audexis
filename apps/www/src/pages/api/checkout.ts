@@ -2,9 +2,10 @@ import { getSecret } from "astro:env/server";
 import type { APIRoute } from "astro";
 import type Stripe from "stripe";
 import { stripe } from "../../lib/stripe";
-import { db } from "../../db";
-import { user as userTable } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import {
+  billingErrorResponse,
+  refreshSubscription,
+} from "../../lib/subscriptions";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -16,10 +17,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    const [dbUser] = await db
-      .select()
-      .from(userTable)
-      .where(eq(userTable.id, sessionUser.id));
+    const dbUser = await refreshSubscription(sessionUser.id);
 
     if (!dbUser) {
       return new Response(JSON.stringify({ error: "User not found" }), {
@@ -50,6 +48,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       client_reference_id: dbUser.id,
+      subscription_data: { metadata: { userId: dbUser.id } },
       line_items: [
         {
           price: getSecret("STRIPE_AUDEXIS_PRICE_ID"),
@@ -72,11 +71,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Stripe Checkout Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return billingErrorResponse(err);
   }
 };

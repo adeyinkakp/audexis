@@ -21,8 +21,7 @@ Open **Settings → Cloud** and choose one provider:
   your browser. The request expires after two minutes. Cancel and start again
   if it expires.
 - For a custom server, enter its **Server URL** and **API key**, then choose
-  **Save custom server**. Use the address and key supplied by your server
-  administrator.
+  **Save custom server**. Use the address and key of your custom server.
 
 The app checks the connection before saving it. Log out of the active provider
 before switching to another one.

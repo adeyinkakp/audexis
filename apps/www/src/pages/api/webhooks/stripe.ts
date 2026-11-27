@@ -5,6 +5,7 @@ import { db } from "../../../db";
 import { user } from "../../../db/schema";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { refreshSubscription } from "../../../lib/subscriptions";
 
 export const POST: APIRoute = async ({ request }) => {
   const signature = request.headers.get("stripe-signature");
@@ -32,26 +33,21 @@ export const POST: APIRoute = async ({ request }) => {
 
         if (!userId) break;
 
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string,
-        );
-
-        await db
-          .update(user)
-          .set({
-            stripeCustomerId: session.customer as string,
-            stripeSubscriptionId: subscription.id,
-            subscriptionStatus: subscription.status,
-            subscriptionTier: "standard",
-            currentPeriodEnd: new Date(
-              subscription.items.data[0].current_period_end * 1000,
-            ),
-          })
-          .where(eq(user.id, userId));
+        if (session.mode !== "subscription" || !session.subscription) break;
+        const subscriptionId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription.id;
+        if (!(await refreshSubscription(userId, subscriptionId))) {
+          throw new Error("Checkout account was not found");
+        }
 
         break;
       }
 
+      case "customer.subscription.created":
+      case "customer.subscription.resumed":
+      case "customer.subscription.paused":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
@@ -59,19 +55,18 @@ export const POST: APIRoute = async ({ request }) => {
         const [dbUser] = await db
           .select()
           .from(user)
-          .where(eq(user.stripeCustomerId, subscription.customer as string));
-
-        if (!dbUser) break;
-
-        await db
-          .update(user)
-          .set({
-            subscriptionStatus: subscription.status,
-            currentPeriodEnd: new Date(
-              subscription.items.data[0].current_period_end * 1000,
-            ),
-          })
-          .where(eq(user.id, dbUser.id));
+          .where(eq(user.stripeSubscriptionId, subscription.id));
+        if (dbUser) {
+          await refreshSubscription(dbUser.id);
+        } else if (subscription.metadata.userId) {
+          const [account] = await db
+            .select()
+            .from(user)
+            .where(eq(user.id, subscription.metadata.userId));
+          if (account && !account.stripeSubscriptionId) {
+            await refreshSubscription(account.id, subscription.id);
+          }
+        }
 
         break;
       }

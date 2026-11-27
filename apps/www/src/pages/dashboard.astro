@@ -5,6 +5,7 @@ import { db } from "../db";
 import { user as userTable, apiKey as apiKeyTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import Layout from "../layouts/Layout.astro";
+import { billingErrorMessage, refreshSubscription } from "../lib/subscriptions";
 import { hasCloudSubscription } from "../lib/desktop-auth-protocol";
 
 const sessionUser = Astro.locals.user;
@@ -12,10 +13,20 @@ if (!sessionUser) {
     return Astro.redirect("/login");
 }
 
-const [dbUser] = await db
+let [dbUser] = await db
     .select()
     .from(userTable)
     .where(eq(userTable.id, sessionUser.id));
+
+let subscriptionError = "";
+if (dbUser?.stripeSubscriptionId || dbUser?.stripeCustomerId) {
+    try {
+        dbUser = (await refreshSubscription(dbUser.id)) ?? dbUser;
+    } catch (error) {
+        subscriptionError = billingErrorMessage(error);
+        console.error("Could not refresh subscription from Stripe for dashboard");
+    }
+}
 
 const isSubscribed = hasCloudSubscription(dbUser);
 
@@ -51,7 +62,9 @@ const existingKeys = await db
                     Subscription
                 </h2>
 
-                {isSubscribed ? (
+                {subscriptionError ? (
+                    <p role="alert" class="text-sm text-destructive">{subscriptionError}</p>
+                ) : isSubscribed ? (
                     <div class="flex flex-col gap-4">
                         <div class="rounded-md border border-ring/20 bg-primary/10 p-4">
                             <p class="text-sm font-medium text-primary">
@@ -228,8 +241,14 @@ const existingKeys = await db
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                 });
-                const { url } = await res.json();
-                if (url) window.location.href = url;
+                const data = await res.json();
+                if (res.ok && data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.error || "Unable to open billing. Please try again.");
+                    portalBtn.textContent = "Manage Billing & Cards";
+                    portalBtn.style.opacity = "1";
+                }
             } catch (e) {
                 console.error(e);
                 portalBtn.textContent = "Manage Billing & Cards";

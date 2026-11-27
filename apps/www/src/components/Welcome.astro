@@ -1,106 +1,131 @@
 ---
+import { Image } from "astro:assets";
 import Hero from "./welcome/Hero.astro";
 import CollectionIntro from "./welcome/CollectionIntro.astro";
 import FeatureSection from "./welcome/FeatureSection.astro";
 import GettingStarted from "./welcome/GettingStarted.astro";
 
-const formats = ["MP3", "FLAC", "M4A", "OPUS", "+ more"];
+const players = [
+    {
+        title: "A smaller window while you work",
+        description:
+            "Use the mini player to pause, skip, and seek. Pin it above other windows when you want the controls nearby.",
+        src: "/screenshots/miniplayer.png",
+        width: 852,
+        height: 614,
+        alt: "Audexis mini player with artwork and playback controls.",
+    },
+    {
+        title: "More room for artwork and lyrics",
+        description:
+            "Open the full-screen player to see what’s playing, follow lyrics, and manage the queue.",
+        src: "/screenshots/fullscreen.png",
+        width: 3164,
+        height: 2070,
+        alt: "Audexis full-screen player with lyrics and album artwork.",
+    },
+];
 ---
 
-<div class="flex flex-1 flex-col">
-    <main
-        id="main"
-        class="mx-auto w-full flex-1 max-w-7xl px-5 sm:px-8 lg:px-12"
+<main class="mx-auto w-full max-w-7xl flex-1 px-5 sm:px-8 lg:px-12">
+    <Hero />
+    <CollectionIntro />
+    <FeatureSection
+        eyebrow="Metadata editor"
+        title="Fix the tags without leaving your library."
+        description="Change titles, artists, album names, and artwork. Select several songs to edit them together, or add custom fields. Save your edits directly to the music files."
+        image={{
+            src: "/screenshots/trackinfo.png",
+            alt: "Track information editor with metadata fields and artwork.",
+            width: 852,
+            height: 614,
+        }}
     >
-        <Hero />
-
-        <CollectionIntro />
-
-        <FeatureSection
-            id="mini-player"
-            eyebrow="MAKE IT YOURS"
-            title="Every detail."
-            subtitle="Just how you want it."
-            description="Fix missing titles, update artists and albums, and give your collection the details it deserves.Add custom fields and save your changes directly to your music files."
-            imagePosition="right"
-            image={{
-                src: "/screenshots/trackinfo.png",
-                alt: "audexis metadata editor showing editable song titles, artists, albums, and custom fields tab.",
-
-                width: 852,
-                height: 614,
-            }}
+        <a
+            href="/docs/apps/desktop/metadata"
+            class="mt-6 inline-block text-sm underline underline-offset-4 hover:text-primary"
         >
-            <div
-                aria-label="Example supported formats"
-                class="mt-6 flex flex-wrap gap-4 text-xs text-muted-foreground"
-            >
-                {formats.map((format) => (
-                    <span class="border-b border-border pb-2 hover:border-primary cursor-default">
-                        {format}
-                    </span>
-                ))}
+            About editing tags <span aria-hidden="true">↗</span>
+        </a>
+    </FeatureSection>
+
+    <section class="border-y border-border py-12 lg:py-16">
+        <h2 class="mb-8 text-3xl font-medium tracking-tight sm:text-4xl">
+            Choose how you want to listen.
+        </h2>
+        <div class="grid gap-6 md:grid-cols-2">
+            {players.map((player) => (
+                <article class="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 sm:p-7">
+                    <div class="mb-7 flex aspect-3/2 items-center justify-center">
+                        <Image
+                            src={player.src}
+                            width={player.width}
+                            height={player.height}
+                            alt={player.alt}
+                            loading="lazy"
+                            class="max-h-full w-full object-contain"
+                        />
+                    </div>
+                    <h3 class="text-xl font-medium tracking-tight">
+                        {player.title}
+                    </h3>
+                    <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {player.description}
+                    </p>
+                </article>
+            ))}
+        </div>
+    </section>
+
+    <FeatureSection
+        eyebrow="Listening history"
+        title="See what you’ve been playing."
+        description="Rewind shows your listening time and most-played songs, albums, and artists. Look through a month or a year of listening history."
+        imagePosition="left"
+        image={{
+            src: "/screenshots/rewind.png",
+            alt: "Rewind listening history showing listening time and top artists.",
+            width: 2850,
+            height: 1846,
+        }}
+    >
+        <a
+            href="/docs/apps/desktop/rewind"
+            class="mt-6 inline-block text-sm underline underline-offset-4 hover:text-primary"
+        >
+            How Rewind works <span aria-hidden="true">↗</span>
+        </a>
+    </FeatureSection>
+
+    <section class="grid gap-8 rounded-2xl border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16">
+        <div>
+            <p class="mb-4 font-mono text-xs text-primary">Cloud sync</p>
+            <h2 class="text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+                Access your library
+                <br />
+                on other devices.
+            </h2>
+        </div>
+        <div>
+            <p class="leading-relaxed text-muted-foreground">
+                Connect to audexis Cloud or your own audexis server to upload
+                music, sync playlists, and stream your library. Download cloud
+                songs when you need them offline.
+            </p>
+            <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                The desktop app is free. audexis Cloud costs $4.99/month and
+                includes 100 GB of storage. You can also connect your own
+                audexis server without a cloud subscription.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-5 text-sm">
+                <a href="/dashboard" class="underline underline-offset-4 hover:text-primary">
+                    Get audexis Cloud <span aria-hidden="true">↗</span>
+                </a>
+                <a href="/docs/apps/desktop/cloud-sync" class="underline underline-offset-4 hover:text-primary">
+                    Set up cloud sync <span aria-hidden="true">↗</span>
+                </a>
             </div>
-        </FeatureSection>
-
-        <FeatureSection
-            id="rewind"
-            eyebrow="MEET REWIND"
-            title="Some songs"
-            subtitle="stay with you."
-            description="See the artists, albums, and tracks you’ve spent time with. Explore your listening history by month or year, and find your way back to a favorite."
-            imagePosition="left"
-            image={{
-                src: "/screenshots/rewind.png",
-                alt: "audexis Rewind showing listening time and top artists for the selected year.",
-
-                width: 2850,
-                height: 1846,
-            }}
-        >
-            <a
-                href="/docs#rewind"
-                class="mt-6 inline-flex items-center gap-3 text-sm hover:text-primary focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-                Get to know Rewind{" "}
-                <span aria-hidden="true" class="text-xl leading-none">
-                    ↗
-                </span>
-            </a>
-        </FeatureSection>
-
-        <FeatureSection
-            id="mini-player"
-            eyebrow="KEEP MUSIC CLOSE"
-            title="Keep it close."
-            subtitle="Music by your side."
-            description="Keep your music beside whatever you’re doing in a compact, separate window. See what’s playing, skip tracks, and seek to your favorite part or pin the player above other windows to keep it close."
-            imagePosition="right"
-            image={{
-                src: "/screenshots/miniplayer.png",
-                alt: "audexis mini player showing album artwork, track details, and compact playback controls.",
-
-                width: 852,
-                height: 614,
-            }}
-        />
-        <FeatureSection
-            id="fullscreen"
-            eyebrow="KIMMERSE YOURSELF"
-            title="Take it all in."
-            subtitle="Just you and the music."
-            description="Set your library aside and settle into what’s playing. Follow the lyrics and explore your queue with playback controls always within reach."
-            imagePosition="left"
-            image={{
-                src: "/screenshots/fullscreen.png",
-                alt: "audexis fullscreen player showing album artwork, playback controls, and the lyrics panel.",
-
-                width: 3164,
-                height: 2070,
-            }}
-        />
-
-        <GettingStarted />
-        <div class="h-20"></div>
-    </main>
-</div>
+        </div>
+    </section>
+    <GettingStarted />
+</main>

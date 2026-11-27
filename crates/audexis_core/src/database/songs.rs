@@ -37,6 +37,10 @@ pub struct SongRow {
     pub format: String,
     #[sqlx(default)]
     pub playlist_ord: Option<i64>,
+    #[sqlx(default)]
+    pub disc_number: Option<i64>,
+    #[sqlx(default)]
+    pub track_number: Option<i64>,
     #[sqlx(skip)]
     pub metadata: HashMap<String, String>,
 }

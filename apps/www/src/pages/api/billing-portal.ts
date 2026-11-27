@@ -1,8 +1,9 @@
 import type { APIRoute } from "astro";
 import { stripe } from "../../lib/stripe";
-import { db } from "../../db";
-import { user as userTable } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import {
+  billingErrorResponse,
+  refreshSubscription,
+} from "../../lib/subscriptions";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -14,14 +15,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    const [dbUser] = await db
-      .select()
-      .from(userTable)
-      .where(eq(userTable.id, sessionUser.id));
+    const dbUser = await refreshSubscription(sessionUser.id);
 
     if (!dbUser?.stripeCustomerId) {
       return new Response(
-        JSON.stringify({ error: "No active Stripe customer profile found." }),
+        JSON.stringify({
+          error:
+            "No billing profile is available. Return to the dashboard to start a new subscription.",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -35,11 +36,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Billing Portal Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return billingErrorResponse(err);
   }
 };
