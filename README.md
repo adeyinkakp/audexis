@@ -97,19 +97,14 @@ codec and container, and differ between native clients (for now).
 
 ## Development priorities
 
-- Improve testing, error handling, and metadata compatibility.
-- Continue the desktop rewrite and mobile clients.
-- Expand library organization, including smart playlists and tag normalization.
-- Add more artwork customization and ways to organize files from their tags.
-
-These are areas of interest rather than release commitments. Propose specific
-changes through the [contribution process](CONTRIBUTING.md).
+See [TODO](TODO.md)
 
 ## Contributing and support
 
 Bug reports, documentation, accessibility improvements, and focused code
 contributions are welcome.
 
+- [TODO](TODO.md): any planned changes
 - [Contributing](CONTRIBUTING.md): setup, checks, and contribution expectations.
 - [Support](SUPPORT.md): questions, bug reports, and troubleshooting information.
 - [Security](SECURITY.md): reporting vulnerabilities privately.
